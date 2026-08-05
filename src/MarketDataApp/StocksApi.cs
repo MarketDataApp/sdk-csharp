@@ -143,8 +143,8 @@ public sealed class StocksApi
     }
 
     /// <summary>Gets bulk quotes for multiple stock symbols.</summary>
-    public Task<StockQuotesResponse> GetBulkQuotesAsync(string[] symbols, bool? extended = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
-        GetBulkQuotesAsync(new StockBulkQuotesRequest(symbols) { Extended = extended }, options, cancellationToken);
+    public Task<StockQuotesResponse> GetBulkQuotesAsync(string[] symbols, bool? extended = null, bool? snapshot = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
+        GetBulkQuotesAsync(new StockBulkQuotesRequest(symbols) { Extended = extended, Snapshot = snapshot }, options, cancellationToken);
 
     /// <summary>Executes the endpoint request.</summary>
     public async Task<StockQuotesResponse> GetBulkQuotesAsync(
@@ -156,6 +156,7 @@ public sealed class StocksApi
         var query = RequestQuery.From(options);
         RequestQuery.Add(query, "symbols", string.Join(",", request.Symbols));
         AddBoolean(query, "extended", request.Extended);
+        AddBoolean(query, "snapshot", request.Snapshot);
         var response = await _apiClient.GetAsync("stocks/bulkquotes", true, query, cancellationToken)
             .ConfigureAwait(false);
         var values = JsonResponseParser.DecodeOrDefault(
@@ -216,11 +217,6 @@ public sealed class StocksApi
         ArgumentNullException.ThrowIfNull(request);
         RequestValidator.ValidateDateWindow(
             request.Date, request.From, request.To, request.Countback, nameof(request));
-        if (options?.Columns is { Count: > 0 })
-        {
-            throw new ArgumentException("Columns projection is not supported for typed news responses.", nameof(options));
-        }
-
         var query = RequestQuery.From(options);
         RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, request.Countback);
         var response = await _apiClient.GetAsync(
@@ -372,8 +368,8 @@ public sealed class StocksApi
     }
 
     /// <summary>Gets bulk quotes for multiple stock symbols as CSV.</summary>
-    public Task<CsvResponse> GetBulkQuotesCsvAsync(string[] symbols, bool? extended = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
-        GetBulkQuotesCsvAsync(new StockBulkQuotesRequest(symbols) { Extended = extended }, options, cancellationToken);
+    public Task<CsvResponse> GetBulkQuotesCsvAsync(string[] symbols, bool? extended = null, bool? snapshot = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
+        GetBulkQuotesCsvAsync(new StockBulkQuotesRequest(symbols) { Extended = extended, Snapshot = snapshot }, options, cancellationToken);
 
     /// <summary>Executes the endpoint request.</summary>
     public async Task<CsvResponse> GetBulkQuotesCsvAsync(
@@ -385,6 +381,7 @@ public sealed class StocksApi
         var query = RequestQuery.Csv(options);
         RequestQuery.Add(query, "symbols", string.Join(",", request.Symbols));
         AddBoolean(query, "extended", request.Extended);
+        AddBoolean(query, "snapshot", request.Snapshot);
         return await GetCsvAsync("stocks/bulkquotes", query, cancellationToken).ConfigureAwait(false);
     }
 

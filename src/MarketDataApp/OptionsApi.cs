@@ -39,8 +39,8 @@ public sealed class OptionsApi
     }
 
     /// <summary>Gets available expiration dates for an underlying symbol.</summary>
-    public Task<OptionsExpirationsResponse> GetExpirationsAsync(string symbol, decimal? strike = null, DateOnly? date = null, bool? nonStandard = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
-        GetExpirationsAsync(new OptionsExpirationsRequest(symbol) { Strike = strike, Date = date, NonStandard = nonStandard }, options, cancellationToken);
+    public Task<OptionsExpirationsResponse> GetExpirationsAsync(string symbol, decimal? strike = null, DateOnly? date = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
+        GetExpirationsAsync(new OptionsExpirationsRequest(symbol) { Strike = strike, Date = date }, options, cancellationToken);
 
     /// <summary>Executes the endpoint request.</summary>
     public async Task<OptionsExpirationsResponse> GetExpirationsAsync(
@@ -52,7 +52,6 @@ public sealed class OptionsApi
         var query = RequestQuery.From(options);
         Add(query, "strike", request.Strike);
         AddDate(query, "date", request.Date);
-        AddBoolean(query, "nonstandard", request.NonStandard);
         var response = await _apiClient.GetAsync(
             $"options/expirations/{Uri.EscapeDataString(request.Symbol)}",
             true,
@@ -111,8 +110,8 @@ public sealed class OptionsApi
     }
 
     /// <summary>Gets historical or current quotes for one OCC option symbol.</summary>
-    public Task<OptionsQuotesResponse> GetQuoteAsync(string optionSymbol, DateOnly? date = null, DateOnly? from = null, DateOnly? to = null, int? countback = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
-        GetQuoteAsync(new OptionsQuoteRequest(optionSymbol) { Date = date, From = from, To = to, Countback = countback }, options, cancellationToken);
+    public Task<OptionsQuotesResponse> GetQuoteAsync(string optionSymbol, DateOnly? date = null, DateOnly? from = null, DateOnly? to = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
+        GetQuoteAsync(new OptionsQuoteRequest(optionSymbol) { Date = date, From = from, To = to }, options, cancellationToken);
 
     /// <summary>Executes the endpoint request.</summary>
     public async Task<OptionsQuotesResponse> GetQuoteAsync(
@@ -122,13 +121,12 @@ public sealed class OptionsApi
     {
         ArgumentNullException.ThrowIfNull(request);
         RequestValidator.ValidateDateWindow(
-            request.Date, request.From, request.To, request.Countback, nameof(request));
+            request.Date, request.From, request.To, countback: null, nameof(request));
         var response = await GetQuoteResponseAsync(
             request.OptionSymbol,
             request.Date,
             request.From,
             request.To,
-            request.Countback,
             options,
             cancellationToken).ConfigureAwait(false);
         return response;
@@ -137,8 +135,8 @@ public sealed class OptionsApi
     /// <summary>
     /// Gets quotes for multiple OCC option symbols. The API is called once per symbol concurrently.
     /// </summary>
-    public Task<IReadOnlyDictionary<string, OptionsQuotesResponse>> GetQuotesAsync(string[] optionSymbols, DateOnly? date = null, DateOnly? from = null, DateOnly? to = null, int? countback = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
-        GetQuotesAsync(new OptionsQuotesRequest(optionSymbols) { Date = date, From = from, To = to, Countback = countback }, options, cancellationToken);
+    public Task<IReadOnlyDictionary<string, OptionsQuotesResponse>> GetQuotesAsync(string[] optionSymbols, DateOnly? date = null, DateOnly? from = null, DateOnly? to = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
+        GetQuotesAsync(new OptionsQuotesRequest(optionSymbols) { Date = date, From = from, To = to }, options, cancellationToken);
 
     /// <summary>Executes the endpoint request.</summary>
     public async Task<IReadOnlyDictionary<string, OptionsQuotesResponse>> GetQuotesAsync(
@@ -148,7 +146,7 @@ public sealed class OptionsApi
     {
         ArgumentNullException.ThrowIfNull(request);
         RequestValidator.ValidateDateWindow(
-            request.Date, request.From, request.To, request.Countback, nameof(request));
+            request.Date, request.From, request.To, countback: null, nameof(request));
         var tasks = request.OptionSymbols.Select(async symbol =>
         {
             var response = await GetQuoteResponseAsync(
@@ -156,7 +154,6 @@ public sealed class OptionsApi
                 request.Date,
                 request.From,
                 request.To,
-                request.Countback,
                 options,
                 cancellationToken).ConfigureAwait(false);
             return (symbol, response);
@@ -231,8 +228,8 @@ public sealed class OptionsApi
     }
 
     /// <summary>Gets available expiration dates for an underlying symbol as CSV.</summary>
-    public Task<CsvResponse> GetExpirationsCsvAsync(string symbol, decimal? strike = null, DateOnly? date = null, bool? nonStandard = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
-        GetExpirationsCsvAsync(new OptionsExpirationsRequest(symbol) { Strike = strike, Date = date, NonStandard = nonStandard }, options, cancellationToken);
+    public Task<CsvResponse> GetExpirationsCsvAsync(string symbol, decimal? strike = null, DateOnly? date = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
+        GetExpirationsCsvAsync(new OptionsExpirationsRequest(symbol) { Strike = strike, Date = date }, options, cancellationToken);
 
     /// <summary>Executes the endpoint request.</summary>
     public async Task<CsvResponse> GetExpirationsCsvAsync(
@@ -244,7 +241,6 @@ public sealed class OptionsApi
         var query = RequestQuery.Csv(options);
         Add(query, "strike", request.Strike);
         AddDate(query, "date", request.Date);
-        AddBoolean(query, "nonstandard", request.NonStandard);
         return await GetCsvAsync(
             $"options/expirations/{Uri.EscapeDataString(request.Symbol)}", query, cancellationToken)
             .ConfigureAwait(false);
@@ -271,8 +267,8 @@ public sealed class OptionsApi
     }
 
     /// <summary>Gets historical or current quotes for one OCC option symbol as CSV.</summary>
-    public Task<CsvResponse> GetQuoteCsvAsync(string optionSymbol, DateOnly? date = null, DateOnly? from = null, DateOnly? to = null, int? countback = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
-        GetQuoteCsvAsync(new OptionsQuoteRequest(optionSymbol) { Date = date, From = from, To = to, Countback = countback }, options, cancellationToken);
+    public Task<CsvResponse> GetQuoteCsvAsync(string optionSymbol, DateOnly? date = null, DateOnly? from = null, DateOnly? to = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
+        GetQuoteCsvAsync(new OptionsQuoteRequest(optionSymbol) { Date = date, From = from, To = to }, options, cancellationToken);
 
     /// <summary>Executes the endpoint request.</summary>
     public async Task<CsvResponse> GetQuoteCsvAsync(
@@ -282,17 +278,17 @@ public sealed class OptionsApi
     {
         ArgumentNullException.ThrowIfNull(request);
         RequestValidator.ValidateDateWindow(
-            request.Date, request.From, request.To, request.Countback, nameof(request));
+            request.Date, request.From, request.To, countback: null, nameof(request));
         var query = RequestQuery.Csv(options);
-        RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, request.Countback);
+        RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, countback: null);
         return await GetCsvAsync(
             $"options/quotes/{Uri.EscapeDataString(request.OptionSymbol)}", query, cancellationToken)
             .ConfigureAwait(false);
     }
 
     /// <summary>Gets quotes for multiple OCC option symbols as CSV, one response per symbol.</summary>
-    public Task<IReadOnlyDictionary<string, CsvResponse>> GetQuotesCsvAsync(string[] optionSymbols, DateOnly? date = null, DateOnly? from = null, DateOnly? to = null, int? countback = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
-        GetQuotesCsvAsync(new OptionsQuotesRequest(optionSymbols) { Date = date, From = from, To = to, Countback = countback }, options, cancellationToken);
+    public Task<IReadOnlyDictionary<string, CsvResponse>> GetQuotesCsvAsync(string[] optionSymbols, DateOnly? date = null, DateOnly? from = null, DateOnly? to = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
+        GetQuotesCsvAsync(new OptionsQuotesRequest(optionSymbols) { Date = date, From = from, To = to }, options, cancellationToken);
 
     /// <summary>Executes the endpoint request.</summary>
     public async Task<IReadOnlyDictionary<string, CsvResponse>> GetQuotesCsvAsync(
@@ -302,11 +298,11 @@ public sealed class OptionsApi
     {
         ArgumentNullException.ThrowIfNull(request);
         RequestValidator.ValidateDateWindow(
-            request.Date, request.From, request.To, request.Countback, nameof(request));
+            request.Date, request.From, request.To, countback: null, nameof(request));
         var tasks = request.OptionSymbols.Select(async symbol =>
         {
             var query = RequestQuery.Csv(options);
-            RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, request.Countback);
+            RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, countback: null);
             var response = await GetCsvAsync(
                 $"options/quotes/{Uri.EscapeDataString(symbol)}", query, cancellationToken)
                 .ConfigureAwait(false);
@@ -370,12 +366,11 @@ public sealed class OptionsApi
         DateOnly? date,
         DateOnly? from,
         DateOnly? to,
-        int? countback,
         MarketDataRequestOptions? options,
         CancellationToken cancellationToken)
     {
         var query = RequestQuery.From(options);
-        RequestQuery.AddDateWindow(query, date, from, to, countback);
+        RequestQuery.AddDateWindow(query, date, from, to, countback: null);
         var response = await _apiClient.GetAsync(
             $"options/quotes/{Uri.EscapeDataString(optionSymbol)}",
             true,

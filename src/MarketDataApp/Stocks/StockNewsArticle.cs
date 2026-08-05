@@ -1,8 +1,9 @@
 namespace MarketDataApp.Stocks;
 
 /// <summary>
-/// A single news article for a stock. All fields are non-nullable — the news endpoint
-/// always returns the full article shape. Use the CSV facet if you need a partial projection.
+/// A single news article for a stock. All fields are non-nullable, so a <c>columns</c>
+/// projection must still request every article field; the endpoint returns the full
+/// article shape by default.
 /// </summary>
 /// <param name="Symbol">Ticker symbol the article is about.</param>
 /// <param name="Headline">Article headline.</param>

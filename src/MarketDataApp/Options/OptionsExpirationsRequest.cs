@@ -15,9 +15,6 @@ public record OptionsExpirationsRequest
     /// <summary>Return expirations as-of this historical date rather than live.</summary>
     public DateOnly? Date { get; init; }
 
-    /// <summary>Include non-standard contracts such as adjusted or mini options.</summary>
-    public bool? NonStandard { get; init; }
-
     /// <summary>Initializes the request with the required <paramref name="symbol"/>.</summary>
     public OptionsExpirationsRequest(string symbol)
     {

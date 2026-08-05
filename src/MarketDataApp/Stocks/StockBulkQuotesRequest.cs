@@ -9,6 +9,12 @@ public sealed record StockBulkQuotesRequest
     /// <summary>Include extended-hours quote data.</summary>
     public bool? Extended { get; init; }
 
+    /// <summary>
+    /// Request a whole-market snapshot. When <c>true</c> the API returns quotes for every
+    /// available ticker rather than only the supplied <see cref="Symbols"/>.
+    /// </summary>
+    public bool? Snapshot { get; init; }
+
     /// <summary>Initializes a request with one or more symbols.</summary>
     public StockBulkQuotesRequest(params string[] symbols) : this((IEnumerable<string>)symbols) { }
 

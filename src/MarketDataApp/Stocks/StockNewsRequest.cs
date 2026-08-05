@@ -4,9 +4,11 @@ namespace MarketDataApp.Stocks;
 /// Parameters for <c>GET /v1/stocks/news/{symbol}/</c>.
 /// </summary>
 /// <remarks>
-/// The news endpoint does not support a <c>columns</c> projection on the typed path
-/// because <see cref="StockNewsArticle"/> fields are non-nullable. Use the CSV facet
-/// if a projected payload is needed.
+/// A <c>columns</c> projection (via <see cref="MarketDataRequestOptions.Columns"/>) is honored
+/// on the typed path like every other endpoint. Because <see cref="StockNewsArticle"/> fields
+/// are non-nullable, a projected subset must still include the article columns
+/// (<c>symbol</c>, <c>headline</c>, <c>content</c>, <c>source</c>, <c>publicationDate</c>);
+/// the optional <c>updated</c> scalar may be omitted.
 /// </remarks>
 public record StockNewsRequest
 {

@@ -92,9 +92,10 @@ var response = await client.Stocks.GetQuotesAsync(
     cancellationToken);
 ```
 
-`Headers` and `Human` apply to CSV requests. Typed JSON responses use
-`System.Text.Json`; endpoint responses expose typed values and response metadata rather
-than a configurable global serializer.
+`DateFormat` and `Columns` apply to both typed JSON and CSV requests. `Headers` and `Human`
+apply to CSV / human-readable output only: typed JSON responses always return typed models
+keyed by property name (the array-keyed JSON decoder requires the machine field names), so
+`human` is never sent on the JSON request path regardless of this flag.
 
 ## Response metadata and files
 

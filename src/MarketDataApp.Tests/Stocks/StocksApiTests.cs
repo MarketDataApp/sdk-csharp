@@ -314,4 +314,53 @@ public sealed class StocksApiTests
         Assert.Contains("candle=true", handler.LastRequest!.RequestUri!.Query);
     }
 
+    [Fact]
+    public async Task GetNewsAsync_SendsColumnsAndParsesProjectedSubset()
+    {
+        var handler = new StubHttpMessageHandler(_ => MarketDataTestClient.JsonResponse("""
+        {
+          "s": "ok",
+          "symbol": ["AAPL"],
+          "headline": ["Apple reports results"],
+          "content": ["Summary"],
+          "source": ["https://example.com/article"],
+          "publicationDate": [1706745600]
+        }
+        """));
+        var client = MarketDataTestClient.Create(handler);
+
+        var response = await client.Stocks.GetNewsAsync(
+            new StockNewsRequest("AAPL"),
+            new MarketDataRequestOptions
+            {
+                Columns = ["symbol", "headline", "content", "source", "publicationDate"]
+            });
+
+        Assert.Equal("Apple reports results", response.Values[0].Headline);
+        Assert.Null(response.Updated);
+        Assert.Contains(
+            "columns=symbol%2Cheadline%2Ccontent%2Csource%2CpublicationDate",
+            handler.LastRequest!.RequestUri!.Query);
+    }
+
+    [Fact]
+    public async Task GetBulkQuotesAsync_SendsSnapshotParameter()
+    {
+        var handler = new StubHttpMessageHandler(_ => MarketDataTestClient.JsonResponse("""
+        {
+          "s": "ok",
+          "symbol": ["AAPL", "MSFT"],
+          "mid": [190.25, 420.5],
+          "updated": [1706745600, 1706745600]
+        }
+        """));
+        var client = MarketDataTestClient.Create(handler);
+
+        var response = await client.Stocks.GetBulkQuotesAsync(
+            new StockBulkQuotesRequest("AAPL", "MSFT") { Snapshot = true });
+
+        Assert.Equal(2, response.Values.Count);
+        Assert.Contains("snapshot=true", handler.LastRequest!.RequestUri!.Query);
+    }
+
 }

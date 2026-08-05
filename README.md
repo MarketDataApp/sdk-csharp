@@ -247,9 +247,9 @@ response formatting:
 | `Mode`       | `Mode?`                   | Requested data freshness (cached/live/etc.). |
 | `Limit`      | `int?`                    | Maximum rows returned. |
 | `Offset`     | `int?`                    | Rows to skip. |
-| `Columns`    | `IReadOnlyList<string>?`  | Columns to include in the response. |
-| `Headers`    | `bool?`                   | CSV: include a header row. |
-| `Human`      | `bool?`                   | CSV: use human-readable field names. |
+| `Columns`    | `IReadOnlyList<string>?`  | Columns to include in the response (typed JSON and CSV). |
+| `Headers`    | `bool?`                   | CSV output only: include a header row. |
+| `Human`      | `bool?`                   | CSV / human-readable output only. Typed JSON always returns typed models by property name, so `human` is never sent on the JSON path. |
 
 ### Response objects
 
@@ -342,7 +342,9 @@ var resp = await client.Stocks.GetNewsAsync(
 ```
 
 `StockNewsArticle` fields: `Symbol`, `Headline`, `Content`, `Source`, `PublicationDate`.
-CSV variant: `GetNewsCsvAsync`. Columns projection is not supported for typed news responses.
+CSV variant: `GetNewsCsvAsync`. A `Columns` projection is honored on the typed path too; because
+the article fields are non-nullable, a projected subset must still include all five article
+columns (the optional `updated` scalar may be dropped).
 
 #### Earnings
 
@@ -379,14 +381,14 @@ CSV variant: `GetLookupCsvAsync`.
 var resp = await client.Options.GetExpirationsAsync(
     new OptionsExpirationsRequest("AAPL")
     {
-        Strike      = 150.0,
-        NonStandard = false
+        Strike = 150.0m
     });
 // resp.Values — IReadOnlyList<DateTimeOffset>
 // resp.Updated — DateTimeOffset?
 ```
 
-CSV variant: `GetExpirationsCsvAsync`.
+Optional fields: `Strike` (filter to expirations that have a contract at this strike),
+`Date` (historical as-of date). CSV variant: `GetExpirationsCsvAsync`.
 
 #### Strikes
 
@@ -411,11 +413,12 @@ CSV variant: `GetStrikesCsvAsync`.
 var resp = await client.Options.GetQuoteAsync(
     new OptionsQuoteRequest("AAPL250117C00150000")
     {
-        Countback = 5
+        From = new DateOnly(2025, 1, 2),
+        To   = new DateOnly(2025, 1, 10)
     });
 ```
 
-Optional date-window fields: `Date`, `From`/`To`, `Countback`.
+Optional date-window fields: `Date`, `From`/`To`.
 `OptionsQuotesResponse.Values` — `IReadOnlyList<OptionQuote>`.
 CSV variant: `GetQuoteCsvAsync`.
 

@@ -19,9 +19,6 @@ public record OptionsQuotesRequest
     /// <summary>End date (inclusive) of the historical quote series (applied to every symbol).</summary>
     public DateOnly? To { get; init; }
 
-    /// <summary>Number of quotes per symbol, counting back from <see cref="To"/> (or today).</summary>
-    public int? Countback { get; init; }
-
     /// <summary>Initializes the request with one or more OCC option symbols.</summary>
     public OptionsQuotesRequest(params string[] optionSymbols) : this((IEnumerable<string>)optionSymbols) { }
 

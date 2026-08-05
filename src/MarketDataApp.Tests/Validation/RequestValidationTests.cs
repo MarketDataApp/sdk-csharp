@@ -17,8 +17,8 @@ public sealed class RequestValidationTests
         var handler = new StubHttpMessageHandler(_ => MarketDataTestClient.JsonResponse("""{"s":"no_data"}"""));
         var client = MarketDataTestClient.Create(handler);
 
-        await client.Options.GetQuoteAsync(
-            new OptionsQuoteRequest("AAPL250117C00150000")
+        await client.Stocks.GetNewsAsync(
+            new StockNewsRequest("AAPL")
             {
                 To = new DateOnly(2025, 1, 10),
                 Countback = 5
@@ -38,8 +38,6 @@ public sealed class RequestValidationTests
             new FundCandlesRequest(FundResolution.Daily, "VTI") { From = from, Countback = 5 }));
         await Assert.ThrowsAsync<ArgumentException>(() => client.Markets.GetStatusAsync(
             new MarketStatusRequest { From = from, Countback = 5 }));
-        await Assert.ThrowsAsync<ArgumentException>(() => client.Options.GetQuoteAsync(
-            new OptionsQuoteRequest("AAPL250117C00150000") { From = from, Countback = 5 }));
         await Assert.ThrowsAsync<ArgumentException>(() => client.Stocks.GetNewsAsync(
             new StockNewsRequest("AAPL") { From = from, Countback = 5 }));
     }

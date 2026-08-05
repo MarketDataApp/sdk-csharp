@@ -39,8 +39,7 @@ public sealed class OptionsApiTests
             new OptionsExpirationsRequest("AAPL")
             {
                 Strike = 150,
-                Date = new DateOnly(2025, 1, 10),
-                NonStandard = true
+                Date = new DateOnly(2025, 1, 10)
             });
 
         Assert.Single(response.Values);
@@ -48,7 +47,7 @@ public sealed class OptionsApiTests
         Assert.Equal("/v1/options/expirations/AAPL/", handler.LastRequest!.RequestUri!.AbsolutePath);
         Assert.Contains("strike=150", handler.LastRequest.RequestUri.Query);
         Assert.Contains("date=2025-01-10", handler.LastRequest.RequestUri.Query);
-        Assert.Contains("nonstandard=true", handler.LastRequest.RequestUri.Query);
+        Assert.DoesNotContain("nonstandard", handler.LastRequest.RequestUri.Query);
     }
 
     [Fact]
@@ -72,15 +71,14 @@ public sealed class OptionsApiTests
         var response = await client.Options.GetQuoteAsync(
             new OptionsQuoteRequest("AAPL250117C00150000")
             {
-                To = new DateOnly(2025, 1, 10),
-                Countback = 3
+                To = new DateOnly(2025, 1, 10)
             });
 
         Assert.Equal(12.5m, response.Values[0].Last);
         Assert.Equal(10, response.Values[0].Dte);
         Assert.Equal("/v1/options/quotes/AAPL250117C00150000/", handler.LastRequest!.RequestUri!.AbsolutePath);
         Assert.Contains("to=2025-01-10", handler.LastRequest.RequestUri.Query);
-        Assert.Contains("countback=3", handler.LastRequest.RequestUri.Query);
+        Assert.DoesNotContain("countback", handler.LastRequest.RequestUri.Query);
     }
 
     [Fact]
@@ -209,9 +207,9 @@ public sealed class OptionsApiTests
         var handler = new StubHttpMessageHandler(_ => MarketDataTestClient.JsonResponse("""{"s":"ok","optionSymbol":["AAPL250117C00150000"]}"""));
         var client = MarketDataTestClient.Create(handler);
 
-        await client.Options.GetQuoteAsync("AAPL250117C00150000", countback: 5);
+        await client.Options.GetQuoteAsync("AAPL250117C00150000", date: new DateOnly(2025, 1, 10));
 
-        Assert.Contains("countback=5", handler.LastRequest!.RequestUri!.Query);
+        Assert.Contains("date=2025-01-10", handler.LastRequest!.RequestUri!.Query);
     }
 
 }

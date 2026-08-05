@@ -19,9 +19,6 @@ public record OptionsQuoteRequest
     /// <summary>End date (inclusive) of the historical quote series.</summary>
     public DateOnly? To { get; init; }
 
-    /// <summary>Number of quotes to return, counting back from <see cref="To"/> (or today).</summary>
-    public int? Countback { get; init; }
-
     /// <summary>Initializes the request with the required <paramref name="optionSymbol"/>.</summary>
     public OptionsQuoteRequest(string optionSymbol)
     {
