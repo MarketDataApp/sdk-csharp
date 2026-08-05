@@ -68,6 +68,11 @@ MarketData.app SDK requirements sections they satisfy.
 
 ### Changed
 
+- Logs and telemetry now include the full request URL, query string included (via the
+  `url.full` activity tag and the request/response log lines), matching the URL already
+  reported on exceptions. The API token is never placed in the URL — it is sent only as
+  an `Authorization: Bearer` header and is redacted (last-4) wherever logged — so no
+  credential is exposed.
 - `AddMarketDataClient` now auto-wires the container's `ILogger<MarketDataClient>`
   into the SDK when the application has logging configured, so SDK logs flow
   automatically in DI apps without extra wiring. An explicitly supplied

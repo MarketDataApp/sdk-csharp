@@ -156,7 +156,7 @@ internal sealed class ApiClient : IDisposable
         {
             try
             {
-                LogAt(LogLevel.Debug)?.LogDebug("Sending GET request to {RequestUrl}.", SafeUri(requestUri));
+                LogAt(LogLevel.Debug)?.LogDebug("Sending GET request to {RequestUrl}.", requestUri);
                 return await SendOnceAsync(requestUri, cancellationToken).ConfigureAwait(false);
             }
             catch (MarketDataException exception) when (
@@ -171,7 +171,7 @@ internal sealed class ApiClient : IDisposable
                 {
                     LogAt(LogLevel.Warning)?.LogWarning(
                         "Skipping retry for {RequestUrl}: the cached /status/ reports the service offline.",
-                        SafeUri(requestUri));
+                        requestUri);
                     throw;
                 }
 
@@ -191,7 +191,7 @@ internal sealed class ApiClient : IDisposable
                     exception,
                     "Market Data request failed with {ExceptionType} for {RequestUrl}.",
                     exception.ExceptionType,
-                    SafeUri(exception.RequestUrl));
+                    exception.RequestUrl);
                 throw;
             }
         }
@@ -234,7 +234,7 @@ internal sealed class ApiClient : IDisposable
             "marketdata.http.get",
             ActivityKind.Client);
         activity?.SetTag("http.request.method", "GET");
-        activity?.SetTag("url.full", SafeUri(requestUri).AbsoluteUri);
+        activity?.SetTag("url.full", requestUri.AbsoluteUri);
 
         InternalApiResponse result;
         try
@@ -260,7 +260,7 @@ internal sealed class ApiClient : IDisposable
             LogAt(LogLevel.Debug)?.LogDebug(
                 "Received HTTP {StatusCode} from {RequestUrl}.",
                 (int)response.StatusCode,
-                SafeUri(requestUri));
+                requestUri);
             activity?.SetTag("http.response.status_code", (int)response.StatusCode);
             activity?.SetTag("marketdata.request_id", requestId);
             // A 2xx or 404 is a usable response (404 == "no data"); anything else is mapped to an
@@ -520,9 +520,6 @@ internal sealed class ApiClient : IDisposable
         }
     }
 
-    private static Uri SafeUri(Uri requestUri) =>
-        new UriBuilder(requestUri) { Query = string.Empty, Fragment = string.Empty }.Uri;
-
     /// <summary>
     /// Performs an asynchronous <c>GET /user/</c> to fail fast on an invalid token
     /// (throwing <see cref="AuthenticationException"/>) and to seed
@@ -545,7 +542,7 @@ internal sealed class ApiClient : IDisposable
                 exception,
                 "Startup token validation failed with {ExceptionType} for {RequestUrl}.",
                 exception.ExceptionType,
-                SafeUri(exception.RequestUrl));
+                exception.RequestUrl);
             throw;
         }
     }

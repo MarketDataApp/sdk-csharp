@@ -23,9 +23,13 @@ servers), not on Market Data infrastructure. The security concerns that matter h
 are therefore about how the library treats *its consumers*:
 
 - **Credential handling** — the caller's API token must never be logged verbatim,
-  leaked in exception messages, or written to disk. Query strings are stripped from
-  telemetry (`SafeUri`) and tokens are redacted to the last four characters
-  (`RedactToken`). Regressions here are in scope.
+  leaked in exception messages, or written to disk. The token is **never placed in the
+  URL**: it is sent only as an `Authorization: Bearer` header and is redacted to its
+  last four characters (`RedactToken`) wherever it is logged. Full request URLs,
+  *including their query strings*, are intentionally included in logs, telemetry
+  (`url.full`), and exceptions for diagnostics — the endpoint's own query parameters
+  (symbols, dates, columns, etc.) are diagnostic, not secret, and carry no credential.
+  Regressions in the token guarantee are in scope.
 - **Transport security** — TLS is validated by default and the SDK exposes no
   skip-verify option. Anything that weakens this is in scope.
 - **Injection into outbound requests** — request-building that lets caller input
