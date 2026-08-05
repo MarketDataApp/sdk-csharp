@@ -1,0 +1,45 @@
+# Auto-merges Dependabot pull requests for minor and patch version bumps.
+#
+# One-time repository configuration required for this to actually merge:
+#   - Settings > General > Pull Requests > "Allow auto-merge" must be enabled.
+#   - Branch protection on `main` must require at least one status check (e.g.
+#     the CI build). `gh pr merge --auto` only completes the merge once the
+#     required checks pass; without branch protection the PR would merge
+#     immediately, defeating the safety of the auto gate.
+#
+# Mirrors the Java SDK's dependabot-auto-merge workflow. Major-version bumps are
+# intentionally left for manual review.
+name: dependabot-auto-merge
+
+on: pull_request_target
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependabot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.actor == 'dependabot[bot]'
+    steps:
+
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Auto-merge Dependabot PRs for semver-minor updates
+        if: steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        run: gh pr merge --auto --merge "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Auto-merge Dependabot PRs for semver-patch updates
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        run: gh pr merge --auto --merge "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

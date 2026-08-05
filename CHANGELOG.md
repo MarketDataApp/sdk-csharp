@@ -54,6 +54,16 @@ MarketData.app SDK requirements sections they satisfy.
 - Continuous integration: cross-OS unit-test matrix (ubuntu, windows, macOS), a
   line + branch coverage gate, a coverage-report artifact, and live integration
   tests wired to run on pull requests and releases. (§13)
+- CI/CD supply-chain and cost hardening, mirroring the sibling MarketData SDKs:
+  Dependabot (`github-actions` + `nuget`, weekly) with an auto-merge workflow for
+  semver-minor/patch bumps; least-privilege `permissions: contents: read` and a
+  PR-only cancel concurrency group on CI; a Codecov coverage upload (opencover)
+  plus CI/coverage README badges; OIDC Trusted Publishing to NuGet.org
+  (`NuGet/login`, no long-lived API key) with SLSA build-provenance attestation
+  of the `.nupkg`/`.snupkg` before push; a release-triggered changelog-update
+  automation; and a PR-vs-post-merge matrix split (PRs build ubuntu-only, main /
+  releases run the full OS matrix) that keeps the 100% coverage gate and PR
+  integration tests on every run.
 - This `CHANGELOG.md`.
 
 ### Changed

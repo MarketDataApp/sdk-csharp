@@ -1,11 +1,25 @@
 name: Release
 
-# Triggers:
+# Triggers (UNCHANGED — nothing publishes until a version tag is pushed):
 #  - Push of a semver tag  (e.g. git tag v0.2.0 && git push origin v0.2.0)
 #  - Manual dispatch with an optional version override
 #
-# Secrets required:
-#  - NUGET_API_KEY  — NuGet.org API key with push permission
+# Publishing model: OIDC Trusted Publishing to NuGet.org.
+#  (a) ONE-TIME SETUP: a Trusted Publisher policy for this repository +
+#      workflow must be registered on NuGet.org (Account > Trusted Publishing)
+#      and linked to the package/owner before the first publish. Until that
+#      policy exists, the `NuGet/login` step below cannot mint a key.
+#  (b) NO long-lived NUGET_API_KEY secret is required — `NuGet/login@v1`
+#      exchanges the workflow's short-lived OIDC token for a temporary API key
+#      that is valid for only this run.
+#  (c) Provenance for every produced *.nupkg / *.snupkg is attested via
+#      actions/attest-build-provenance BEFORE anything is pushed.
+#
+# Legacy fallback (only if OIDC / Trusted Publishing is not yet set up):
+#   store a NuGet.org push API key as the `NUGET_API_KEY` repo secret, delete
+#   the "NuGet login (OIDC Trusted Publishing)" step, and change the push steps'
+#   --api-key to "${{ secrets.NUGET_API_KEY }}". See the commented block on the
+#   push steps below.
 
 on:
   push:
@@ -25,7 +39,9 @@ jobs:
     name: Pack and publish to NuGet.org
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      id-token: write       # mint the OIDC token for NuGet Trusted Publishing + attestation
+      contents: read        # checkout only
+      attestations: write   # write the build-provenance attestation
 
     steps:
       - uses: actions/checkout@v4
@@ -85,19 +101,44 @@ jobs:
             ${EXTRA} \
             -o artifacts/
 
+      # Attest build provenance for the packages BEFORE they are pushed, so the
+      # signed SLSA provenance covers exactly the bytes that get published. This
+      # needs id-token: write + attestations: write (declared above).
+      - name: Attest build provenance for packages
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg
+
+      # Exchange the job's short-lived OIDC token for a temporary NuGet.org API
+      # key. Requires the one-time Trusted Publisher policy described in the
+      # header. Replace the `user` value with the NuGet.org account/username that
+      # owns the Trusted Publisher policy (kept in a repo variable here).
+      - name: NuGet login (OIDC Trusted Publishing)
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          # PLACEHOLDER: set the `NUGET_USER` repository variable to the
+          # NuGet.org username registered in the Trusted Publisher policy.
+          user: ${{ vars.NUGET_USER }}
+
       - name: Push .nupkg to NuGet.org
+        # Legacy fallback (no OIDC): drop the NuGet/login step and use
+        #   --api-key "${{ secrets.NUGET_API_KEY }}"
         run: |
           dotnet nuget push "artifacts/*.nupkg" \
-            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
 
       - name: Push .snupkg symbols to NuGet.org
-        # continue on error so a missing snupkg does not block the release
+        # continue on error so a missing snupkg does not block the release.
+        # Legacy fallback: --api-key "${{ secrets.NUGET_API_KEY }}"
         continue-on-error: true
         run: |
           dotnet nuget push "artifacts/*.snupkg" \
-            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
 

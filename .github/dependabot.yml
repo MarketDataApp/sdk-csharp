@@ -1,0 +1,25 @@
+# Please see the documentation for all configuration options:
+# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
+version: 2
+updates:
+
+  # Keep the GitHub Actions used by every workflow in .github/workflows pinned
+  # and up to date. Dependabot scans the workflow files under "/".
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+
+  # The NuGet updater discovers the <PackageReference> entries in the solution's
+  # *.csproj projects starting from the repository root ("/"), so no per-project
+  # directory list is required.
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+    open-pull-requests-limit: 10

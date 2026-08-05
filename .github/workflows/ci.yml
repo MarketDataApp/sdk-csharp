@@ -14,18 +14,53 @@ on:
         type: boolean
         default: false
 
+# Least privilege by default: the CI jobs only need to read the repo. Any job
+# that needs more should elevate its own `permissions:` block rather than the
+# whole workflow being granted write scopes.
+permissions:
+  contents: read
+
+# Cancel superseded runs on the same pull request, but never cancel main /
+# release runs (each merge should produce a full result and coverage baseline).
+concurrency:
+  group: "ci-${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # Picks the OS matrix based on the triggering event: pull requests run
+  # ubuntu-only to keep per-PR cost low, while push-to-main, releases, and
+  # manual dispatch exercise the full cross-OS matrix (§13 forward-compat).
+  # The unit/build OS matrix is the ONLY thing trimmed on PRs; the coverage
+  # gate and the integration job are unaffected.
+  setup:
+    name: Select OS matrix
+    runs-on: ubuntu-latest
+    outputs:
+      os: ${{ steps.matrix.outputs.os }}
+    steps:
+      - name: Choose OS list by event
+        id: matrix
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo 'os=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'os=["ubuntu-latest","windows-latest","macos-latest"]' >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Build / Test / Pack (${{ matrix.os }})
+    needs: setup
     runs-on: ${{ matrix.os }}
     strategy:
       # Run every OS to completion even if one fails, so a single-platform
       # failure still yields results for the others.
       fail-fast: false
       matrix:
-        # The library targets net10.0 only, so we vary the runtime OS rather than
-        # the TFM to exercise multiple runtime environments (§13).
-        os: [ ubuntu-latest, windows-latest, macos-latest ]
+        # Dynamic per §7: ubuntu-only on PRs, full matrix otherwise. The library
+        # targets net10.0 only, so we vary the runtime OS rather than the TFM to
+        # exercise multiple runtime environments (§13).
+        os: ${{ fromJSON(needs.setup.outputs.os) }}
 
     steps:
       - uses: actions/checkout@v4
@@ -53,7 +88,8 @@ jobs:
       # ThresholdType is written as %2c so the value parses identically under bash,
       # pwsh and cmd across the OS matrix. The same run emits the opencover report.
       # Coverage is at 100% line and 100% branch, so this gate passes; it fails the
-      # job if coverage regresses below 100%.
+      # job if coverage regresses below 100%. The gate runs on EVERY matrix leg and
+      # therefore on every event (PR, push, release, dispatch) per §7.
       - name: Test with coverage (100% line+branch gate)
         # Force bash on every runner (incl. Windows via Git Bash) so the multi-line
         # command and backslash continuations parse consistently across the matrix.
@@ -69,6 +105,20 @@ jobs:
             -p:ThresholdStat=total \
             --results-directory TestResults \
             --logger "trx;LogFileName=test-results.trx"
+
+      # Publish coverage to Codecov from the ubuntu leg only (one canonical
+      # upload). Works tokenless for public repos; CODECOV_TOKEN is only needed
+      # for private repos or to avoid rate limits, and is optional here.
+      # fail_ci_if_error is false so a Codecov outage never fails the build.
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v5
+        with:
+          # coverlet.msbuild writes CoverletOutput relative to the test project dir.
+          files: src/MarketDataApp.Tests/TestResults/coverage.opencover.xml
+          slug: MarketDataApp/sdk-csharp
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Check formatting
         if: matrix.os == 'ubuntu-latest'
@@ -108,10 +158,12 @@ jobs:
   integration:
     name: Integration Tests (live)
     # Runs on pull requests and on published releases, plus manual dispatch with the
-    # checkbox enabled — never on ordinary pushes/commits to a branch. The
-    # IntegrationFactAttribute guard inside the tests also skips individual tests when
-    # MARKETDATA_TOKEN or MARKETDATA_RUN_INTEGRATION_TESTS is absent (e.g. fork PRs
-    # that cannot see repository secrets).
+    # checkbox enabled — never on ordinary pushes/commits to a branch. Per §13 the
+    # integration suite MUST keep running on PRs, so it is deliberately independent
+    # of the trimmed unit/build OS matrix above. The IntegrationFactAttribute guard
+    # inside the tests also skips individual tests when MARKETDATA_TOKEN or
+    # MARKETDATA_RUN_INTEGRATION_TESTS is absent (e.g. fork PRs that cannot see
+    # repository secrets).
     if: >-
       github.event_name == 'pull_request' ||
       github.event_name == 'release' ||

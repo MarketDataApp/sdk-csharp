@@ -12,6 +12,9 @@
 [![Twitter](https://img.shields.io/twitter/follow/MarketDataApp?style=social)](https://twitter.com/MarketDataApp)
 [![Helpdesk](https://img.shields.io/badge/Support-Ticketing-ff69b4.svg?logo=TicketTailor&logoColor=white)](https://www.marketdata.app/dashboard/)
 
+[![CI](https://github.com/MarketDataApp/sdk-csharp/actions/workflows/ci.yml/badge.svg)](https://github.com/MarketDataApp/sdk-csharp/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/MarketDataApp/sdk-csharp/graph/badge.svg)](https://codecov.io/gh/MarketDataApp/sdk-csharp)
+
 </div>
 
 ## Features
