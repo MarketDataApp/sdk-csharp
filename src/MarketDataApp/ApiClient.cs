@@ -8,8 +8,12 @@ using Microsoft.Extensions.Logging;
 
 namespace MarketDataApp;
 
-internal sealed class ApiClient
+internal sealed class ApiClient : IDisposable
 {
+    // Fixed 99s per-request timeout satisfies §10 and is intentionally not configurable.
+    // A separate 2s connection timeout is the caller-owned HttpClient handler's concern.
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(99);
+
     private readonly HttpClient _httpClient;
     private readonly MarketDataClientOptions _options;
     private readonly ILogger? _logger;
@@ -24,10 +28,6 @@ internal sealed class ApiClient
         if (_options.BaseAddress is null)
         {
             throw new ArgumentException("BaseAddress is required.", nameof(options));
-        }
-        if (_options.Timeout <= TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(nameof(options), "Timeout must be positive.");
         }
         if (_options.MaxRetries < 0)
         {
@@ -55,11 +55,11 @@ internal sealed class ApiClient
                 nameof(options),
                 "RetryJitterFactor must be between 0 and 1.");
         }
-        if (_options.MaxConcurrentRequests <= 0)
+        if (_options.MaxConcurrentRequests <= 0 || _options.MaxConcurrentRequests > 50)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(options),
-                "MaxConcurrentRequests must be positive.");
+                "MaxConcurrentRequests must be between 1 and 50.");
         }
         if (_options.TimeProvider is null)
         {
@@ -90,6 +90,10 @@ internal sealed class ApiClient
     }
 
     public RateLimitSnapshot? LatestRateLimit => Volatile.Read(ref _latestRateLimit);
+
+    /// <summary>Releases the concurrency gate owned by this client. The caller-owned
+    /// <see cref="HttpClient"/> is intentionally not disposed.</summary>
+    public void Dispose() => _concurrencyGate.Dispose();
 
     internal Uri CreateRequestUri(
         string path,
@@ -156,7 +160,10 @@ internal sealed class ApiClient
         CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
-        using var timeoutCts = new CancellationTokenSource(_options.Timeout, _options.TimeProvider);
+        // Fixed 99s per-request timeout satisfies §10 (not configurable); the injected
+        // TimeProvider drives the CTS so tests can control time. A separate 2s connection
+        // timeout is the caller-owned HttpClient handler's concern.
+        using var timeoutCts = new CancellationTokenSource(RequestTimeout, _options.TimeProvider);
         using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken,
             timeoutCts.Token);
@@ -186,7 +193,7 @@ internal sealed class ApiClient
             using var memory = new MemoryStream();
             await responseContent.CopyToAsync(memory, requestCancellationToken).ConfigureAwait(false);
             var body = memory.ToArray();
-            var requestId = GetHeader(response, "x-request-id") ?? GetHeader(response, "cf-ray");
+            var requestId = GetHeader(response, "cf-ray") ?? GetHeader(response, "x-request-id");
             var rateLimit = ParseRateLimit(response.Headers);
             if (rateLimit is not null)
             {

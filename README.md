@@ -179,7 +179,6 @@ such as user secrets, environment variables, and Azure Key Vault.
 | `MARKETDATA_TOKEN`                 | `ApiToken`              | `null`             | Bearer token for authenticated requests. |
 | `MARKETDATA_BASE_URL`              | `BaseAddress`           | `https://api.marketdata.app/` | API base URI. |
 | `MARKETDATA_API_VERSION`               | `ApiVersion`            | `"v1"`             | Version path segment for versioned endpoints. |
-| `MARKETDATA_TIMEOUT`                  | `Timeout`               | `00:01:39` (99 s)  | Per-attempt HTTP timeout. Independently applied to each retry attempt. |
 | `MARKETDATA_MAX_RETRIES`               | `MaxRetries`            | `3`                | Retry attempts *after* the original request. Maximum of 4 total attempts. |
 | `MARKETDATA_RETRY_BASE_DELAY`           | `RetryBaseDelay`         | `00:00:01`         | Starting exponential backoff delay. |
 | `MARKETDATA_RETRY_MAX_DELAY`            | `RetryMaxDelay`         | `00:00:30`         | Exponential backoff cap (no `Retry-After`). |

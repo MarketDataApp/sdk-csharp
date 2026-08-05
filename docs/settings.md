@@ -10,7 +10,6 @@ keys:
 | `MARKETDATA_TOKEN` | `ApiToken` | `null` |
 | `MARKETDATA_BASE_URL` | `BaseAddress` | `https://api.marketdata.app/` |
 | `MARKETDATA_API_VERSION` | `ApiVersion` | `v1` |
-| `MARKETDATA_TIMEOUT` | `Timeout` | 99 seconds |
 | `MARKETDATA_MAX_RETRIES` | `MaxRetries` | 3 retries |
 | `MARKETDATA_MAX_CONCURRENT_REQUESTS` | `MaxConcurrentRequests` | 50 |
 

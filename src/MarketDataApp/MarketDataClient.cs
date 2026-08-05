@@ -3,7 +3,7 @@ namespace MarketDataApp;
 /// <summary>
 /// Entry point for asynchronous access to the Market Data API.
 /// </summary>
-public sealed class MarketDataClient
+public sealed class MarketDataClient : IDisposable
 {
     private readonly ApiClient _apiClient;
 
@@ -33,4 +33,10 @@ public sealed class MarketDataClient
     public OptionsApi Options { get; }
     /// <summary>Latest complete rate-limit snapshot received by this client.</summary>
     public RateLimitSnapshot? LatestRateLimit => _apiClient.LatestRateLimit;
+
+    /// <summary>
+    /// Releases resources owned by this client. The caller-owned
+    /// <see cref="HttpClient"/> supplied to the constructor is intentionally not disposed.
+    /// </summary>
+    public void Dispose() => _apiClient.Dispose();
 }

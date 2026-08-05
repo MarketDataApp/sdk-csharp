@@ -217,8 +217,7 @@ public sealed class ApiClientTests
         var handler = new DelayingHandler();
         var client = CreateClient(handler, new MarketDataClientOptions
         {
-            MaxRetries = 0,
-            Timeout = TimeSpan.FromSeconds(5)
+            MaxRetries = 0
         });
         var request = client.Stocks.GetQuoteAsync(
             new StockQuoteRequest("AAPL"),
@@ -232,16 +231,23 @@ public sealed class ApiClientTests
     [Fact]
     public async Task RequestTimeout_IsConvertedToNetworkException()
     {
+        // The 99s request timeout is fixed and not configurable; drive it by advancing
+        // the injected TimeProvider past 99s rather than shortening a configurable timeout.
+        var timeProvider = new ControllableTimeProvider(DateTimeOffset.UtcNow);
+        var handler = new DelayingHandler();
         var client = CreateClient(
-            new DelayingHandler(),
+            handler,
             new MarketDataClientOptions
             {
                 MaxRetries = 0,
-                Timeout = TimeSpan.FromMilliseconds(20)
+                TimeProvider = timeProvider
             });
 
-        var exception = await Assert.ThrowsAsync<NetworkException>(
-            () => client.Stocks.GetQuoteAsync(new StockQuoteRequest("AAPL")));
+        var request = client.Stocks.GetQuoteAsync(new StockQuoteRequest("AAPL"));
+        await handler.RequestStarted;
+        timeProvider.Advance(TimeSpan.FromSeconds(100));
+
+        var exception = await Assert.ThrowsAsync<NetworkException>(() => request);
 
         Assert.Equal(0, exception.StatusCode);
         Assert.Contains("timed out", exception.Message, StringComparison.OrdinalIgnoreCase);
@@ -460,10 +466,16 @@ public sealed class ApiClientTests
 
     private sealed class DelayingHandler : HttpMessageHandler
     {
+        private readonly TaskCompletionSource _started =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task RequestStarted => _started.Task;
+
         protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
+            _started.TrySetResult();
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             return new HttpResponseMessage(HttpStatusCode.OK);
         }
@@ -504,6 +516,129 @@ public sealed class ApiClientTests
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => utcNow;
+    }
+
+    // Controllable time source whose CreateTimer fires when time is advanced, so the fixed
+    // 99s request timeout (backed by a CancellationTokenSource + TimeProvider) can be
+    // exercised deterministically without real waiting.
+    private sealed class ControllableTimeProvider : TimeProvider
+    {
+        private readonly object _gate = new();
+        private readonly List<ControllableTimer> _timers = new();
+        private DateTimeOffset _now;
+
+        public ControllableTimeProvider(DateTimeOffset start) => _now = start;
+
+        public override DateTimeOffset GetUtcNow()
+        {
+            lock (_gate)
+            {
+                return _now;
+            }
+        }
+
+        public void Advance(TimeSpan delta)
+        {
+            ControllableTimer[] snapshot;
+            DateTimeOffset now;
+            lock (_gate)
+            {
+                _now += delta;
+                now = _now;
+                snapshot = _timers.ToArray();
+            }
+
+            foreach (var timer in snapshot)
+            {
+                timer.FireIfDue(now);
+            }
+        }
+
+        public override ITimer CreateTimer(
+            TimerCallback callback,
+            object? state,
+            TimeSpan dueTime,
+            TimeSpan period)
+        {
+            var timer = new ControllableTimer(this, callback, state, dueTime, period);
+            lock (_gate)
+            {
+                _timers.Add(timer);
+            }
+
+            return timer;
+        }
+
+        private void Remove(ControllableTimer timer)
+        {
+            lock (_gate)
+            {
+                _timers.Remove(timer);
+            }
+        }
+
+        private sealed class ControllableTimer : ITimer
+        {
+            private readonly ControllableTimeProvider _provider;
+            private readonly TimerCallback _callback;
+            private readonly object? _state;
+            private DateTimeOffset? _dueAt;
+            private TimeSpan _period;
+
+            public ControllableTimer(
+                ControllableTimeProvider provider,
+                TimerCallback callback,
+                object? state,
+                TimeSpan dueTime,
+                TimeSpan period)
+            {
+                _provider = provider;
+                _callback = callback;
+                _state = state;
+                Change(dueTime, period);
+            }
+
+            public bool Change(TimeSpan dueTime, TimeSpan period)
+            {
+                lock (_provider._gate)
+                {
+                    _dueAt = dueTime == Timeout.InfiniteTimeSpan
+                        ? null
+                        : _provider._now + dueTime;
+                    _period = period;
+                }
+
+                return true;
+            }
+
+            public void FireIfDue(DateTimeOffset now)
+            {
+                bool fire = false;
+                lock (_provider._gate)
+                {
+                    if (_dueAt is { } due && due <= now)
+                    {
+                        fire = true;
+                        _dueAt = _period <= TimeSpan.Zero || _period == Timeout.InfiniteTimeSpan
+                            ? null
+                            : now + _period;
+                    }
+                }
+
+                if (fire)
+                {
+                    _callback(_state);
+                }
+            }
+
+            public void Dispose() => _provider.Remove(this);
+
+            public ValueTask DisposeAsync()
+            {
+                _provider.Remove(this);
+                return ValueTask.CompletedTask;
+            }
+        }
     }
 
     private static class InterlockedExtensions

@@ -13,7 +13,6 @@ public sealed class MarketDataClientOptionsTests
             ["MARKETDATA_TOKEN"] = "token",
             ["MARKETDATA_BASE_URL"] = "https://example.test/api/",
             ["MARKETDATA_API_VERSION"] = "v2",
-            ["MARKETDATA_TIMEOUT"] = "00:00:05",
             ["MARKETDATA_MAX_RETRIES"] = "4",
             ["MARKETDATA_RETRY_BASE_DELAY"] = "00:00:00.100",
             ["MARKETDATA_RETRY_MAX_DELAY"] = "00:00:10",
@@ -28,7 +27,6 @@ public sealed class MarketDataClientOptionsTests
         Assert.Equal("token", options.ApiToken);
         Assert.Equal(new Uri("https://example.test/api/"), options.BaseAddress);
         Assert.Equal("v2", options.ApiVersion);
-        Assert.Equal(TimeSpan.FromSeconds(5), options.Timeout);
         Assert.Equal(4, options.MaxRetries);
         Assert.Equal(TimeSpan.FromMilliseconds(100), options.RetryBaseDelay);
         Assert.Equal(TimeSpan.FromSeconds(10), options.RetryMaxDelay);

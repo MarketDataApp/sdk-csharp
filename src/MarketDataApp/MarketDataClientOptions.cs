@@ -17,8 +17,6 @@ public sealed record MarketDataClientOptions
     public Uri BaseAddress { get; init; } = new("https://api.marketdata.app/");
     /// <summary>Version path segment used by versioned endpoints.</summary>
     public string ApiVersion { get; init; } = "v1";
-    /// <summary>Default request timeout.</summary>
-    public TimeSpan Timeout { get; init; } = TimeSpan.FromSeconds(99);
     /// <summary>Maximum number of retries after a transient request failure.</summary>
     public int MaxRetries { get; init; } = 3;
     /// <summary>Initial exponential-backoff delay between retries.</summary>
@@ -75,7 +73,6 @@ public sealed record MarketDataClientOptions
             ApiToken = configuration["MARKETDATA_TOKEN"],
             BaseAddress = ReadUri(configuration["MARKETDATA_BASE_URL"]),
             ApiVersion = configuration["MARKETDATA_API_VERSION"] ?? "v1",
-            Timeout = ReadTimeSpan(configuration, "MARKETDATA_TIMEOUT", TimeSpan.FromSeconds(99)),
             MaxRetries = ReadInt(configuration, "MARKETDATA_MAX_RETRIES", 3),
             RetryBaseDelay = ReadTimeSpan(configuration, "MARKETDATA_RETRY_BASE_DELAY", TimeSpan.FromSeconds(1)),
             RetryMaxDelay = ReadTimeSpan(configuration, "MARKETDATA_RETRY_MAX_DELAY", TimeSpan.FromSeconds(30)),
