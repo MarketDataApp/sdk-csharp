@@ -44,9 +44,14 @@ public sealed class LoggingLevelTests
 
         await client.Stocks.GetPricesAsync(new StockPricesRequest("AAPL"));
 
+        // The Debug request log carries the FULL request URL including the query string
+        // (query params are diagnostic, not secret; the token is sent only as an Authorization
+        // header). The stocks/prices request appends ?symbols=AAPL, which must appear in the log.
         Assert.Contains(
             logger.Entries,
-            entry => entry.Level == LogLevel.Debug && entry.Message.Contains("Sending GET request"));
+            entry => entry.Level == LogLevel.Debug
+                && entry.Message.Contains("Sending GET request")
+                && entry.Message.Contains("symbols=AAPL"));
     }
 
     [Fact]

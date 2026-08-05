@@ -66,7 +66,11 @@ public sealed class TelemetryTests
         Assert.Equal("GET", http.GetTagItem("http.request.method"));
         Assert.Equal(200, http.GetTagItem("http.response.status_code"));
         Assert.Equal("ray-123", http.GetTagItem("marketdata.request_id"));
-        Assert.NotNull(http.GetTagItem("url.full"));
+        // url.full carries the FULL request URL including the query string (query params are
+        // diagnostic, not secret; the token is header-only). The stocks/prices request appends
+        // ?symbols=AAPL, which must be present in the traced tag.
+        var urlFull = Assert.IsType<string>(http.GetTagItem("url.full"));
+        Assert.Contains("symbols=AAPL", urlFull);
     }
 
     [Fact]
