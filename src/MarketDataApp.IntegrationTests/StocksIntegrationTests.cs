@@ -53,8 +53,18 @@ public sealed class StocksIntegrationTests : IntegrationTestBase
         var response = await Client.Stocks.GetEarningsAsync(
             new StockEarningsRequest("AAPL") { Countback = 4 });
 
-        AssertSuccess(response.StatusCode);
-        Assert.NotEmpty(response.Values);
+        // Earnings availability depends on the account's data entitlement; the SDK must
+        // round-trip correctly either way: data on success, or the documented no-data
+        // response (HTTP 404 -> IsNoData) rather than throwing.
+        if (response.IsNoData)
+        {
+            Assert.Equal(404, response.StatusCode);
+        }
+        else
+        {
+            AssertSuccess(response.StatusCode);
+            Assert.NotEmpty(response.Values);
+        }
     }
 
     [IntegrationFact]

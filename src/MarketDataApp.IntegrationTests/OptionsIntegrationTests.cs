@@ -61,8 +61,18 @@ public sealed class OptionsIntegrationTests : IntegrationTestBase
     [IntegrationFact]
     public async Task Lookup_ResolvesOptionSymbol()
     {
-        var response = await Client.Options.GetLookupAsync(
-            new OptionsLookupRequest("AAPL 7/16/2027 200 Call"));
+        // Derive a currently-listed contract from the chain so the lookup input isn't
+        // tied to a hard-coded expiration/strike that expires or delists over time.
+        var chain = await Client.Options.GetChainAsync(
+            new OptionsChainRequest("AAPL") { Side = OptionSide.Call, StrikeLimit = 1 });
+        AssertSuccess(chain.StatusCode);
+        var contract = chain.Values[0];
+        Assert.NotNull(contract.Expiration);
+        Assert.NotNull(contract.Strike);
+
+        var human = FormattableString.Invariant(
+            $"AAPL {contract.Expiration.Value:M/d/yyyy} {contract.Strike.Value:0.##} Call");
+        var response = await Client.Options.GetLookupAsync(new OptionsLookupRequest(human));
 
         AssertSuccess(response.StatusCode);
         Assert.False(string.IsNullOrWhiteSpace(response.Values));
