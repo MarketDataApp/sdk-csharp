@@ -211,6 +211,7 @@ public sealed class OptionsApiCoverageTests
         Assert.Throws<ArgumentException>(() =>
             ExpirationFilter.ForRange(new DateOnly(2025, 3, 1), new DateOnly(2025, 1, 1)));
         Assert.Throws<ArgumentOutOfRangeException>(() => ExpirationFilter.ForMonthYear(2025, 13));
+        Assert.Throws<ArgumentOutOfRangeException>(() => ExpirationFilter.ForMonthYear(2025, 0));
         Assert.Throws<ArgumentException>(() => StrikeFilter.ForRange(200m, 100m));
 
         // Valid factories expose their data.
@@ -238,6 +239,14 @@ public sealed class OptionsApiCoverageTests
             client.Options.GetChainAsync(new OptionsChainRequest("AAPL") { MaxBidAskSpread = -1m }));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
             client.Options.GetChainAsync(new OptionsChainRequest("AAPL") { MinOpenInterest = -1 }));
+        // Delta above +1 and below -1 are both out of range.
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            client.Options.GetChainAsync(new OptionsChainRequest("AAPL") { Delta = 1.5 }));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            client.Options.GetChainAsync(new OptionsChainRequest("AAPL") { Delta = -1.5 }));
+        // The percentage spread filter cannot be negative.
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            client.Options.GetChainAsync(new OptionsChainRequest("AAPL") { MaxBidAskSpreadPct = -0.5 }));
     }
 
     [Fact]

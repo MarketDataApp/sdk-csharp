@@ -84,8 +84,10 @@ internal static class JsonResponseParser
             ? value.GetString()
             : null;
 
-        public double? Double(string name) => Value(name) is { } value && value.ValueKind == JsonValueKind.Number
-            && value.TryGetDouble(out var result) ? result : null;
+        // Unlike GetDecimal/GetInt64, GetDouble never throws for a JSON number (overflow maps to
+        // ±Infinity), so a ValueKind check alone is sufficient — no TryGetDouble fallback is needed.
+        public double? Double(string name) =>
+            Value(name) is { ValueKind: JsonValueKind.Number } value ? value.GetDouble() : null;
 
         public decimal? Decimal(string name) => Value(name) is { } value && value.ValueKind == JsonValueKind.Number
             && value.TryGetDecimal(out var result) ? result : null;
@@ -209,7 +211,9 @@ internal static class JsonResponseParser
 
     }
 
-    private static bool IsParseFailure(Exception exception) =>
+    // internal (not private) so the parse-failure classification can be verified directly per
+    // exception type; several arms (e.g. FormatException) are unreachable through the JSON decoders.
+    internal static bool IsParseFailure(Exception exception) =>
         exception is JsonException
         or InvalidOperationException
         or FormatException

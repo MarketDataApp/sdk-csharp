@@ -148,4 +148,38 @@ public sealed class UtilitiesApiCoverageTests
         var exception = await Assert.ThrowsAsync<ParseException>(() => client.Utilities.GetUserAsync());
         Assert.Contains("x-options-data-permissions", exception.InnerException!.Message);
     }
+
+    [Fact]
+    public async Task GetUserAsync_OutOfRangeIntField_ThrowsParseException()
+    {
+        // Present but not representable as an Int32 (exceeds int.MaxValue), so TryGetInt32 fails.
+        var handler = new StubHttpMessageHandler(_ => MarketDataTestClient.JsonResponse("""
+        {
+          "x-ratelimit-requests-remaining": 3000000000,
+          "x-ratelimit-requests-limit": 100000,
+          "x-options-data-permissions": "OPRA"
+        }
+        """));
+        var client = MarketDataTestClient.Create(handler);
+
+        var exception = await Assert.ThrowsAsync<ParseException>(() => client.Utilities.GetUserAsync());
+        Assert.Contains("x-ratelimit-requests-remaining", exception.InnerException!.Message);
+    }
+
+    [Fact]
+    public async Task GetUserAsync_NonStringStringField_ThrowsParseException()
+    {
+        // Present but the wrong JSON kind (a number, not a string).
+        var handler = new StubHttpMessageHandler(_ => MarketDataTestClient.JsonResponse("""
+        {
+          "x-ratelimit-requests-remaining": 99000,
+          "x-ratelimit-requests-limit": 100000,
+          "x-options-data-permissions": 123
+        }
+        """));
+        var client = MarketDataTestClient.Create(handler);
+
+        var exception = await Assert.ThrowsAsync<ParseException>(() => client.Utilities.GetUserAsync());
+        Assert.Contains("x-options-data-permissions", exception.InnerException!.Message);
+    }
 }

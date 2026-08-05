@@ -20,6 +20,48 @@ public sealed class RequestValidationCoverageTests
     }
 
     [Fact]
+    public async Task DateWindow_RejectsDateCombinedWithFrom()
+    {
+        var client = MarketDataTestClient.Create(NoRequest);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => client.Stocks.GetNewsAsync(
+            new StockNewsRequest("AAPL")
+            {
+                Date = new DateOnly(2025, 1, 1),
+                From = new DateOnly(2025, 1, 2)
+            }));
+    }
+
+    [Fact]
+    public async Task DateWindow_RejectsDateCombinedWithTo()
+    {
+        var client = MarketDataTestClient.Create(NoRequest);
+
+        // From is unset here, so the guard reaches (and is tripped by) the To condition.
+        await Assert.ThrowsAsync<ArgumentException>(() => client.Stocks.GetNewsAsync(
+            new StockNewsRequest("AAPL")
+            {
+                Date = new DateOnly(2025, 1, 1),
+                To = new DateOnly(2025, 1, 2)
+            }));
+    }
+
+    [Fact]
+    public async Task EmptyColumns_AreOmittedFromQuery()
+    {
+        var handler = new StubHttpMessageHandler(_ =>
+            MarketDataTestClient.JsonResponse("""{"s":"ok","symbol":["AAPL"],"mid":[1.0]}"""));
+        var client = MarketDataTestClient.Create(handler);
+
+        // An empty (but non-null) Columns list is valid and simply emits no "columns" parameter.
+        await client.Stocks.GetQuoteAsync(
+            new StockQuoteRequest("AAPL"),
+            new MarketDataRequestOptions { Columns = Array.Empty<string>() });
+
+        Assert.DoesNotContain("columns=", handler.LastRequest!.RequestUri!.Query);
+    }
+
+    [Fact]
     public async Task DateWindow_RejectsFromAfterTo()
     {
         var client = MarketDataTestClient.Create(NoRequest);

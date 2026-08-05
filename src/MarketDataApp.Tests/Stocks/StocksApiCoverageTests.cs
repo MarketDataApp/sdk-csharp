@@ -221,6 +221,20 @@ public sealed class StocksApiCoverageTests
     }
 
     [Fact]
+    public async Task EarningsRequest_RejectsReportCombinedWithDateWindow()
+    {
+        var client = MarketDataTestClient.Create(
+            new StubHttpMessageHandler(_ => throw new InvalidOperationException("No request expected.")));
+
+        // Report + From (Date unset) trips the From arm of the guard.
+        await Assert.ThrowsAsync<ArgumentException>(() => client.Stocks.GetEarningsAsync(
+            new StockEarningsRequest("AAPL") { Report = "2024-Q4", From = new DateOnly(2025, 1, 1) }));
+        // Report + To (Date and From unset) trips the To arm.
+        await Assert.ThrowsAsync<ArgumentException>(() => client.Stocks.GetEarningsAsync(
+            new StockEarningsRequest("AAPL") { Report = "2024-Q4", To = new DateOnly(2025, 1, 1) }));
+    }
+
+    [Fact]
     public async Task CsvScalarOverloads_HitExpectedPathsWithCsvFormat()
     {
         var handler = Csv("col\r\n1\r\n");

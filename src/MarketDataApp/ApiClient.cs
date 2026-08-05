@@ -465,9 +465,10 @@ internal sealed class ApiClient : IDisposable
 
     private static void ValidateBaseAddress(Uri baseAddress, string parameterName)
     {
+        // An absolute http/https URI is always constructed with a non-empty host (the Uri parser
+        // rejects an empty authority), so no separate host-blank guard is reachable here.
         if (!baseAddress.IsAbsoluteUri
             || baseAddress.Scheme is not ("http" or "https")
-            || string.IsNullOrWhiteSpace(baseAddress.Host)
             || !string.IsNullOrEmpty(baseAddress.Query)
             || !string.IsNullOrEmpty(baseAddress.Fragment)
             || !string.IsNullOrEmpty(baseAddress.UserInfo))

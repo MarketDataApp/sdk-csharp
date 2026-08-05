@@ -56,6 +56,9 @@ public sealed class ApiClientCoverageTests
             Create(handler, new MarketDataClientOptions { ApiVersion = "v 1" }));
         Assert.Throws<ArgumentException>(() =>
             Create(handler, new MarketDataClientOptions { ApiToken = "token" }));
+        // A character above '~' (0x7E) is also non-printable ASCII and rejected.
+        Assert.Throws<ArgumentException>(() =>
+            Create(handler, new MarketDataClientOptions { ApiToken = "tokén" }));
         Assert.Throws<ArgumentException>(() =>
             Create(handler, new MarketDataClientOptions { UserAgent = "   " }));
         Assert.Throws<ArgumentException>(() =>
@@ -220,5 +223,88 @@ public sealed class ApiClientCoverageTests
             e => e.Level == LogLevel.Debug && e.Message.Contains("redacted suffix"));
         Assert.Contains("****", tokenLog.Message);
         Assert.DoesNotContain("ab", tokenLog.Message);
+    }
+
+    [Fact]
+    public void BaseAddress_ValidatesUriShape()
+    {
+        using var handler = NoRequest();
+
+        // A relative URI is not absolute and is rejected before the scheme is inspected.
+        Assert.Throws<ArgumentException>(() => Create(handler, new MarketDataClientOptions
+        {
+            BaseAddress = new Uri("relative/path", UriKind.Relative)
+        }));
+        // A fragment is rejected.
+        Assert.Throws<ArgumentException>(() => Create(handler, new MarketDataClientOptions
+        {
+            BaseAddress = new Uri("https://api.marketdata.app/#frag")
+        }));
+        // Plain http (as well as https) is an accepted scheme.
+        var client = Create(handler, new MarketDataClientOptions
+        {
+            BaseAddress = new Uri("http://api.marketdata.app/")
+        });
+        Assert.NotNull(client);
+        client.Dispose();
+    }
+
+    [Fact]
+    public async Task PartialRateLimitHeaders_LeaveSnapshotUnset()
+    {
+        // limit present but remaining missing: ParseRateLimit short-circuits and records nothing.
+        await AssertNoRateLimitSnapshotAsync(new Dictionary<string, string>
+        {
+            ["x-api-ratelimit-limit"] = "100",
+            ["x-api-ratelimit-reset"] = "1737072000",
+            ["x-api-ratelimit-consumed"] = "1"
+        });
+        // limit + remaining present but reset missing: short-circuits at the reset read.
+        await AssertNoRateLimitSnapshotAsync(new Dictionary<string, string>
+        {
+            ["x-api-ratelimit-limit"] = "100",
+            ["x-api-ratelimit-remaining"] = "99",
+            ["x-api-ratelimit-consumed"] = "1"
+        });
+    }
+
+    private static async Task AssertNoRateLimitSnapshotAsync(IDictionary<string, string> headers)
+    {
+        var handler = new StubHttpMessageHandler(_ =>
+            MarketDataTestClient.JsonResponse("""{"s":"ok","symbol":["AAPL"],"mid":[1.0]}"""));
+        foreach (var header in headers)
+        {
+            handler.ResponseHeaders[header.Key] = header.Value;
+        }
+
+        var client = MarketDataTestClient.Create(handler);
+        await client.Stocks.GetPricesAsync(new StockPricesRequest("AAPL"));
+
+        Assert.Null(client.LatestRateLimit);
+    }
+
+    [Fact]
+    public async Task ZeroLimitSnapshot_DoesNotBlockPreflight()
+    {
+        var attempts = 0;
+        var handler = new StubHttpMessageHandler(_ =>
+        {
+            attempts++;
+            return MarketDataTestClient.JsonResponse("""{"s":"ok","symbol":["AAPL"],"mid":[1.0]}""");
+        });
+        handler.ResponseHeaders["x-api-ratelimit-limit"] = "0";
+        handler.ResponseHeaders["x-api-ratelimit-remaining"] = "0";
+        handler.ResponseHeaders["x-api-ratelimit-reset"] =
+            DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeSeconds().ToString();
+        handler.ResponseHeaders["x-api-ratelimit-consumed"] = "0";
+        var client = MarketDataTestClient.Create(handler);
+
+        // First request seeds a snapshot whose Limit is 0 (treated as unlimited/unknown).
+        await client.Stocks.GetPricesAsync(new StockPricesRequest("AAPL"));
+        // A Limit==0 snapshot must not trip the exhausted-rate-limit preflight, so the second is sent.
+        await client.Stocks.GetPricesAsync(new StockPricesRequest("MSFT"));
+
+        Assert.Equal(2, attempts);
+        Assert.Equal(0, client.LatestRateLimit!.Limit);
     }
 }
