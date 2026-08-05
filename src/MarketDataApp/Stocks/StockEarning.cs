@@ -28,4 +28,9 @@ public record StockEarning(
     decimal? EstimatedEps,
     decimal? SurpriseEps,
     double? SurpriseEpsPct,
-    DateTimeOffset? Updated);
+    DateTimeOffset? Updated)
+{
+    /// <summary>A concise one-line summary, e.g. <c>AAPL FY2024 Q1 eps=1.50</c>.</summary>
+    public override string ToString() =>
+        $"{ResponseText.F(Symbol)} FY{ResponseText.F(FiscalYear)} Q{ResponseText.F(FiscalQuarter)} eps={ResponseText.F(ReportedEps)}";
+}

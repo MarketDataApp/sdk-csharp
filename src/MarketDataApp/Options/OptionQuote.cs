@@ -60,6 +60,10 @@ public record OptionQuote(
     double? Vega,
     double? Rho)
 {
+    /// <summary>A concise one-line summary, e.g. <c>AAPL250117C00150000 mid=5.25 last=5.20</c>.</summary>
+    public override string ToString() =>
+        $"{ResponseText.F(OptionSymbol)} mid={ResponseText.F(Mid)} last={ResponseText.F(Last)}";
+
     /// <summary>Returns the set of greeks that have non-null values on this quote.</summary>
     public IReadOnlySet<Greek> PresentGreeks
     {

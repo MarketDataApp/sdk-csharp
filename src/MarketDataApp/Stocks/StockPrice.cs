@@ -11,4 +11,9 @@ public record StockPrice(
     decimal? Mid,
     decimal? Change,
     double? ChangePct,
-    DateTimeOffset? Updated);
+    DateTimeOffset? Updated)
+{
+    /// <summary>A concise one-line summary, e.g. <c>AAPL mid=190.25 chg=1.25</c>.</summary>
+    public override string ToString() =>
+        $"{ResponseText.F(Symbol)} mid={ResponseText.F(Mid)} chg={ResponseText.F(Change)}";
+}

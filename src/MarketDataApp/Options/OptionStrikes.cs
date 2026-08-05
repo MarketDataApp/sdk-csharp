@@ -5,4 +5,9 @@ namespace MarketDataApp.Options;
 /// <param name="ByExpiration">Strike prices keyed by expiration date.</param>
 public sealed record OptionStrikes(
     DateTimeOffset? Updated,
-    IReadOnlyDictionary<DateOnly, IReadOnlyList<decimal>> ByExpiration);
+    IReadOnlyDictionary<DateOnly, IReadOnlyList<decimal>> ByExpiration)
+{
+    /// <summary>A concise one-line summary, e.g. <c>3 expirations (updated 2024-01-02)</c>.</summary>
+    public override string ToString() =>
+        $"{ResponseText.F(ByExpiration.Count)} expirations (updated {ResponseText.D(Updated)})";
+}

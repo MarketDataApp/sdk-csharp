@@ -14,4 +14,9 @@ public record StockNewsArticle(
     string Headline,
     string Content,
     string Source,
-    DateTimeOffset PublicationDate);
+    DateTimeOffset PublicationDate)
+{
+    /// <summary>A concise one-line summary, e.g. <c>AAPL: Apple unveils... (2024-01-02)</c>.</summary>
+    public override string ToString() =>
+        $"{Symbol}: {ResponseText.Truncate(Headline)} ({ResponseText.D(PublicationDate)})";
+}

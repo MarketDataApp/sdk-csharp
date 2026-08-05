@@ -10,4 +10,10 @@ public sealed record HtmlResponse : MarketDataResponse<string>
 {
     /// <summary>The raw HTML text. Equivalent to <see cref="MarketDataResponse{T}.Values"/>.</summary>
     public string Html => Values;
+
+    /// <inheritdoc />
+    public override bool IsJson => false;
+
+    /// <inheritdoc />
+    public override bool IsHtml => true;
 }

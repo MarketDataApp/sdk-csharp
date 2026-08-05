@@ -17,4 +17,9 @@ public record StockCandle(
     decimal? High,
     decimal? Low,
     decimal? Close,
-    long? Volume);
+    long? Volume)
+{
+    /// <summary>A concise one-line summary, e.g. <c>2024-01-02 O=189.00 H=191.00 L=188.50 C=190.25 V=1000000</c>.</summary>
+    public override string ToString() =>
+        $"{ResponseText.D(Time)} O={ResponseText.F(Open)} H={ResponseText.F(High)} L={ResponseText.F(Low)} C={ResponseText.F(Close)} V={ResponseText.F(Volume)}";
+}

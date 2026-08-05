@@ -19,4 +19,9 @@ public record ServiceStatus(
     bool Online,
     double UptimePct30d,
     double UptimePct90d,
-    DateTimeOffset Updated);
+    DateTimeOffset Updated)
+{
+    /// <summary>A concise one-line summary, e.g. <c>/v1/stocks/quotes/ online</c>.</summary>
+    public override string ToString() =>
+        $"{ResponseText.F(Service)} {ResponseText.F(Status)}";
+}

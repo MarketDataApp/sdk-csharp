@@ -13,4 +13,9 @@ namespace MarketDataApp.Utilities;
 public record User(
     int RequestsRemaining,
     int RequestsLimit,
-    string OptionsDataPermissions);
+    string OptionsDataPermissions)
+{
+    /// <summary>A concise one-line summary, e.g. <c>requests 99000/100000</c>.</summary>
+    public override string ToString() =>
+        $"requests {ResponseText.F(RequestsRemaining)}/{ResponseText.F(RequestsLimit)}";
+}

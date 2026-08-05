@@ -11,6 +11,10 @@ namespace MarketDataApp.Markets;
 /// </param>
 public record MarketStatus(DateTimeOffset? Date, string? Status)
 {
+    /// <summary>A concise one-line summary, e.g. <c>2025-01-10 open</c>.</summary>
+    public override string ToString() =>
+        $"{ResponseText.D(Date)} {ResponseText.F(Status)}";
+
     /// <summary>Whether the market is open on this date.</summary>
     public bool IsOpen => Status == "open";
 

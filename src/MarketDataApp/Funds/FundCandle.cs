@@ -15,4 +15,9 @@ public record FundCandle(
     decimal? Open,
     decimal? High,
     decimal? Low,
-    decimal? Close);
+    decimal? Close)
+{
+    /// <summary>A concise one-line summary, e.g. <c>2024-01-02 O=450.10 H=452.00 L=449.50 C=451.25</c>.</summary>
+    public override string ToString() =>
+        $"{ResponseText.D(Time)} O={ResponseText.F(Open)} H={ResponseText.F(High)} L={ResponseText.F(Low)} C={ResponseText.F(Close)}";
+}

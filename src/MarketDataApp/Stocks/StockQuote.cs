@@ -43,4 +43,9 @@ public record StockQuote(
     decimal? Low,
     decimal? Close,
     decimal? Week52High,
-    decimal? Week52Low);
+    decimal? Week52Low)
+{
+    /// <summary>A concise one-line summary, e.g. <c>AAPL mid=150.25 last=150.10</c>.</summary>
+    public override string ToString() =>
+        $"{ResponseText.F(Symbol)} mid={ResponseText.F(Mid)} last={ResponseText.F(Last)}";
+}
