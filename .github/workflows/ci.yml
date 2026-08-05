@@ -52,8 +52,8 @@ jobs:
       # ignores the runsettings <Threshold> and cannot gate. The comma in
       # ThresholdType is written as %2c so the value parses identically under bash,
       # pwsh and cmd across the OS matrix. The same run emits the opencover report.
-      # Coverage is currently ~81% line / ~72% branch, so this step is EXPECTED to
-      # fail until the dedicated coverage work lands — that is intentional.
+      # Coverage is at 100% line and 100% branch, so this gate passes; it fails the
+      # job if coverage regresses below 100%.
       - name: Test with coverage (100% line+branch gate)
         # Force bash on every runner (incl. Windows via Git Bash) so the multi-line
         # command and backslash continuations parse consistently across the matrix.

@@ -171,6 +171,18 @@ public sealed class ApiClientCoverageTests
     }
 
     [Fact]
+    public void CreateDefaultHttpHandler_AppliesTwoSecondConnectTimeout()
+    {
+        using var handler = MarketDataClient.CreateDefaultHttpHandler();
+
+        // §10: the caller-owned handler supplies the separate 2-second connection timeout while the
+        // SDK enforces the fixed 99-second request timeout internally.
+        Assert.Equal(TimeSpan.FromSeconds(2), handler.ConnectTimeout);
+        Assert.True(handler.PooledConnectionLifetime > TimeSpan.Zero);
+        Assert.True(handler.PooledConnectionIdleTimeout > TimeSpan.Zero);
+    }
+
+    [Fact]
     public void StartupLogging_RedactsConfiguredTokenSuffix()
     {
         var logger = new CapturingLogger();

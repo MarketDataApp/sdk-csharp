@@ -20,4 +20,13 @@ public sealed class UtilitiesIntegrationTests : IntegrationTestBase
         AssertSuccess(user.StatusCode);
         Assert.True(user.Values.RequestsLimit >= 0);
     }
+
+    [IntegrationFact]
+    public async Task Headers_ReturnExpectedShapes()
+    {
+        var headers = await Client.Utilities.GetHeadersAsync();
+
+        AssertSuccess(headers.StatusCode);
+        Assert.NotEmpty(headers.Values);
+    }
 }

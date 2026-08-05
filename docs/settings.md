@@ -49,6 +49,33 @@ the configured `ILogger`. A message is emitted only when its level is at or abov
 threshold. The default `Information` therefore suppresses the SDK's Debug request/response
 logs unless `MARKETDATA_LOGGING_LEVEL=DEBUG` is configured.
 
+### Log output format
+
+The SDK emits **structured `Microsoft.Extensions.Logging` events** (the idiomatic .NET
+approach) rather than writing pre-formatted text lines. Levels, redaction, and named
+message properties are already applied by the SDK; the text layout is chosen by whichever
+logging **provider** you attach.
+
+To produce the canonical `{timestamp} - {logger_name} - {level} - {message}` text layout,
+configure a provider with a matching output template. For example with Serilog:
+
+```csharp
+// "{Timestamp} - {SourceContext} - {Level} - {Message}" == the canonical layout.
+var serilog = new LoggerConfiguration()
+    .WriteTo.Console(
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} - {SourceContext} - {Level:u} - {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
+
+var logger = new Serilog.Extensions.Logging.SerilogLoggerFactory(serilog)
+    .CreateLogger("MarketDataApp");
+var client = new MarketDataClient(httpClient, options.WithLogger(logger));
+```
+
+The built-in `Microsoft.Extensions.Logging.Console` provider (`AddSimpleConsole` with a
+`TimestampFormat`, or a custom `ConsoleFormatter`) can render the same events in an
+equivalent layout. Regardless of provider, the emitted events and their properties are
+identical.
+
 ### Configuration cascade
 
 Request options resolve **per field** in this order: env / client-level defaults →

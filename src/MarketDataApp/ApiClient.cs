@@ -20,6 +20,7 @@ internal sealed class ApiClient : IDisposable
     private readonly LogLevel _minimumLogLevel;
     private readonly SemaphoreSlim _concurrencyGate;
     private readonly StatusGate _statusGate;
+    private readonly Func<double> _nextJitter;
     private RateLimitSnapshot? _latestRateLimit;
 
     public ApiClient(HttpClient httpClient, MarketDataClientOptions options)
@@ -74,6 +75,10 @@ internal sealed class ApiClient : IDisposable
         ValidateApiToken(_options.ApiToken, nameof(options));
         ValidateUserAgent(_options.UserAgent, nameof(options));
         _concurrencyGate = new SemaphoreSlim(_options.MaxConcurrentRequests, _options.MaxConcurrentRequests);
+        // Retry backoff jitter sampler. Defaults to Random.Shared (production behavior); tests
+        // inject a deterministic sampler via MarketDataClientOptions.RetryJitterSource so the
+        // jitter and clamp branches of RetryDelay are exercised deterministically.
+        _nextJitter = _options.RetryJitterSource ?? Random.Shared.NextDouble;
         _statusGate = new StatusGate(
             _options.TimeProvider,
             _options.ApiVersion,
@@ -312,15 +317,16 @@ internal sealed class ApiClient : IDisposable
         exception is NetworkException
         || exception.StatusCode is >= 501 and <= 599;
 
-    // Excluded: the RateLimitException arm of the switch is unreachable. RetryDelay is only invoked
-    // for retryable exceptions (see IsRetryable — NetworkException or HTTP 501-599); a 429
-    // RateLimitException is never retryable and so never reaches this method.
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
-    private TimeSpan RetryDelay(MarketDataException exception, int retryCount)
+    // Computes the delay before the next retry attempt. A retryable exception is either a
+    // NetworkException or a 501-599 ServerException (see IsRetryable); a 429 RateLimitException is
+    // never retryable, so no RateLimitException arm is needed here. A server-supplied Retry-After
+    // (ServerException) is honored and capped at MaxRetryAfter; otherwise an exponential backoff
+    // with optional jitter is used, bounded by RetryMaxDelay. Internal so the jitter and overflow
+    // branches can be exercised directly by unit tests.
+    internal TimeSpan RetryDelay(MarketDataException exception, int retryCount)
     {
         var retryAfter = exception switch
         {
-            RateLimitException rateLimit => rateLimit.RetryAfter,
             ServerException server => server.RetryAfter,
             _ => null
         };
@@ -343,7 +349,7 @@ internal sealed class ApiClient : IDisposable
         }
 
         var jitter = 1 - _options.RetryJitterFactor
-            + (Random.Shared.NextDouble() * 2 * _options.RetryJitterFactor);
+            + (_nextJitter() * 2 * _options.RetryJitterFactor);
         var jitteredTicks = ticks * jitter;
         var boundedTicks = jitteredTicks >= _options.RetryMaxDelay.Ticks
             ? _options.RetryMaxDelay.Ticks

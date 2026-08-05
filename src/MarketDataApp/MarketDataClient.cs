@@ -1,3 +1,5 @@
+using System.Net.Http;
+
 namespace MarketDataApp;
 
 /// <summary>
@@ -6,6 +8,32 @@ namespace MarketDataApp;
 public sealed class MarketDataClient : IDisposable
 {
     private readonly ApiClient _apiClient;
+
+    /// <summary>
+    /// Creates a <see cref="SocketsHttpHandler"/> pre-configured with the mandated 2-second
+    /// connection timeout (§10) and sensible connection-pool defaults, intended to back the
+    /// caller-owned <see cref="HttpClient"/>: <c>new HttpClient(MarketDataClient.CreateDefaultHttpHandler())</c>.
+    /// </summary>
+    /// <remarks>
+    /// The SDK always enforces its own fixed 99-second per-request timeout internally. It cannot,
+    /// however, apply a separate connection timeout, because the connect timeout is a property of
+    /// the <see cref="HttpClient"/>'s handler, which the application owns. Use this factory to obtain
+    /// a handler that supplies the 2-second connect (TCP + TLS handshake) timeout. Callers that
+    /// already configure their own handler can set <see cref="SocketsHttpHandler.ConnectTimeout"/>
+    /// to <c>TimeSpan.FromSeconds(2)</c> directly instead.
+    /// </remarks>
+    /// <returns>A new handler; the caller owns and disposes it (usually via the <see cref="HttpClient"/>).</returns>
+    public static SocketsHttpHandler CreateDefaultHttpHandler() =>
+        new()
+        {
+            // §10: the separate 2-second connection timeout. The 99-second request timeout is
+            // enforced by the SDK itself and is intentionally not configurable here.
+            ConnectTimeout = TimeSpan.FromSeconds(2),
+            // Recycle pooled connections periodically so long-lived clients honor DNS changes and
+            // load-balancer rotation without leaking or reusing stale sockets indefinitely.
+            PooledConnectionLifetime = TimeSpan.FromMinutes(15),
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
+        };
 
     /// <summary>
     /// Creates a client using the supplied <see cref="HttpClient"/>. This constructor performs

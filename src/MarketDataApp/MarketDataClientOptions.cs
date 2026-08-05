@@ -27,6 +27,13 @@ public sealed record MarketDataClientOptions
     public TimeSpan MaxRetryAfter { get; init; } = TimeSpan.FromMinutes(10);
     /// <summary>Fractional random jitter applied to exponential backoff, from 0 through 1.</summary>
     public double RetryJitterFactor { get; init; }
+    /// <summary>
+    /// Test seam for the retry-backoff jitter sampler; returns a value in <c>[0, 1)</c>. When
+    /// <see langword="null"/> (the default, and the only production value) the client uses
+    /// <see cref="Random.Shared"/>. Tests inject a deterministic sampler so the jittered-backoff and
+    /// max-delay clamp branches are exercised deterministically. Not read from configuration.
+    /// </summary>
+    internal Func<double>? RetryJitterSource { get; init; }
     /// <summary>Maximum number of HTTP requests simultaneously dispatched by this client.</summary>
     public int MaxConcurrentRequests { get; init; } = 50;
     /// <summary>Time source used by timeout, retry, and rate-limit behavior.</summary>

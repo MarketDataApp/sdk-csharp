@@ -35,4 +35,35 @@ public sealed class StocksIntegrationTests : IntegrationTestBase
         AssertSuccess(response.StatusCode);
         Assert.False(string.IsNullOrWhiteSpace(response.Csv));
     }
+
+    [IntegrationFact]
+    public async Task Prices_MultiSymbol_ReturnExpectedShape()
+    {
+        var response = await Client.Stocks.GetPricesAsync(
+            new StockPricesRequest("AAPL", "MSFT"));
+
+        AssertSuccess(response.StatusCode);
+        Assert.NotEmpty(response.Values);
+        Assert.Contains(response.Values, value => value.Symbol == "AAPL");
+    }
+
+    [IntegrationFact]
+    public async Task Earnings_ReturnExpectedShape()
+    {
+        var response = await Client.Stocks.GetEarningsAsync(
+            new StockEarningsRequest("AAPL") { Countback = 4 });
+
+        AssertSuccess(response.StatusCode);
+        Assert.NotEmpty(response.Values);
+    }
+
+    [IntegrationFact]
+    public async Task News_ReturnExpectedShape()
+    {
+        var response = await Client.Stocks.GetNewsAsync(
+            new StockNewsRequest("AAPL") { Countback = 5 });
+
+        AssertSuccess(response.StatusCode);
+        Assert.NotEmpty(response.Values);
+    }
 }

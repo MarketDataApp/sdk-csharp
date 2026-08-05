@@ -37,4 +37,34 @@ public sealed class OptionsIntegrationTests : IntegrationTestBase
         AssertSuccess(response.StatusCode);
         Assert.NotEmpty(response.Values.ByExpiration);
     }
+
+    [IntegrationFact]
+    public async Task Quote_ReturnsExpectedShape()
+    {
+        // Resolve a currently-tradeable contract from the chain, then quote it directly.
+        var chain = await Client.Options.GetChainAsync(
+            new OptionsChainRequest("AAPL")
+            {
+                Side = OptionSide.Call,
+                StrikeLimit = 1
+            });
+        AssertSuccess(chain.StatusCode);
+        var optionSymbol = chain.Values[0].OptionSymbol;
+        Assert.False(string.IsNullOrWhiteSpace(optionSymbol));
+
+        var response = await Client.Options.GetQuoteAsync(new OptionsQuoteRequest(optionSymbol!));
+
+        AssertSuccess(response.StatusCode);
+        Assert.NotEmpty(response.Values);
+    }
+
+    [IntegrationFact]
+    public async Task Lookup_ResolvesOptionSymbol()
+    {
+        var response = await Client.Options.GetLookupAsync(
+            new OptionsLookupRequest("AAPL 7/16/2027 200 Call"));
+
+        AssertSuccess(response.StatusCode);
+        Assert.False(string.IsNullOrWhiteSpace(response.Values));
+    }
 }

@@ -78,7 +78,10 @@ dotnet add package MarketDataApp
 ## Quick start
 
 ```csharp
-using var httpClient = new HttpClient();
+// Back the HttpClient with the SDK's handler factory to get the 2-second connection timeout
+// (§10); the SDK still enforces the fixed 99-second request timeout on every attempt.
+// A plain `new HttpClient()` works too — it just has no separate connect timeout.
+using var httpClient = new HttpClient(MarketDataClient.CreateDefaultHttpHandler());
 // CreateAsync validates the token with /user/ and seeds the rate-limit snapshot at startup.
 // Use the plain constructor `new MarketDataClient(httpClient)` to skip startup validation.
 var client = await MarketDataClient.CreateAsync(httpClient);
@@ -694,12 +697,28 @@ exception_type: RateLimitException
 
 ## Retry, timeout, and rate limiting
 
-### Per-attempt timeout
+### Request and connection timeouts
 
-`MarketDataClientOptions.Timeout` (default 99 s) applies independently to **each HTTP
-attempt**. A `NetworkException` is thrown if the per-attempt deadline is exceeded.
-Caller `CancellationToken` cancellation remains distinguishable from an SDK timeout
-(`OperationCanceledException` vs `NetworkException`).
+The SDK enforces a **fixed 99-second request timeout** independently on **each HTTP
+attempt**. It is intentionally not configurable. A `NetworkException` is thrown if the
+per-attempt deadline is exceeded, and caller `CancellationToken` cancellation remains
+distinguishable from an SDK timeout (`OperationCanceledException` vs `NetworkException`).
+
+A separate, shorter **2-second connection timeout** (the TCP + TLS handshake) is a
+property of the caller-owned `HttpClient` handler, so the SDK cannot apply it for you.
+Opt in by backing the `HttpClient` with the handler factory:
+
+```csharp
+// The handler supplies the 2-second connect timeout; the SDK still enforces the
+// fixed 99-second request timeout on every attempt.
+using var httpClient = new HttpClient(MarketDataClient.CreateDefaultHttpHandler());
+var client = await MarketDataClient.CreateAsync(httpClient);
+```
+
+`CreateDefaultHttpHandler()` returns a `SocketsHttpHandler` with
+`ConnectTimeout = TimeSpan.FromSeconds(2)` plus sensible connection-pool defaults. If you
+already configure your own handler, set `SocketsHttpHandler.ConnectTimeout` to
+`TimeSpan.FromSeconds(2)` directly instead.
 
 ### Automatic retries
 
@@ -808,6 +827,38 @@ var client = new MarketDataClient(httpClient, options.WithLogger(logger));
 It logs initialization, redacted token configuration, request/response details, retries,
 and failures without logging credentials.
 
+### Log format (structured events vs. the canonical text layout)
+
+The SDK does **not** print its own log lines or hard-code a text layout. Instead it emits
+**structured `Microsoft.Extensions.Logging` events** — the idiomatic .NET approach — with
+levels, named message properties (URL, status code, retry count, redacted token suffix, …)
+already applied. The rendered text layout is the **logging provider's** responsibility, so
+you can send the same events to the console, JSON, Seq, OpenTelemetry, etc. without the SDK
+changing.
+
+To render the SDK's events in the canonical
+`{timestamp} - {logger_name} - {level} - {message}` text layout, configure a provider with
+a matching output template. For example, with Serilog:
+
+```csharp
+using Serilog;
+using Serilog.Extensions.Logging;
+
+// "{Timestamp} - {SourceContext} - {Level} - {Message}" == the canonical layout.
+var serilog = new LoggerConfiguration()
+    .WriteTo.Console(
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} - {SourceContext} - {Level:u} - {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
+
+// Hand the SDK an ILogger that writes through that template.
+var logger = new SerilogLoggerFactory(serilog).CreateLogger("MarketDataApp");
+var client = new MarketDataClient(httpClient, options.WithLogger(logger));
+```
+
+With the built-in `Microsoft.Extensions.Logging.Console` provider, `AddSimpleConsole`
+(optionally with `TimestampFormat`) or a custom `ConsoleFormatter` produces the equivalent
+layout; the events and their properties are identical regardless of the provider.
+
 The SDK emits `System.Diagnostics.Activity` spans via `MarketDataDiagnostics.ActivitySource`.
 
 | Name | `ActivitySource.Name` value |
@@ -889,8 +940,10 @@ yet is identified explicitly.
 
 - The application owns and injects `HttpClient`; the SDK never creates or disposes it.
 - Public endpoint methods are asynchronous and accept `CancellationToken`.
-- The configured `Timeout` applies independently to each HTTP attempt. Caller cancellation
-  remains distinguishable from an SDK timeout.
+- A fixed, non-configurable 99-second request timeout applies independently to each HTTP
+  attempt. Caller cancellation remains distinguishable from an SDK timeout. The separate
+  2-second connection timeout is supplied by the caller-owned handler
+  (`MarketDataClient.CreateDefaultHttpHandler()`).
 - Endpoint requests are HTTP `GET` operations. Automatic retries never apply to parsing,
   authentication, validation, or other deterministic failures.
 
