@@ -105,6 +105,21 @@ public static class MarketDataServiceCollectionExtensions
         {
             var factory = sp.GetRequiredService<IHttpClientFactory>();
             var opts = sp.GetRequiredService<MarketDataClientOptions>();
+
+            // Auto-wire the SDK logger from the container so AddMarketDataClient() emits SDK logs
+            // whenever the app has logging configured (pairs with AddMarketDataCanonicalConsole()).
+            // Only fill in the logger when the caller did not supply one explicitly, and only when
+            // the container actually has logging registered; if no logger is resolvable the logger
+            // stays unset and the client still constructs silently.
+            if (opts.Logger is null)
+            {
+                var logger = sp.GetService<Microsoft.Extensions.Logging.ILogger<MarketDataClient>>();
+                if (logger is not null)
+                {
+                    opts = opts with { Logger = logger };
+                }
+            }
+
             return new MarketDataClient(factory.CreateClient(HttpClientName), opts);
         });
 

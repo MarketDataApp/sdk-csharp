@@ -58,6 +58,12 @@ MarketData.app SDK requirements sections they satisfy.
 
 ### Changed
 
+- `AddMarketDataClient` now auto-wires the container's `ILogger<MarketDataClient>`
+  into the SDK when the application has logging configured, so SDK logs flow
+  automatically in DI apps without extra wiring. An explicitly supplied
+  `MarketDataClientOptions.Logger` is respected and never overridden, and the
+  client still constructs silently when no logging is registered. Pairs with
+  `AddMarketDataCanonicalConsole()`. (§7)
 - Request timeout is fixed at 99 seconds and is no longer configurable. (§10)
 - `MaxConcurrentRequests` is validated and capped to the range 1–50. (§12)
 - Automatic retries now apply only to HTTP 501–599 server errors and transient

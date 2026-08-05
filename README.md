@@ -173,6 +173,14 @@ Three overloads resolve the options for you:
 Registrations use `TryAdd*`, so you can override either `MarketDataClientOptions` or
 `MarketDataClient` by registering your own before calling the extension.
 
+**SDK logs flow automatically.** When your app has logging configured (any provider registered
+through `AddLogging` / the host builder), `AddMarketDataClient` auto-wires the container's
+`ILogger<MarketDataClient>` into the client, so the SDK's lifecycle, request, response, and error
+diagnostics are emitted without any extra wiring. An explicitly supplied `MarketDataClientOptions.Logger`
+is always respected and never overridden, and when no logging is configured the client still
+constructs silently. Pair it with `builder.Logging.AddMarketDataCanonicalConsole()` to render the
+SDK's canonical `{timestamp} - {logger_name} - {level} - {message}` console line.
+
 > **No eager startup validation.** The DI path uses the `MarketDataClient` constructor, so it does
 > **not** validate the token at startup — authentication and rate-limit errors surface on the first
 > request. For fail-fast startup validation, build the client with
