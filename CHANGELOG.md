@@ -25,6 +25,9 @@ MarketData.app SDK requirements sections they satisfy.
   `--- MARKET DATA SUPPORT INFO ---` block: snake_case labels in spec order
   (`request_id`, `request_url`, `status_code`, `timestamp`, `message`,
   `exception_type`), column-aligned, with a `(none)` fallback. (§6.3)
+- `AddMarketDataCanonicalConsole()` logging-builder extension +
+  `MarketDataConsoleFormatter` producing the canonical
+  `{timestamp} - {logger_name} - {level} - {message}` log line (opt-in). (§7)
 - `IsJson` / `IsCsv` / `IsHtml` format-detection flags on every response via the
   `IMarketDataResponse` contract (typed JSON, `CsvResponse`, `HtmlResponse`).
   (§11.6)

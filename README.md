@@ -895,6 +895,19 @@ With the built-in `Microsoft.Extensions.Logging.Console` provider, `AddSimpleCon
 (optionally with `TimestampFormat`) or a custom `ConsoleFormatter` produces the equivalent
 layout; the events and their properties are identical regardless of the provider.
 
+For an exact match to the canonical layout without hand-authoring a template, the SDK ships
+an **opt-in** console formatter. Call `AddMarketDataCanonicalConsole()` on your logging
+builder and the built-in console provider renders each event as the canonical line:
+
+```csharp
+builder.Logging.AddMarketDataCanonicalConsole();
+// Output: 2025-02-21 12:00:00 - marketdata.client - INFO - Making request...
+```
+
+The timestamp is US/Eastern (`yyyy-MM-dd HH:mm:ss`) and the level is mapped to the spec
+vocabulary (`DEBUG`/`INFO`/`WARNING`/`ERROR`). This is purely opt-in; by default the SDK
+emits structured events and leaves formatting to the provider you attach.
+
 The SDK emits `System.Diagnostics.Activity` spans via `MarketDataDiagnostics.ActivitySource`.
 
 | Name | `ActivitySource.Name` value |

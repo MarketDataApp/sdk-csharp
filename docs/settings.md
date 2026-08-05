@@ -76,6 +76,19 @@ The built-in `Microsoft.Extensions.Logging.Console` provider (`AddSimpleConsole`
 equivalent layout. Regardless of provider, the emitted events and their properties are
 identical.
 
+For an exact match without authoring a template, the SDK ships an **opt-in** console
+formatter. Call `AddMarketDataCanonicalConsole()` on your logging builder and the console
+provider emits the canonical line directly:
+
+```csharp
+builder.Logging.AddMarketDataCanonicalConsole();
+// Output: 2025-02-21 12:00:00 - marketdata.client - INFO - Making request...
+```
+
+The timestamp is US/Eastern (`yyyy-MM-dd HH:mm:ss`) and the .NET `LogLevel` is mapped to the
+spec vocabulary (`DEBUG` / `INFO` / `WARNING` / `ERROR`). It is opt-in only; the default SDK
+behavior is unchanged.
+
 ### Configuration cascade
 
 Request options resolve **per field** in this order: env / client-level defaults →
