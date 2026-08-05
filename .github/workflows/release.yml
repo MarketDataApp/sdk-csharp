@@ -105,7 +105,7 @@ jobs:
       # signed SLSA provenance covers exactly the bytes that get published. This
       # needs id-token: write + attestations: write (declared above).
       - name: Attest build provenance for packages
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             artifacts/*.nupkg
