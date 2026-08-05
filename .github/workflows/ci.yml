@@ -112,7 +112,7 @@ jobs:
       # fail_ci_if_error is false so a Codecov outage never fails the build.
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           # coverlet.msbuild writes CoverletOutput relative to the test project dir.
           files: src/MarketDataApp.Tests/TestResults/coverage.opencover.xml
