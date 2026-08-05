@@ -1,0 +1,172 @@
+name: Bug Report
+description: Report a bug in the Market Data C#/.NET SDK
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill out all required fields so we can reproduce and fix it quickly.
+
+        **Note:** This SDK is currently **alpha / in active development**, and it returns data exactly as the API provides it. Before reporting, please confirm the behavior differs from what the [API documentation](https://www.marketdata.app/docs/api) describes (not just something unexpected to you).
+
+  - type: checkboxes
+    id: api-docs-verified
+    attributes:
+      label: API documentation verification
+      options:
+        - label: I have reviewed the [API documentation](https://www.marketdata.app/docs/api) for this endpoint
+          required: true
+        - label: The behavior I'm reporting differs from what the API documentation describes
+          required: true
+
+  - type: dropdown
+    id: language
+    attributes:
+      label: .NET language
+      description: Which language are you calling the SDK from?
+      options:
+        - C#
+        - F#
+        - VB.NET
+        - Other .NET language
+    validations:
+      required: true
+
+  - type: dropdown
+    id: resource
+    attributes:
+      label: SDK resource
+      description: Which part of the SDK is affected?
+      options:
+        - stocks
+        - options
+        - funds
+        - markets
+        - utilities
+        - Client / configuration
+        - Dependency injection (AddMarketDataClient)
+        - Logging / diagnostics
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: method
+    attributes:
+      label: Method
+      description: Which method are you calling? (e.g. GetCandlesAsync, GetQuoteAsync, GetChainAsync)
+      placeholder: GetCandlesAsync
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction code
+      description: Complete, self-contained C# (or F#/VB) that demonstrates the bug.
+      render: csharp
+      placeholder: |
+        using var http = new HttpClient();
+        var client = await MarketDataClient.CreateAsync(http);
+        var candles = await client.Stocks.GetCandlesAsync(
+            new StockCandlesRequest(StockResolution.Daily, "AAPL") { Countback = 5 });
+        // Bug: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happens? Include exact values and any exception message + stack trace.
+      placeholder: |
+        MarketDataApp.Exceptions.ParseException: ...
+           at MarketDataApp.ApiClient...
+    validations:
+      required: true
+
+  - type: textarea
+    id: support-info
+    attributes:
+      label: Support info (if an exception was thrown)
+      description: |
+        If a `MarketDataException` was thrown, paste its `SupportInfo` block — `Console.WriteLine(ex.SupportInfo)`. It contains the request id, URL, status code, and timestamp we need for triage. Your API token is never included.
+      render: text
+      placeholder: |
+        --- MARKET DATA SUPPORT INFO ---
+        request_id:     8a1b2c3d4e5f6g7h-SJC
+        request_url:    https://api.marketdata.app/v1/stocks/candles/daily/AAPL/
+        status_code:    422
+        timestamp:      2026-02-21 12:00:00
+        message:        ...
+        exception_type: BadRequestException
+        --------------------------------
+    validations:
+      required: false
+
+  - type: input
+    id: sdk-version
+    attributes:
+      label: SDK version
+      description: The `MarketDataApp` NuGet package version from your `<PackageReference>`. Pre-release builds look like `0.0.0-alpha.*`.
+      placeholder: "0.0.0-alpha.0.52"
+    validations:
+      required: true
+
+  - type: input
+    id: dotnet-version
+    attributes:
+      label: .NET SDK / runtime version
+      description: Run `dotnet --version`
+      placeholder: "10.0.100"
+    validations:
+      required: true
+
+  - type: input
+    id: tfm
+    attributes:
+      label: Target framework
+      description: Your project's `<TargetFramework>` (e.g. net10.0)
+      placeholder: net10.0
+    validations:
+      required: false
+
+  - type: dropdown
+    id: consumption
+    attributes:
+      label: How is the client constructed?
+      options:
+        - "DI: services.AddMarketDataClient(...)"
+        - "Async factory: MarketDataClient.CreateAsync(...)"
+        - "Constructor: new MarketDataClient(...)"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      multiple: true
+      options:
+        - macOS
+        - Windows
+        - Linux
+    validations:
+      required: false
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      description: Any other relevant information (configuration, workarounds tried, etc.)
+    validations:
+      required: false

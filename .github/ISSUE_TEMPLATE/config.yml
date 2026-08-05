@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question
+    url: https://github.com/MarketDataApp/sdk-csharp/discussions/new?category=q-a
+    about: Ask the community for help using the SDK
+  - name: Request a feature
+    url: https://github.com/MarketDataApp/sdk-csharp/discussions/new?category=ideas
+    about: Share ideas for new features or improvements
+  - name: Report a security issue
+    url: https://github.com/MarketDataApp/sdk-csharp/security/policy
+    about: Learn how to privately report a security vulnerability (do not open a public issue)
+  - name: Market Data support & community
+    url: https://www.marketdata.app/dashboard/
+    about: "Account, billing, and API questions. Community chat: https://discord.com/invite/GmdeAVRtnT"
