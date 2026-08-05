@@ -374,10 +374,8 @@ internal sealed class ApiClient : IDisposable
         return builder.Uri;
     }
 
-    // Excluded: the HttpStatusCode.NotFound arm is unreachable. A 404 is treated as a successful
-    // no-data response by SendOnceWithinGateAsync (returned before CreateException is ever called),
-    // so this mapper never sees a 404 — but the arm cannot be individually excluded from the switch.
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    // A 404 is handled as a successful no-data response upstream (SendOnceWithinGateAsync) and never
+    // reaches this mapper, so there is no NotFound arm; NotFoundException remains part of the taxonomy.
     private MarketDataException CreateException(
         HttpStatusCode statusCode,
         Uri requestUri,
@@ -398,7 +396,6 @@ internal sealed class ApiClient : IDisposable
         {
             HttpStatusCode.BadRequest => new BadRequestException(message, context),
             HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => new AuthenticationException(message, context),
-            HttpStatusCode.NotFound => new NotFoundException(message, context),
             HttpStatusCode.TooManyRequests => new RateLimitException(message, context, ParseRetryAfter(headers)),
             >= HttpStatusCode.InternalServerError => new ServerException(message, context, ParseRetryAfter(headers)),
             _ => new MarketDataExceptionAdapter(message, context)
