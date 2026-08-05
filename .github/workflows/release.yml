@@ -49,7 +49,7 @@ jobs:
           fetch-depth: 0   # Source Link needs full history
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           # Pinned to the repo's SDK band (see global.json: 10.0.x).
           dotnet-version: '10.0.x'
