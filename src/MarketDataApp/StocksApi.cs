@@ -146,32 +146,6 @@ public sealed class StocksApi
         return JsonResponseParser.CreateResponse<StockQuotesResponse, IReadOnlyList<StockQuote>>(response, values);
     }
 
-    /// <summary>Gets bulk quotes for multiple stock symbols.</summary>
-    public Task<StockQuotesResponse> GetBulkQuotesAsync(string[] symbols, bool? extended = null, bool? snapshot = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
-        GetBulkQuotesAsync(new StockBulkQuotesRequest(symbols) { Extended = extended, Snapshot = snapshot }, options, cancellationToken);
-
-    /// <summary>Executes the endpoint request.</summary>
-    public async Task<StockQuotesResponse> GetBulkQuotesAsync(
-        StockBulkQuotesRequest request,
-        MarketDataRequestOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        var effective = _apiClient.ApplyDefaults(options);
-        var query = RequestQuery.From(effective);
-        RequestQuery.Add(query, "symbols", string.Join(",", request.Symbols));
-        AddBoolean(query, "extended", request.Extended);
-        AddBoolean(query, "snapshot", request.Snapshot);
-        var response = await _apiClient.GetAsync("stocks/bulkquotes", true, query, cancellationToken)
-            .ConfigureAwait(false);
-        var values = JsonResponseParser.DecodeOrDefault(
-            response,
-            ParseQuotes,
-            Array.Empty<StockQuote>(),
-            requestedColumns: effective.Columns);
-        return JsonResponseParser.CreateResponse<StockQuotesResponse, IReadOnlyList<StockQuote>>(response, values);
-    }
-
     /// <summary>Gets OHLCV candles for a stock symbol.</summary>
     public Task<StockCandlesResponse> GetCandlesAsync(StockResolution resolution, string symbol, DateOnly? date = null, DateOnly? from = null, DateOnly? to = null, int? countback = null, string? exchange = null, bool? extended = null, string? country = null, bool? adjustSplits = null, bool? adjustDividends = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
         GetCandlesAsync(new StockCandlesRequest(resolution, symbol) { Date = date, From = from, To = to, Countback = countback, Exchange = exchange, Extended = extended, Country = country, AdjustSplits = adjustSplits, AdjustDividends = adjustDividends }, options, cancellationToken);
@@ -373,24 +347,6 @@ public sealed class StocksApi
         AddBoolean(query, "candle", request.Candle);
         AddBoolean(query, "52week", request.Week52);
         return await GetCsvAsync("stocks/quotes", query, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>Gets bulk quotes for multiple stock symbols as CSV.</summary>
-    public Task<CsvResponse> GetBulkQuotesCsvAsync(string[] symbols, bool? extended = null, bool? snapshot = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
-        GetBulkQuotesCsvAsync(new StockBulkQuotesRequest(symbols) { Extended = extended, Snapshot = snapshot }, options, cancellationToken);
-
-    /// <summary>Executes the endpoint request.</summary>
-    public async Task<CsvResponse> GetBulkQuotesCsvAsync(
-        StockBulkQuotesRequest request,
-        MarketDataRequestOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        var query = RequestQuery.Csv(_apiClient.ApplyDefaults(options));
-        RequestQuery.Add(query, "symbols", string.Join(",", request.Symbols));
-        AddBoolean(query, "extended", request.Extended);
-        AddBoolean(query, "snapshot", request.Snapshot);
-        return await GetCsvAsync("stocks/bulkquotes", query, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Gets CSV OHLCV candles for a stock symbol.</summary>

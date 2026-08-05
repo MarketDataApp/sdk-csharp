@@ -8,7 +8,6 @@ optional `MarketDataRequestOptions` and a `CancellationToken`.
 |---|---|---|
 | Single quote | `GetQuoteAsync("AAPL")` | `StockQuoteRequest` |
 | Multi-symbol quotes | `GetQuotesAsync(["AAPL", "MSFT"])` | `StockQuotesRequest` |
-| Bulk quotes | `GetBulkQuotesAsync(["AAPL", "MSFT"])` | `StockBulkQuotesRequest` |
 | Multi-symbol prices | `GetPricesAsync(["AAPL", "MSFT"])` | `StockPricesRequest` |
 | Single price | `GetPriceAsync("AAPL")` | `StockPriceRequest` |
 | Candles | `GetCandlesAsync(StockResolution.Daily, "AAPL")` | `StockCandlesRequest` |

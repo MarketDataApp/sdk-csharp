@@ -149,10 +149,6 @@ public sealed class CsvApiTests
 
         await client.Stocks.GetPriceCsvAsync(new StockPriceRequest("AAPL"));
         Assert.Equal("/v1/stocks/prices/AAPL/", handler.LastRequest.RequestUri!.AbsolutePath);
-
-        await client.Stocks.GetBulkQuotesCsvAsync(new StockBulkQuotesRequest("AAPL", "MSFT"));
-        Assert.Equal("/v1/stocks/bulkquotes/", handler.LastRequest.RequestUri!.AbsolutePath);
-        Assert.Contains("symbols=AAPL%2CMSFT", handler.LastRequest.RequestUri.Query);
     }
 
     private static StubHttpMessageHandler CreateHandler(string body)

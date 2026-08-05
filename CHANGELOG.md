@@ -40,7 +40,6 @@ MarketData.app SDK requirements sections they satisfy.
 - Cached `/status/` retry gate: before retrying a server error the SDK consults a
   per-service status snapshot (270s refresh / 300s validity); an `OFFLINE`
   service fails immediately instead of retrying. (§9.5)
-- Optional `snapshot` parameter on `stocks/bulkquotes`. (§3)
 - `IDisposable` on `MarketDataClient` and `ApiClient` (disposes the concurrency
   semaphore; never the caller-owned `HttpClient`). (§1)
 - Packaging: git-tag-driven versioning via MinVer, deterministic builds,
@@ -73,6 +72,10 @@ MarketData.app SDK requirements sections they satisfy.
 - Undocumented `nonstandard` parameter on `options/expirations` (retained on the
   options chain, where it is documented). (§3)
 - Undocumented `countback` parameter on `options/quotes`. (§3)
+- Removed the deprecated `stocks/bulkquotes` methods
+  (`GetBulkQuotesAsync`/`GetBulkQuotesCsvAsync`) and `StockBulkQuotesRequest`; use
+  `GetQuotesAsync` with multiple symbols (the `stocks/quotes` endpoint now serves
+  bulk retrieval). (§3)
 
 ### Fixed
 

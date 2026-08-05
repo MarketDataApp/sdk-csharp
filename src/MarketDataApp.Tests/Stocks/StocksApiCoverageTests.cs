@@ -208,9 +208,6 @@ public sealed class StocksApiCoverageTests
         Assert.Equal("/v1/stocks/quotes/", handler.LastRequest.RequestUri!.AbsolutePath);
         Assert.Contains("candle=true", handler.LastRequest.RequestUri.Query);
 
-        await client.Stocks.GetBulkQuotesAsync(["AAPL"], snapshot: true);
-        Assert.Equal("/v1/stocks/bulkquotes/", handler.LastRequest.RequestUri!.AbsolutePath);
-
         await client.Stocks.GetCandlesAsync(StockResolution.Daily, "AAPL", countback: 5);
         Assert.Equal("/v1/stocks/candles/D/AAPL/", handler.LastRequest.RequestUri!.AbsolutePath);
         Assert.Contains("countback=5", handler.LastRequest.RequestUri.Query);
@@ -243,9 +240,6 @@ public sealed class StocksApiCoverageTests
         await client.Stocks.GetQuotesCsvAsync(["AAPL"], week52: true);
         Assert.Equal("/v1/stocks/quotes/", handler.LastRequest.RequestUri!.AbsolutePath);
         Assert.Contains("52week=true", handler.LastRequest.RequestUri.Query);
-
-        await client.Stocks.GetBulkQuotesCsvAsync(["AAPL"], extended: true);
-        Assert.Equal("/v1/stocks/bulkquotes/", handler.LastRequest.RequestUri!.AbsolutePath);
 
         await client.Stocks.GetCandlesCsvAsync(StockResolution.Daily, "AAPL", date: new DateOnly(2025, 1, 2));
         Assert.Equal("/v1/stocks/candles/D/AAPL/", handler.LastRequest.RequestUri!.AbsolutePath);

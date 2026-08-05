@@ -282,28 +282,6 @@ public sealed class StocksApiTests
     }
 
     [Fact]
-    public async Task GetBulkQuotesAsync_MapsSymbolsAndExtended()
-    {
-        var handler = new StubHttpMessageHandler(_ => MarketDataTestClient.JsonResponse("""
-        {
-          "s": "ok",
-          "symbol": ["AAPL", "MSFT"],
-          "mid": [190.25, 420.5],
-          "updated": [1706745600, 1706745600]
-        }
-        """));
-        var client = MarketDataTestClient.Create(handler);
-
-        var response = await client.Stocks.GetBulkQuotesAsync(
-            new StockBulkQuotesRequest("AAPL", "MSFT") { Extended = true });
-
-        Assert.Equal(2, response.Values.Count);
-        Assert.Equal("/v1/stocks/bulkquotes/", handler.LastRequest!.RequestUri!.AbsolutePath);
-        Assert.Contains("symbols=AAPL%2CMSFT", handler.LastRequest.RequestUri.Query);
-        Assert.Contains("extended=true", handler.LastRequest.RequestUri.Query);
-    }
-
-    [Fact]
     public async Task GetQuoteAsync_ScalarOverloadBuildsRequest()
     {
         var handler = new StubHttpMessageHandler(_ => MarketDataTestClient.JsonResponse("""{"s":"ok","symbol":["AAPL"],"last":[190.25]}"""));
@@ -341,26 +319,6 @@ public sealed class StocksApiTests
         Assert.Contains(
             "columns=symbol%2Cheadline%2Ccontent%2Csource%2CpublicationDate",
             handler.LastRequest!.RequestUri!.Query);
-    }
-
-    [Fact]
-    public async Task GetBulkQuotesAsync_SendsSnapshotParameter()
-    {
-        var handler = new StubHttpMessageHandler(_ => MarketDataTestClient.JsonResponse("""
-        {
-          "s": "ok",
-          "symbol": ["AAPL", "MSFT"],
-          "mid": [190.25, 420.5],
-          "updated": [1706745600, 1706745600]
-        }
-        """));
-        var client = MarketDataTestClient.Create(handler);
-
-        var response = await client.Stocks.GetBulkQuotesAsync(
-            new StockBulkQuotesRequest("AAPL", "MSFT") { Snapshot = true });
-
-        Assert.Equal(2, response.Values.Count);
-        Assert.Contains("snapshot=true", handler.LastRequest!.RequestUri!.Query);
     }
 
 }

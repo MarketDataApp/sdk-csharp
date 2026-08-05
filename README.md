@@ -378,10 +378,8 @@ All stock methods are on `client.Stocks`.
 |--------|-------------|---------|
 | `GetQuoteAsync` | `StockQuoteRequest(symbol)` | `StockQuotesResponse` |
 | `GetQuotesAsync` | `StockQuotesRequest(symbols…)` | `StockQuotesResponse` |
-| `GetBulkQuotesAsync` | `StockBulkQuotesRequest(symbols…)` | `StockQuotesResponse` |
 | `GetQuoteCsvAsync` | `StockQuoteRequest` | `CsvResponse` |
 | `GetQuotesCsvAsync` | `StockQuotesRequest` | `CsvResponse` |
-| `GetBulkQuotesCsvAsync` | `StockBulkQuotesRequest` | `CsvResponse` |
 
 `StockQuote` fields: `Symbol`, `Ask`, `AskSize`, `Bid`, `BidSize`, `Mid`, `Last`,
 `Change`, `ChangePct`, `Volume`, `Updated`, `O`, `H`, `L`, `C`, `Week52High`, `Week52Low`.

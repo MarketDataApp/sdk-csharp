@@ -78,21 +78,12 @@ public sealed class StocksIntegrationTests : IntegrationTestBase
     }
 
     [IntegrationFact]
-    public async Task BulkQuotes_ReturnExpectedShape()
+    public async Task Quotes_MultiSymbol_ReturnExpectedShape()
     {
-        var response = await Client.Stocks.GetBulkQuotesAsync(
-            new StockBulkQuotesRequest("AAPL", "MSFT"));
+        var response = await Client.Stocks.GetQuotesAsync(
+            new StockQuotesRequest("AAPL", "MSFT"));
 
-        // Bulk quotes are cached and normally available; tolerate the documented no-data
-        // response so the test stays robust — the SDK must round-trip correctly either way.
-        if (response.IsNoData)
-        {
-            Assert.Equal(404, response.StatusCode);
-        }
-        else
-        {
-            AssertSuccess(response.StatusCode);
-            Assert.NotEmpty(response.Values);
-        }
+        AssertSuccess(response.StatusCode);
+        Assert.Contains(response.Values, v => v.Symbol == "AAPL");
     }
 }

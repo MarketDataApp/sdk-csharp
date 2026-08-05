@@ -54,10 +54,6 @@ public sealed class RequestValidationCoverageTests
         Assert.Throws<ArgumentException>(() => new StockQuotesRequest(Array.Empty<string>()));
         Assert.Throws<ArgumentException>(() => new StockQuotesRequest(" "));
         Assert.Throws<ArgumentNullException>(() => new StockQuotesRequest((IEnumerable<string>)null!));
-
-        Assert.Throws<ArgumentException>(() => new StockBulkQuotesRequest(Array.Empty<string>()));
-        Assert.Throws<ArgumentException>(() => new StockBulkQuotesRequest(" "));
-        Assert.Throws<ArgumentNullException>(() => new StockBulkQuotesRequest((IEnumerable<string>)null!));
     }
 
     [Fact]
