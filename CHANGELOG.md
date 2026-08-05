@@ -13,6 +13,9 @@ MarketData.app SDK requirements sections they satisfy.
 
 ### Added
 
+- `AddMarketDataClient` service-collection extensions
+  (`Microsoft.Extensions.DependencyInjection`) registering `MarketDataClient` as a
+  singleton over an `IHttpClientFactory`-managed HttpClient.
 - `MarketDataClient.CreateAsync(httpClient, options?, cancellationToken)` async
   factory: when a token is present and `ValidateTokenOnStartup` is enabled
   (default), it awaits `GET /user/` to fail fast on a bad token

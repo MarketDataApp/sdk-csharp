@@ -29,33 +29,23 @@ var builder = WebApplication.CreateBuilder(args);
 // secrets manager — never store the token in appsettings.json.
 builder.Configuration.AddUserSecrets<Program>(optional: true);
 
-// ── HttpClient via IHttpClientFactory ────────────────────────────────────────────
-// Register a named client. The SDK never creates or disposes the HttpClient;
-// the factory manages pooling and handler lifetime.
-builder.Services.AddHttpClient("MarketData");
-
-// ── MarketDataClient as a singleton ─────────────────────────────────────────────
-// A single MarketDataClient is safe to share across concurrent requests.
+// ── MarketDataClient via dependency injection ────────────────────────────────────
+// AddMarketDataClient registers MarketDataClient as a singleton over an
+// IHttpClientFactory-managed HttpClient. The factory-created client is backed by the SDK's
+// default handler (2-second connect timeout, pooled-connection rotation), and the SDK never
+// creates or disposes the HttpClient itself. A single MarketDataClient is safe to share
+// across concurrent requests.
 //
-// DI singleton factory delegates are synchronous, so this path uses the plain constructor,
-// which performs NO startup token validation and NO network I/O — authentication and
-// rate-limit errors surface on the first request (handled by the endpoints below). To
-// validate the token and seed the rate-limit snapshot eagerly instead, build the client
-// with the async factory `await MarketDataClient.CreateAsync(httpClient, options)` before
-// registering it (see examples/McpServer/Program.cs).
-builder.Services.AddSingleton<MarketDataClient>(sp =>
-{
-    var factory = sp.GetRequiredService<IHttpClientFactory>();
-    var config = sp.GetRequiredService<IConfiguration>();
-
-    // FromConfiguration reads all MARKETDATA_* keys:
-    //   MARKETDATA_TOKEN, MARKETDATA_BASE_URL,
-    //   MARKETDATA_MAX_RETRIES, MARKETDATA_RETRY_BASE_DELAY, MARKETDATA_RETRY_MAX_DELAY,
-    //   MARKETDATA_MAX_RETRY_AFTER, MARKETDATA_RETRY_JITTER_FACTOR,
-    //   MARKETDATA_MAX_CONCURRENT_REQUESTS, MARKETDATA_API_VERSION, MARKETDATA_USER_AGENT
-    var options = MarketDataClientOptions.FromConfiguration(config);
-    return new MarketDataClient(factory.CreateClient("MarketData"), options);
-});
+// This DI path uses the MarketDataClient constructor, so it performs NO eager startup token
+// validation and NO network I/O at registration — authentication and rate-limit errors
+// surface on the first request (handled by the endpoints below). To validate the token and
+// seed the rate-limit snapshot eagerly instead, build the client with the async factory
+// `await MarketDataClient.CreateAsync(httpClient, options)` before registering it
+// (see examples/McpServer/Program.cs).
+//
+// The IConfiguration overload reads all MARKETDATA_* keys (MARKETDATA_TOKEN,
+// MARKETDATA_BASE_URL, retry/concurrency tuning, MARKETDATA_API_VERSION, MARKETDATA_USER_AGENT).
+builder.Services.AddMarketDataClient(builder.Configuration);
 
 var app = builder.Build();
 

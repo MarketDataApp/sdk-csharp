@@ -45,6 +45,7 @@
 - [Installation](#installation)
 - [Quick start](#quick-start)
 - [Client lifetime and HttpClient injection](#client-lifetime-and-httpclient-injection)
+- [Dependency injection (ASP.NET Core)](#dependency-injection-aspnet-core)
 - [Configuration](#configuration)
 - [Request and response model](#request-and-response-model)
 - [Inspecting responses](#inspecting-responses)
@@ -119,26 +120,63 @@ var client = await MarketDataClient.CreateAsync(httpClient, options);
 
 ### ASP.NET Core — singleton via IHttpClientFactory
 
-DI singleton factory delegates are synchronous, so register the client with the plain
-constructor. That path performs no startup validation — authentication and rate-limit
-errors surface on the first request. To validate eagerly, build the client with
-`await MarketDataClient.CreateAsync(...)` before registering the instance.
+Register the client in one line with
+[`AddMarketDataClient`](#dependency-injection-aspnet-core), which wires up the singleton and an
+`IHttpClientFactory`-managed `HttpClient` for you:
 
 ```csharp
 // Program.cs
-builder.Services.AddHttpClient("MarketData");
-
-builder.Services.AddSingleton<MarketDataClient>(sp =>
-{
-    var factory  = sp.GetRequiredService<IHttpClientFactory>();
-    var config   = sp.GetRequiredService<IConfiguration>();
-    var options  = MarketDataClientOptions.FromConfiguration(config);
-    return new MarketDataClient(factory.CreateClient("MarketData"), options);
-});
+builder.Services.AddMarketDataClient(builder.Configuration);
 ```
 
 A single `MarketDataClient` instance is safe to use concurrently from multiple
-requests or threads.
+requests or threads. This path performs no startup validation; see
+[Dependency injection (ASP.NET Core)](#dependency-injection-aspnet-core) for the overloads,
+override behavior, and eager-validation guidance.
+
+---
+
+## Dependency injection (ASP.NET Core)
+
+The `AddMarketDataClient` service-collection extension registers `MarketDataClient` with one line in
+ASP.NET Core or generic-host apps. It lives in `Microsoft.Extensions.DependencyInjection`, so it is
+discoverable without an extra `using`:
+
+```csharp
+// Program.cs
+builder.Services.AddMarketDataClient(builder.Configuration);
+```
+
+Then take `MarketDataClient` as a constructor-injected dependency (or a minimal-API parameter):
+
+```csharp
+app.MapGet("/quote/{symbol}", async (
+    string symbol,
+    MarketDataClient client,
+    CancellationToken ct) =>
+    Results.Ok((await client.Stocks.GetQuoteAsync(symbol, cancellationToken: ct)).Values));
+```
+
+`AddMarketDataClient` registers `MarketDataClient` as a **singleton** over an
+`IHttpClientFactory`-managed `HttpClient` whose primary handler is the SDK default handler
+(`MarketDataClient.CreateDefaultHttpHandler()`), so the 2-second connection timeout applies and
+pooled connections rotate DNS. A single client instance is safe to use concurrently.
+
+Three overloads resolve the options for you:
+
+| Overload | Options source |
+|----------|----------------|
+| `AddMarketDataClient()` | `MarketDataClientOptions.FromEnvironment()` — user secrets, `.env`, environment variables |
+| `AddMarketDataClient(IConfiguration configuration)` | `MarketDataClientOptions.FromConfiguration(configuration)` — the `MARKETDATA_*` keys |
+| `AddMarketDataClient(MarketDataClientOptions options)` | the supplied instance |
+
+Registrations use `TryAdd*`, so you can override either `MarketDataClientOptions` or
+`MarketDataClient` by registering your own before calling the extension.
+
+> **No eager startup validation.** The DI path uses the `MarketDataClient` constructor, so it does
+> **not** validate the token at startup — authentication and rate-limit errors surface on the first
+> request. For fail-fast startup validation, build the client with
+> `await MarketDataClient.CreateAsync(...)` and register that instance instead.
 
 ---
 

@@ -1,0 +1,113 @@
+using MarketDataApp;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
+// Placed in the Microsoft.Extensions.DependencyInjection namespace (the framework convention for
+// service-registration extensions) so AddMarketDataClient is discoverable from Program.cs without an
+// extra `using`.
+namespace Microsoft.Extensions.DependencyInjection;
+
+/// <summary>
+/// Extension methods that register <see cref="MarketDataClient"/> with a
+/// <see cref="IServiceCollection"/> for ASP.NET Core and generic-host applications.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Each overload registers <see cref="MarketDataClient"/> as a <b>singleton</b> — a single instance
+/// is documented safe for concurrent use and holds shared client-wide state (the concurrency
+/// semaphore, the rate-limit snapshot, and the <c>/status</c> cache). The client is built over an
+/// <see cref="IHttpClientFactory"/>-managed <see cref="System.Net.Http.HttpClient"/> whose primary
+/// handler is <see cref="MarketDataClient.CreateDefaultHttpHandler"/>, so the 2-second connection
+/// timeout applies and pooled connections rotate DNS.
+/// </para>
+/// <para>
+/// The dependency-injection path uses the <see cref="MarketDataClient"/> constructor and therefore
+/// performs <b>no eager startup token validation</b>: authentication and rate-limit errors surface
+/// on the first request rather than at registration time. Callers that want fail-fast startup
+/// validation should build the client with <see cref="MarketDataClient.CreateAsync"/> and register
+/// the resulting instance instead.
+/// </para>
+/// <para>
+/// Registrations use <c>TryAdd*</c> so an application can override either
+/// <see cref="MarketDataClientOptions"/> or <see cref="MarketDataClient"/> by registering its own
+/// before calling these methods.
+/// </para>
+/// </remarks>
+public static class MarketDataServiceCollectionExtensions
+{
+    private const string HttpClientName = "MarketDataApp";
+
+    /// <summary>
+    /// Registers <see cref="MarketDataClient"/> as a singleton, resolving
+    /// <see cref="MarketDataClientOptions"/> from <see cref="MarketDataClientOptions.FromEnvironment"/>
+    /// (user secrets, an optional <c>.env</c> file, and process environment variables).
+    /// </summary>
+    /// <param name="services">The service collection to register with.</param>
+    /// <returns>The same <see cref="IServiceCollection"/> so calls can be chained.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="services"/> is <see langword="null"/>.</exception>
+    public static IServiceCollection AddMarketDataClient(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        return AddMarketDataClientCore(services, MarketDataClientOptions.FromEnvironment());
+    }
+
+    /// <summary>
+    /// Registers <see cref="MarketDataClient"/> as a singleton using the supplied
+    /// <see cref="MarketDataClientOptions"/>.
+    /// </summary>
+    /// <param name="services">The service collection to register with.</param>
+    /// <param name="options">The fully built client options to use.</param>
+    /// <returns>The same <see cref="IServiceCollection"/> so calls can be chained.</returns>
+    /// <exception cref="System.ArgumentNullException">
+    /// <paramref name="services"/> or <paramref name="options"/> is <see langword="null"/>.
+    /// </exception>
+    public static IServiceCollection AddMarketDataClient(
+        this IServiceCollection services,
+        MarketDataClientOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(options);
+        return AddMarketDataClientCore(services, options);
+    }
+
+    /// <summary>
+    /// Registers <see cref="MarketDataClient"/> as a singleton, resolving
+    /// <see cref="MarketDataClientOptions"/> from the supplied <see cref="IConfiguration"/> via
+    /// <see cref="MarketDataClientOptions.FromConfiguration"/> (reads the <c>MARKETDATA_*</c> keys).
+    /// </summary>
+    /// <param name="services">The service collection to register with.</param>
+    /// <param name="configuration">Configuration containing the <c>MARKETDATA_*</c> keys.</param>
+    /// <returns>The same <see cref="IServiceCollection"/> so calls can be chained.</returns>
+    /// <exception cref="System.ArgumentNullException">
+    /// <paramref name="services"/> or <paramref name="configuration"/> is <see langword="null"/>.
+    /// </exception>
+    public static IServiceCollection AddMarketDataClient(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+        return AddMarketDataClientCore(services, MarketDataClientOptions.FromConfiguration(configuration));
+    }
+
+    private static IServiceCollection AddMarketDataClientCore(
+        IServiceCollection services,
+        MarketDataClientOptions options)
+    {
+        // Back the named client with the SDK's default handler so the 2-second connect timeout
+        // applies and pooled connections rotate DNS / honor load-balancer changes.
+        services.AddHttpClient(HttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(static () => MarketDataClient.CreateDefaultHttpHandler());
+
+        // TryAdd* lets an application override the options or the client by registering its own first.
+        services.TryAddSingleton(options);
+        services.TryAddSingleton<MarketDataClient>(sp =>
+        {
+            var factory = sp.GetRequiredService<IHttpClientFactory>();
+            var opts = sp.GetRequiredService<MarketDataClientOptions>();
+            return new MarketDataClient(factory.CreateClient(HttpClientName), opts);
+        });
+
+        return services;
+    }
+}
