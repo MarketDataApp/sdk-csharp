@@ -36,6 +36,13 @@ builder.Services.AddHttpClient("MarketData");
 
 // ── MarketDataClient as a singleton ─────────────────────────────────────────────
 // A single MarketDataClient is safe to share across concurrent requests.
+//
+// DI singleton factory delegates are synchronous, so this path uses the plain constructor,
+// which performs NO startup token validation and NO network I/O — authentication and
+// rate-limit errors surface on the first request (handled by the endpoints below). To
+// validate the token and seed the rate-limit snapshot eagerly instead, build the client
+// with the async factory `await MarketDataClient.CreateAsync(httpClient, options)` before
+// registering it (see examples/McpServer/Program.cs).
 builder.Services.AddSingleton<MarketDataClient>(sp =>
 {
     var factory = sp.GetRequiredService<IHttpClientFactory>();

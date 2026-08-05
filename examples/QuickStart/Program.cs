@@ -18,12 +18,16 @@ if (string.IsNullOrWhiteSpace(options.ApiToken))
 }
 
 using var httpClient = new HttpClient();
-var client = new MarketDataClient(httpClient, options);
 using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 var cancellationToken = cancellation.Token;
 
 try
 {
+    // CreateAsync validates the token with /user/ and seeds the rate-limit snapshot before the
+    // first data request. Use the plain constructor (new MarketDataClient(httpClient, options))
+    // to skip startup validation and let auth/rate-limit errors surface on the first request.
+    var client = await MarketDataClient.CreateAsync(httpClient, options, cancellationToken);
+
     // Stocks: a single quote, a candle window, and one batched request for several symbols.
     var quoteResponse = await client.Stocks.GetQuoteAsync("AAPL", cancellationToken: cancellationToken);
     var quote = quoteResponse.Values.FirstOrDefault();

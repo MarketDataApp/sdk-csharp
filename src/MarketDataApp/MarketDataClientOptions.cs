@@ -36,8 +36,11 @@ public sealed record MarketDataClientOptions
     /// <summary>Logger used for SDK lifecycle, request, response, and error diagnostics.</summary>
     public ILogger? Logger { get; init; }
     /// <summary>
-    /// Validates an authenticated token with <c>/user/</c> during client construction.
+    /// Gates whether <see cref="MarketDataClient.CreateAsync"/> validates an authenticated token
+    /// with <c>/user/</c> and seeds the rate-limit snapshot at startup (default <c>true</c>).
     /// Set to <c>false</c> for short-lived runtimes that prefer first-request (lazy) validation.
+    /// This option has no effect on the <see cref="MarketDataClient"/> constructor, which never
+    /// performs startup validation; errors surface on the first request in that path.
     /// </summary>
     public bool ValidateTokenOnStartup { get; init; } = true;
 

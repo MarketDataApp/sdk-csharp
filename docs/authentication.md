@@ -53,3 +53,35 @@ var options = new MarketDataClientOptions
 
 `ApiToken` may be `null` for unauthenticated/free requests, but authenticated endpoints
 can then throw `AuthenticationException`.
+
+## Startup token validation
+
+Use the async factory to validate the token when the client is created:
+
+```csharp
+using var httpClient = new HttpClient();
+var client = await MarketDataClient.CreateAsync(
+    httpClient,
+    new MarketDataClientOptions { ApiToken = "your-api-token" });
+```
+
+`CreateAsync` performs a single `GET /user/` that:
+
+1. fails fast on an invalid token by throwing `AuthenticationException`, and
+2. seeds the client-wide rate-limit snapshot (`client.LatestRateLimit`) before the first
+   data request.
+
+Startup validation is on by default and governed by
+`MarketDataClientOptions.ValidateTokenOnStartup`. Set it to `false` for short-lived
+processes that prefer first-request (lazy) validation, or when no token is configured
+(demo mode), in which case `CreateAsync` returns immediately without a request.
+
+The plain constructor performs no network I/O and no startup validation:
+
+```csharp
+// No startup validation — auth and rate-limit errors surface on the first request.
+var client = new MarketDataClient(httpClient, options);
+```
+
+This constructor is the idiomatic no-validation path and is also the right choice for
+synchronous dependency-injection factories, which cannot `await`.

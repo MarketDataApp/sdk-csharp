@@ -6,19 +6,26 @@
 ## HttpClient ownership
 
 The application injects and owns `HttpClient`. `MarketDataClient` does not dispose it.
-In a console application, dispose the client you created:
+In a console application, create the client with the async factory so the token is
+validated and the rate-limit snapshot is seeded at startup:
 
 ```csharp
 using var httpClient = new HttpClient();
-var client = new MarketDataClient(httpClient);
+var client = await MarketDataClient.CreateAsync(httpClient);
 ```
+
+The plain constructor `new MarketDataClient(httpClient)` performs no network I/O and no
+startup validation; authentication and rate-limit errors surface on the first request.
+See [authentication](authentication.md#startup-token-validation) for details.
 
 When `options` is omitted, the client loads configuration from user secrets, an
 optional `.env` file in the current working directory, and process environment
 variables. Environment variables have the highest precedence, followed by `.env`,
 then user secrets.
 
-In ASP.NET Core, prefer `IHttpClientFactory`:
+In ASP.NET Core, prefer `IHttpClientFactory`. DI singleton factory delegates are
+synchronous, so register the client with the plain constructor (no startup validation
+in this path):
 
 ```csharp
 builder.Services.AddHttpClient("MarketData");

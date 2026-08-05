@@ -78,10 +78,6 @@ internal sealed class ApiClient : IDisposable
         if (!string.IsNullOrWhiteSpace(_options.ApiToken))
         {
             _logger?.LogDebug("API token configured with redacted suffix {TokenSuffix}.", RedactToken(_options.ApiToken));
-            if (_options.ValidateTokenOnStartup)
-            {
-                ValidateTokenOnStartup();
-            }
         }
         else
         {
@@ -438,15 +434,21 @@ internal sealed class ApiClient : IDisposable
     private static Uri SafeUri(Uri requestUri) =>
         new UriBuilder(requestUri) { Query = string.Empty, Fragment = string.Empty }.Uri;
 
-    private void ValidateTokenOnStartup()
+    /// <summary>
+    /// Performs an asynchronous <c>GET /user/</c> to fail fast on an invalid token
+    /// (throwing <see cref="AuthenticationException"/>) and to seed
+    /// <see cref="LatestRateLimit"/> from the response headers. Invoked by
+    /// <see cref="MarketDataClient.CreateAsync"/>; never called from a constructor.
+    /// </summary>
+    internal async Task ValidateTokenAndSeedRateLimitAsync(CancellationToken cancellationToken)
     {
         try
         {
-            _ = GetAsync(
+            _ = await GetAsync(
                 "user",
                 versioned: false,
                 Array.Empty<KeyValuePair<string, string?>>(),
-                CancellationToken.None).GetAwaiter().GetResult();
+                cancellationToken).ConfigureAwait(false);
         }
         catch (MarketDataException exception)
         {

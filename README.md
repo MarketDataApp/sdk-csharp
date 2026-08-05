@@ -77,7 +77,9 @@ dotnet add package MarketDataApp
 
 ```csharp
 using var httpClient = new HttpClient();
-var client = new MarketDataClient(httpClient);
+// CreateAsync validates the token with /user/ and seeds the rate-limit snapshot at startup.
+// Use the plain constructor `new MarketDataClient(httpClient)` to skip startup validation.
+var client = await MarketDataClient.CreateAsync(httpClient);
 var quote = await client.Stocks.GetQuoteAsync("AAPL");
 foreach (var q in quote.Values)
 {
@@ -106,10 +108,16 @@ The SDK never creates or disposes `HttpClient`. **The application owns the lifet
 ```csharp
 // Own and dispose the HttpClient yourself.
 using var httpClient = new HttpClient();
-var client = new MarketDataClient(httpClient, options);
+// CreateAsync validates the token and seeds the rate-limit snapshot at startup.
+var client = await MarketDataClient.CreateAsync(httpClient, options);
 ```
 
 ### ASP.NET Core — singleton via IHttpClientFactory
+
+DI singleton factory delegates are synchronous, so register the client with the plain
+constructor. That path performs no startup validation — authentication and rate-limit
+errors surface on the first request. To validate eagerly, build the client with
+`await MarketDataClient.CreateAsync(...)` before registering the instance.
 
 ```csharp
 // Program.cs
@@ -192,11 +200,21 @@ All listed `MARKETDATA_*` keys, including retry tuning, `MaxConcurrentRequests`,
 via `IConfiguration`; pass it directly to the constructor to replace the system clock,
 which is useful in unit tests.
 
-Authenticated clients validate their token with `/user/` during construction by default.
-Set `ValidateTokenOnStartup = false` when a short-lived process should defer validation
-until its first authenticated request. Pass an `ILogger` through `Logger`, or use
-`options.WithLogger(logger)`, to receive structured SDK diagnostics. Tokens are always
-redacted in log output.
+Startup token validation is opt-in through the async factory. `await
+MarketDataClient.CreateAsync(httpClient, options)` performs a single `GET /user/` that
+fails fast on an invalid token (throwing `AuthenticationException`) and seeds the
+client-wide rate-limit snapshot before the first request. It is enabled by default and
+governed by `ValidateTokenOnStartup`; set `ValidateTokenOnStartup = false` when a
+short-lived process should defer validation until its first authenticated request. In
+demo mode (no token) `CreateAsync` makes no request.
+
+The plain constructor `new MarketDataClient(httpClient, options)` performs no network I/O
+and no startup validation — authentication and rate-limit errors surface on the first
+request. This is the idiomatic no-validation (opt-out) path and is also the right choice
+for synchronous dependency-injection factories.
+
+Pass an `ILogger` through `Logger`, or use `options.WithLogger(logger)`, to receive
+structured SDK diagnostics. Tokens are always redacted in log output.
 
 ---
 

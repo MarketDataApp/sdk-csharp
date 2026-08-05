@@ -29,7 +29,9 @@ published version.
 using MarketDataApp;
 
 using var httpClient = new HttpClient();
-var client = new MarketDataClient(
+// CreateAsync validates the token and seeds the rate-limit snapshot at startup.
+// Use `new MarketDataClient(httpClient, options)` to skip startup validation.
+var client = await MarketDataClient.CreateAsync(
     httpClient,
     new MarketDataClientOptions { ApiToken = "your-api-token" });
 

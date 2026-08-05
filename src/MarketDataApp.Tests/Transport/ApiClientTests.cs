@@ -12,7 +12,46 @@ namespace MarketDataApp.Tests.Transport;
 public sealed class ApiClientTests
 {
     [Fact]
-    public void AuthenticatedClient_ValidatesTokenAtStartup()
+    public async Task CreateAsync_WithValidToken_ValidatesAndSeedsRateLimit()
+    {
+        var requests = new List<string>();
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            requests.Add(request.RequestUri!.AbsolutePath);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+        handler.ResponseHeaders["x-api-ratelimit-limit"] = "100";
+        handler.ResponseHeaders["x-api-ratelimit-remaining"] = "97";
+        handler.ResponseHeaders["x-api-ratelimit-reset"] = "1737072000";
+        handler.ResponseHeaders["x-api-ratelimit-consumed"] = "3";
+
+        var client = await MarketDataClient.CreateAsync(
+            new HttpClient(handler),
+            new MarketDataClientOptions { ApiToken = "secret-token" });
+
+        Assert.Equal(["/user/"], requests);
+        Assert.NotNull(client.LatestRateLimit);
+        Assert.Equal(100, client.LatestRateLimit!.Limit);
+        Assert.Equal(97, client.LatestRateLimit.Remaining);
+        Assert.Equal(3, client.LatestRateLimit.Consumed);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WithInvalidToken_ThrowsAuthenticationException()
+    {
+        var handler = new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.Unauthorized)
+            {
+                Content = new StringContent("invalid token")
+            });
+
+        await Assert.ThrowsAsync<AuthenticationException>(() => MarketDataClient.CreateAsync(
+            new HttpClient(handler),
+            new MarketDataClientOptions { ApiToken = "secret-token" }));
+    }
+
+    [Fact]
+    public async Task CreateAsync_WithValidationDisabled_SkipsStartupRequest()
     {
         var requests = new List<string>();
         var handler = new StubHttpMessageHandler(request =>
@@ -21,25 +60,51 @@ public sealed class ApiClientTests
             return new HttpResponseMessage(HttpStatusCode.OK);
         });
 
-        _ = new MarketDataClient(
+        var client = await MarketDataClient.CreateAsync(
             new HttpClient(handler),
-            new MarketDataClientOptions { ApiToken = "secret-token" });
+            new MarketDataClientOptions { ApiToken = "secret-token", ValidateTokenOnStartup = false });
 
-        Assert.Equal(["/user/"], requests);
+        Assert.Empty(requests);
+        Assert.Null(client.LatestRateLimit);
     }
 
     [Fact]
-    public void InvalidStartupToken_FailsClientConstruction()
+    public async Task CreateAsync_WithoutToken_SkipsStartupRequest()
     {
-        var handler = new StubHttpMessageHandler(_ =>
-            new HttpResponseMessage(HttpStatusCode.Unauthorized)
+        var requests = new List<string>();
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            requests.Add(request.RequestUri!.AbsolutePath);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        var client = await MarketDataClient.CreateAsync(
+            new HttpClient(handler),
+            new MarketDataClientOptions { ApiToken = null });
+
+        Assert.Empty(requests);
+        Assert.Null(client.LatestRateLimit);
+    }
+
+    [Fact]
+    public void Constructor_DoesNotValidateTokenOrCallNetwork()
+    {
+        var requests = new List<string>();
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            requests.Add(request.RequestUri!.AbsolutePath);
+            return new HttpResponseMessage(HttpStatusCode.Unauthorized)
             {
                 Content = new StringContent("invalid token")
-            });
+            };
+        });
 
-        Assert.Throws<AuthenticationException>(() => new MarketDataClient(
+        // A bad token must not throw and must not trigger any network I/O in the constructor.
+        _ = new MarketDataClient(
             new HttpClient(handler),
-            new MarketDataClientOptions { ApiToken = "secret-token" }));
+            new MarketDataClientOptions { ApiToken = "bad-token" });
+
+        Assert.Empty(requests);
     }
 
     [Fact]

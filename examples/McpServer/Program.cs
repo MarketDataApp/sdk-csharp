@@ -25,13 +25,17 @@ builder.Logging.AddConsole(options =>
     options.LogToStandardErrorThreshold = LogLevel.Trace;
 });
 
-builder.Services.AddSingleton(new HttpClient());
-builder.Services.AddSingleton(sp =>
-{
-    var configuration = sp.GetRequiredService<IConfiguration>();
-    var options = MarketDataClientOptions.FromConfiguration(configuration);
-    return new MarketDataClient(sp.GetRequiredService<HttpClient>(), options);
-});
+var httpClient = new HttpClient();
+builder.Services.AddSingleton(httpClient);
+
+// Build the shared client with the async factory before the host starts. CreateAsync validates
+// the token with /user/ (failing fast on an invalid token) and seeds the rate-limit snapshot,
+// without any blocking network I/O. In demo mode (no token) it makes no request. The resulting
+// instance is registered as a singleton, which is safe to share across concurrent tool calls.
+var marketDataClient = await MarketDataClient.CreateAsync(
+    httpClient,
+    MarketDataClientOptions.FromConfiguration(builder.Configuration));
+builder.Services.AddSingleton(marketDataClient);
 
 builder.Services
     .AddMcpServer()
