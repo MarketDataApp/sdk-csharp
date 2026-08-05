@@ -19,6 +19,11 @@ Each operation has a corresponding `Get*CsvAsync` method.
 
 ```csharp
 var quote = await client.Stocks.GetQuoteAsync("AAPL");
+
+// Response wrappers and data records have concise ToString() summaries.
+Console.WriteLine(quote);           // StockQuotesResponse: 1 item, HTTP 200
+Console.WriteLine(quote.Values[0]); // AAPL mid=150.25 last=150.10
+
 var prices = await client.Stocks.GetPricesAsync(["AAPL", "MSFT"]);
 
 var response = await client.Stocks.GetCandlesAsync(

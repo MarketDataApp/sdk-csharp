@@ -21,6 +21,10 @@ var response = await client.Markets.GetStatusAsync(
     },
     cancellationToken: cancellationToken);
 
+// Response wrappers and data records have concise ToString() summaries.
+Console.WriteLine(response);           // MarketStatusResponse: 5 items, HTTP 200
+Console.WriteLine(response.Values[0]); // 2025-01-10 open
+
 foreach (var day in response.Values)
 {
     Console.WriteLine($"{day.Date:yyyy-MM-dd}: {day.Status}");

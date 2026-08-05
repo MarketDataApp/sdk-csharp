@@ -47,6 +47,8 @@
 - [Client lifetime and HttpClient injection](#client-lifetime-and-httpclient-injection)
 - [Configuration](#configuration)
 - [Request and response model](#request-and-response-model)
+- [Inspecting responses](#inspecting-responses)
+- [Documentation](#documentation)
 - [Endpoint inventory](#endpoint-inventory)
   - [Stocks](#stocks)
   - [Options](#options)
@@ -312,6 +314,52 @@ Every typed endpoint returns a `MarketDataResponse<T>` subtype with:
 | `RawBody`        | `string`                            | Raw response body as UTF-8. |
 | `SaveToFile`     | method                              | Writes raw body to a file path. |
 | `SaveToFileAsync`| method                              | Async version of `SaveToFile`. |
+
+---
+
+## Inspecting responses
+
+Every response wrapper and data record overrides `ToString()`, so logging or printing a
+response yields a concise, developer-friendly summary instead of a type name or a raw
+payload dump.
+
+```csharp
+var quoteResponse = await client.Stocks.GetQuoteAsync("AAPL");
+
+// The response wrapper summarizes its concrete type, item count, and HTTP status.
+Console.WriteLine(quoteResponse);
+// StockQuotesResponse: 1 item, HTTP 200
+
+// Each data record prints a compact one-line summary.
+Console.WriteLine(quoteResponse.Values[0]);
+// AAPL mid=150.25 last=150.10
+
+var status = await client.Markets.GetStatusAsync(country: "US", countback: 1);
+Console.WriteLine(status.Values[0]);
+// 2025-01-10 open
+```
+
+CSV and HTML responses summarize their raw size instead of an item count
+(e.g. `CsvResponse: 512 bytes, HTTP 200`), and a no-data response appends a marker
+(e.g. `StockCandlesResponse: 0 items, HTTP 200, no data`). Missing numeric, string, and
+date fields render as `n/a`.
+
+---
+
+## Documentation
+
+Full documentation lives in the [`docs/`](docs/) folder, with a narrative guide per area:
+
+- [Stocks](docs/stocks/README.md)
+- [Options](docs/options/README.md)
+- [Funds](docs/funds/README.md)
+- [Markets](docs/markets/README.md)
+- [Utilities](docs/utilities/README.md)
+
+Supporting topics: [installation](docs/installation.md),
+[authentication](docs/authentication.md), [client and DI](docs/client.md), and
+[settings](docs/settings.md). The [endpoint inventory](#endpoint-inventory) below
+summarizes every method, request type, and field.
 
 ---
 
