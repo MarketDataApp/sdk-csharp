@@ -1,0 +1,9 @@
+Market Data C#/.NET SDK
+=======================
+
+This SDK was originally created by Omid Rad (Exceptal, https://github.com/omidkrad)
+and generously donated to Market Data for use as the official MarketData.app
+C#/.NET SDK. It is now maintained by Market Data and distributed under the MIT
+License (see LICENSE).
+
+Original repository: https://github.com/Exceptal/MarketDataApp-CSharp-SDK
