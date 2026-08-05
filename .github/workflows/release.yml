@@ -44,7 +44,7 @@ jobs:
       attestations: write   # write the build-provenance attestation
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0   # Source Link needs full history
 
