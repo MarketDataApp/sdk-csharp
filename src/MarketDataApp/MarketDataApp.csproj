@@ -12,7 +12,6 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 
     <!-- Package metadata -->
-    <Version>1.0.0</Version>
     <Authors>MarketData.app, Exceptal</Authors>
     <Copyright>© 2026 Market Data — originally created by Omid Rad (Exceptal)</Copyright>
     <Description>C#/.NET SDK for the MarketDataApp.app API. Provides asynchronous access to real-time and historical financial data including stocks, options, funds, and market status.</Description>
@@ -23,6 +22,13 @@
     <PackageTags>finance;market-data;stocks;options;api;marketdata</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <IsPackable>true</IsPackable>
+
+    <!-- Versioning is git-tag-driven via MinVer (no hand-maintained <Version> literal).
+         Release tags look like v1.2.3; MinVerTagPrefix=v maps them to package version
+         1.2.3. With no tags present (local/dev), MinVer emits a 0.0.0-alpha.0.N
+         pre-release, so `dotnet build`/`dotnet pack` still succeed offline. The runtime
+         User-Agent reads AssemblyInformationalVersion, which MinVer also sets. -->
+    <MinVerTagPrefix>v</MinVerTagPrefix>
 
     <!-- Symbols package (snupkg) -->
     <IncludeSymbols>true</IncludeSymbols>
@@ -37,6 +43,16 @@
     <EnablePackageValidation>true</EnablePackageValidation>
   </PropertyGroup>
 
+  <!-- Source Link and CI-deterministic builds run in CI only.
+       Locally, this machine's git remote uses an SSH host alias that Source Link
+       cannot resolve, which emits "Source control information is not available -
+       the generated source link is empty". Gating on GITHUB_ACTIONS keeps local
+       `dotnet build` at zero warnings while CI (normal clones with an https remote)
+       still produces full Source Link and ContinuousIntegrationBuild output. -->
+  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
   <!-- Include the repository README as the NuGet package readme -->
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="/" />
@@ -49,7 +65,13 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.10" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.10" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
-    <!-- Source Link: embeds source file URIs in the PDB for debugger step-through -->
+    <!-- MinVer: derives the package/assembly version from git tags at build time. -->
+    <PackageReference Include="MinVer" Version="6.0.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <!-- Source Link: embeds source file URIs in the PDB for debugger step-through.
+       CI-only — see the ContinuousIntegrationBuild note above for why. -->
+  <ItemGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.301" PrivateAssets="All" />
   </ItemGroup>
 

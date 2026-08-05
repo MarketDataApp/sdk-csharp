@@ -5,69 +5,101 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  release:
+    types: [ published ]
   workflow_dispatch:
     inputs:
       run_integration_tests:
-        description: Run live integration tests (requires MARKETDATA_TOKEN user secret)
+        description: Run live integration tests (requires MARKETDATA_TOKEN secret)
         type: boolean
         default: false
 
 jobs:
   build:
-    name: Build / Test / Pack
-    runs-on: ubuntu-latest
+    name: Build / Test / Pack (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Run every OS to completion even if one fails, so a single-platform
+      # failure still yields results for the others.
+      fail-fast: false
+      matrix:
+        # The library targets net10.0 only, so we vary the runtime OS rather than
+        # the TFM to exercise multiple runtime environments (§13).
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
 
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # full history required for Source Link
+          fetch-depth: 0   # full history required for Source Link and MinVer
 
-      - name: Setup .NET 10
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.x'
-          dotnet-quality: 'ga'
+          # Pinned to the repo's SDK band (see global.json: 10.0.x).
+          dotnet-version: '10.0.x'
 
       - name: Restore
         run: dotnet restore MarketDataApp.slnx
 
+      # Source Link and ContinuousIntegrationBuild switch on automatically in CI:
+      # MarketDataApp.csproj gates them on GITHUB_ACTIONS, which is always set here.
       - name: Build
-        run: dotnet build MarketDataApp.slnx --no-restore -c Release /p:ContinuousIntegrationBuild=true
+        run: dotnet build MarketDataApp.slnx --no-restore -c Release
 
-      - name: Test with coverage
+      # coverlet.msbuild enforces the coverage gate: Threshold=100 on TOTAL line AND
+      # branch coverage fails this step and thus the job (§13/§15). We use the msbuild
+      # integration rather than the collector because coverlet.collector silently
+      # ignores the runsettings <Threshold> and cannot gate. The comma in
+      # ThresholdType is written as %2c so the value parses identically under bash,
+      # pwsh and cmd across the OS matrix. The same run emits the opencover report.
+      # Coverage is currently ~81% line / ~72% branch, so this step is EXPECTED to
+      # fail until the dedicated coverage work lands — that is intentional.
+      - name: Test with coverage (100% line+branch gate)
+        # Force bash on every runner (incl. Windows via Git Bash) so the multi-line
+        # command and backslash continuations parse consistently across the matrix.
+        shell: bash
         run: |
           dotnet test src/MarketDataApp.Tests/MarketDataApp.Tests.csproj \
-            --no-build \
-            -c Release \
-            --collect:"XPlat Code Coverage" \
+            --no-build -c Release \
+            -p:CollectCoverage=true \
+            -p:CoverletOutputFormat=opencover \
+            -p:CoverletOutput=TestResults/coverage.opencover.xml \
+            -p:Threshold=100 \
+            -p:ThresholdType=line%2cbranch \
+            -p:ThresholdStat=total \
             --results-directory TestResults \
-            --settings coverlet.runsettings \
             --logger "trx;LogFileName=test-results.trx"
 
       - name: Check formatting
+        if: matrix.os == 'ubuntu-latest'
         run: dotnet format MarketDataApp.slnx --verify-no-changes --no-restore
 
       - name: Pack
+        if: matrix.os == 'ubuntu-latest'
         run: |
           dotnet pack src/MarketDataApp/MarketDataApp.csproj \
             -c Release --no-build \
-            /p:ContinuousIntegrationBuild=true \
             -o artifacts/
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: test-results-${{ matrix.os }}
           path: TestResults/
 
+      # Uploaded even when the coverage gate fails, so the report is always produced.
       - name: Upload coverage report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage
-          path: TestResults/**/coverage.opencover.xml
+          name: coverage-${{ matrix.os }}
+          # coverlet.msbuild writes CoverletOutput relative to the test project dir.
+          path: src/MarketDataApp.Tests/TestResults/coverage.opencover.xml
+          if-no-files-found: warn
 
       - name: Upload NuGet packages
+        if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: nupkg-ci
@@ -75,10 +107,15 @@ jobs:
 
   integration:
     name: Integration Tests (live)
-    # Only runs when explicitly dispatched with the checkbox enabled.
-    # The IntegrationFactAttribute guard inside the tests also skips individual
-    # tests when MARKETDATA_TOKEN or MARKETDATA_RUN_INTEGRATION_TESTS is absent.
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_integration_tests == 'true'
+    # Runs on pull requests and on published releases, plus manual dispatch with the
+    # checkbox enabled — never on ordinary pushes/commits to a branch. The
+    # IntegrationFactAttribute guard inside the tests also skips individual tests when
+    # MARKETDATA_TOKEN or MARKETDATA_RUN_INTEGRATION_TESTS is absent (e.g. fork PRs
+    # that cannot see repository secrets).
+    if: >-
+      github.event_name == 'pull_request' ||
+      github.event_name == 'release' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_integration_tests == 'true')
     runs-on: ubuntu-latest
     env:
       MARKETDATA_RUN_INTEGRATION_TESTS: "true"
@@ -86,12 +123,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history required for Source Link and MinVer
 
-      - name: Setup .NET 10
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.x'
-          dotnet-quality: 'ga'
+          dotnet-version: '10.0.x'
 
       - name: Restore
         run: dotnet restore MarketDataApp.slnx

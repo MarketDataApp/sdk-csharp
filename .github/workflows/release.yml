@@ -16,7 +16,7 @@ on:
       version:
         description: |
           Package version to publish (e.g. 0.2.0).
-          Leave blank to use the Version declared in MarketDataApp.csproj.
+          Leave blank to let MinVer derive the version from git tags.
         required: false
         type: string
 
@@ -32,11 +32,11 @@ jobs:
         with:
           fetch-depth: 0   # Source Link needs full history
 
-      - name: Setup .NET 10
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.x'
-          dotnet-quality: 'ga'
+          # Pinned to the repo's SDK band (see global.json: 10.0.x).
+          dotnet-version: '10.0.x'
 
       - name: Restore
         run: dotnet restore MarketDataApp.slnx
@@ -52,16 +52,20 @@ jobs:
           fi
           echo "version=${VER}" >> "$GITHUB_OUTPUT"
 
+      # Versioning is git-tag-driven via MinVer. On a tag push MinVer derives the
+      # version from the tag (MinVerTagPrefix=v). For a manual dispatch with an
+      # explicit version we pass MinVerVersionOverride, which MinVer honors over the
+      # computed value. ContinuousIntegrationBuild / Source Link switch on
+      # automatically here (MarketDataApp.csproj gates them on GITHUB_ACTIONS).
       - name: Build
         shell: bash
         run: |
           VER="${{ steps.ver.outputs.version }}"
           EXTRA=""
           if [ -n "$VER" ]; then
-            EXTRA="-p:Version=${VER}"
+            EXTRA="-p:MinVerVersionOverride=${VER}"
           fi
-          dotnet build MarketDataApp.slnx --no-restore -c Release \
-            /p:ContinuousIntegrationBuild=true ${EXTRA}
+          dotnet build MarketDataApp.slnx --no-restore -c Release ${EXTRA}
 
       - name: Test
         run: |
@@ -74,11 +78,10 @@ jobs:
           VER="${{ steps.ver.outputs.version }}"
           EXTRA=""
           if [ -n "$VER" ]; then
-            EXTRA="-p:Version=${VER}"
+            EXTRA="-p:MinVerVersionOverride=${VER}"
           fi
           dotnet pack src/MarketDataApp/MarketDataApp.csproj \
             -c Release --no-build \
-            /p:ContinuousIntegrationBuild=true \
             ${EXTRA} \
             -o artifacts/
 

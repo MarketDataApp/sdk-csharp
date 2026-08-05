@@ -26,6 +26,18 @@
 
           <!-- Emit Source Link-aware paths so coverage tools map back to source -->
           <UseSourceLink>true</UseSourceLink>
+
+          <!-- Coverage policy (§13/§15): 100% total line AND branch coverage.
+               NOTE: coverlet.collector (this data collector) does NOT enforce these
+               values — they are declared here to document the policy and to map back
+               to source. The gate that actually FAILS the build is coverlet.msbuild
+               via `-p:Threshold=100 -p:ThresholdType=line,branch -p:ThresholdStat=total`
+               in .github/workflows/ci.yml. Coverage is currently ~81% line / ~72%
+               branch, so that CI gate is EXPECTED to fail until the coverage work
+               lands; do not run it as a local pass criterion yet. -->
+          <Threshold>100</Threshold>
+          <ThresholdType>line,branch</ThresholdType>
+          <ThresholdStat>total</ThresholdStat>
         </Configuration>
       </DataCollector>
     </DataCollectors>
