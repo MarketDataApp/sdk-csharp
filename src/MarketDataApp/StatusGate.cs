@@ -111,8 +111,10 @@ internal sealed class StatusGate
             }
         }
 
-        return useCached && snapshot is not null
-            ? Evaluate(snapshot.Services, requestUri)
+        // useCached is set true only in the branches above where snapshot is non-null, so the
+        // null-forgiving access is safe and a separate null check here would be unreachable.
+        return useCached
+            ? Evaluate(snapshot!.Services, requestUri)
             : ServiceAvailability.Unknown;
     }
 

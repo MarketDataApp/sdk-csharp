@@ -18,7 +18,7 @@
     </PackageReference>
     <!-- coverlet.msbuild: enforces the 100% line+branch coverage gate via
          `-p:Threshold` (the collector silently ignores runsettings <Threshold>). -->
-    <PackageReference Include="coverlet.msbuild" Version="6.0.4">
+    <PackageReference Include="coverlet.msbuild" Version="10.0.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
