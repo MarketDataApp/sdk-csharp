@@ -18,7 +18,20 @@ public sealed class UtilitiesApi
             versioned: false,
             Array.Empty<KeyValuePair<string, string?>>(),
             cancellationToken).ConfigureAwait(false);
-        var values = JsonResponseParser.DecodeOrDefault(
+        var values = ParseServiceStatuses(response);
+        // Feed the retry gate (§9.5) so an explicit status check and the background refresh
+        // share a single cache.
+        _apiClient.RecordStatus(values);
+        return JsonResponseParser.CreateResponse<UtilitiesStatusResponse, IReadOnlyList<ServiceStatus>>(response, values);
+    }
+
+    /// <summary>
+    /// Parses a <c>/status/</c> response into per-service readings. Shared by
+    /// <see cref="GetStatusAsync"/> and the retry gate's background refresh so both decode the
+    /// response identically.
+    /// </summary>
+    internal static IReadOnlyList<ServiceStatus> ParseServiceStatuses(InternalApiResponse response) =>
+        JsonResponseParser.DecodeOrDefault(
             response,
             root => JsonResponseParser.ReadParallelArray(
                 root,
@@ -32,8 +45,6 @@ public sealed class UtilitiesApi
                 "service", "status", "online", "uptimePct30d", "uptimePct90d", "updated"),
             Array.Empty<ServiceStatus>(),
             requireStatus: true);
-        return JsonResponseParser.CreateResponse<UtilitiesStatusResponse, IReadOnlyList<ServiceStatus>>(response, values);
-    }
 
     /// <summary>Gets the request headers observed by the API.</summary>
     public async Task<UtilitiesHeadersResponse> GetHeadersAsync(CancellationToken cancellationToken = default)

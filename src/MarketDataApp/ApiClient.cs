@@ -18,6 +18,7 @@ internal sealed class ApiClient : IDisposable
     private readonly MarketDataClientOptions _options;
     private readonly ILogger? _logger;
     private readonly SemaphoreSlim _concurrencyGate;
+    private readonly StatusGate _statusGate;
     private RateLimitSnapshot? _latestRateLimit;
 
     public ApiClient(HttpClient httpClient, MarketDataClientOptions options)
@@ -71,6 +72,11 @@ internal sealed class ApiClient : IDisposable
         ValidateApiToken(_options.ApiToken, nameof(options));
         ValidateUserAgent(_options.UserAgent, nameof(options));
         _concurrencyGate = new SemaphoreSlim(_options.MaxConcurrentRequests, _options.MaxConcurrentRequests);
+        _statusGate = new StatusGate(
+            _options.TimeProvider,
+            _options.ApiVersion,
+            RefreshServiceStatusAsync,
+            _logger);
         _logger?.LogInformation(
             "Market Data client initialized with base URL {BaseAddress} and API version {ApiVersion}.",
             _options.BaseAddress,
@@ -116,6 +122,19 @@ internal sealed class ApiClient : IDisposable
             catch (MarketDataException exception) when (
                 retryCount < _options.MaxRetries && IsRetryable(exception))
             {
+                // §9.5: before retrying a retryable server error, consult the cached /status/ gate.
+                // Only a "definitely offline" reading blocks the retry; online/unknown proceed. The
+                // gate never blocks — it may trigger a non-blocking refresh but is not awaited here.
+                // Network errors are never status-gated and keep retrying.
+                if (exception is ServerException
+                    && _statusGate.EvaluateForRetry(requestUri) == ServiceAvailability.Offline)
+                {
+                    _logger?.LogWarning(
+                        "Skipping retry for {RequestUrl}: the cached /status/ reports the service offline.",
+                        SafeUri(requestUri));
+                    throw;
+                }
+
                 var delay = RetryDelay(exception, retryCount);
                 retryCount++;
                 using var activity = MarketDataDiagnostics.ActivitySource.StartActivity(
@@ -229,6 +248,26 @@ internal sealed class ApiClient : IDisposable
                 ErrorContext.ForNoResponse(requestUri, _options.TimeProvider.GetUtcNow()),
                 exception);
         }
+    }
+
+    /// <summary>
+    /// Records a <c>/status/</c> reading captured by an explicit <c>GetStatusAsync</c> so that the
+    /// retry gate and the caller share a single cache (§9.5).
+    /// </summary>
+    internal void RecordStatus(IReadOnlyList<Utilities.ServiceStatus> services) =>
+        _statusGate.Record(services);
+
+    /// <summary>
+    /// Fetches <c>/status/</c> for the background refresh. It performs a single send that bypasses
+    /// the retry loop, the status gate, and the pre-flight rate-limit check (avoiding recursion),
+    /// so its failures are simply swallowed by the caller and leave the status unknown.
+    /// </summary>
+    private async Task<IReadOnlyList<Utilities.ServiceStatus>> RefreshServiceStatusAsync(
+        CancellationToken cancellationToken)
+    {
+        var requestUri = BuildUri("status", versioned: false, Array.Empty<KeyValuePair<string, string?>>());
+        var response = await SendOnceAsync(requestUri, cancellationToken).ConfigureAwait(false);
+        return UtilitiesApi.ParseServiceStatuses(response);
     }
 
     private static bool IsRetryable(MarketDataException exception) =>

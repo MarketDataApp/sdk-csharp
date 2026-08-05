@@ -124,8 +124,15 @@ public sealed class ApiClientTests
     public async Task TransientServerFailures_RetryWithExponentialBackoff()
     {
         var attempts = 0;
-        var handler = new StubHttpMessageHandler(_ =>
+        var handler = new StubHttpMessageHandler(request =>
         {
+            // The §9.5 status gate fires a non-blocking /status/ refresh on the first retryable
+            // 5xx (empty cache); answer it benignly so only data attempts are counted here.
+            if (request.RequestUri!.AbsolutePath == "/status/")
+            {
+                return MarketDataTestClient.JsonResponse("""{"s":"no_data"}""");
+            }
+
             attempts++;
             return attempts < 3
                 ? new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
@@ -402,8 +409,15 @@ public sealed class ApiClientTests
     public async Task RetryAfter_IsCapped()
     {
         var attempts = 0;
-        var handler = new StubHttpMessageHandler(_ =>
+        var handler = new StubHttpMessageHandler(request =>
         {
+            // The §9.5 status gate fires a non-blocking /status/ refresh on the first retryable
+            // 5xx (empty cache); answer it benignly so only data attempts are counted here.
+            if (request.RequestUri!.AbsolutePath == "/status/")
+            {
+                return MarketDataTestClient.JsonResponse("""{"s":"no_data"}""");
+            }
+
             attempts++;
             if (attempts == 1)
             {
