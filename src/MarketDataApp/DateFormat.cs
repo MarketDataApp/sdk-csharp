@@ -22,4 +22,25 @@ internal static class DateFormatExtensions
         DateFormat.Spreadsheet => "spreadsheet",
         _ => throw new ArgumentOutOfRangeException(nameof(format), format, null),
     };
+
+    /// <summary>Parses a wire value (<c>unix</c>/<c>timestamp</c>/<c>spreadsheet</c>,
+    /// case-insensitive) into a <see cref="DateFormat"/>.</summary>
+    internal static bool TryParseWireValue(string value, out DateFormat format)
+    {
+        switch (value.Trim().ToLowerInvariant())
+        {
+            case "unix":
+                format = DateFormat.Unix;
+                return true;
+            case "timestamp":
+                format = DateFormat.Timestamp;
+                return true;
+            case "spreadsheet":
+                format = DateFormat.Spreadsheet;
+                return true;
+            default:
+                format = default;
+                return false;
+        }
+    }
 }

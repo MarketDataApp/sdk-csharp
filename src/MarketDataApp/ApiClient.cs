@@ -17,6 +17,7 @@ internal sealed class ApiClient : IDisposable
     private readonly HttpClient _httpClient;
     private readonly MarketDataClientOptions _options;
     private readonly ILogger? _logger;
+    private readonly LogLevel _minimumLogLevel;
     private readonly SemaphoreSlim _concurrencyGate;
     private readonly StatusGate _statusGate;
     private RateLimitSnapshot? _latestRateLimit;
@@ -26,6 +27,7 @@ internal sealed class ApiClient : IDisposable
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = _options.Logger;
+        _minimumLogLevel = _options.MinimumLogLevel ?? LogLevel.Information;
         if (_options.BaseAddress is null)
         {
             throw new ArgumentException("BaseAddress is required.", nameof(options));
@@ -76,20 +78,53 @@ internal sealed class ApiClient : IDisposable
             _options.TimeProvider,
             _options.ApiVersion,
             RefreshServiceStatusAsync,
-            _logger);
-        _logger?.LogInformation(
+            _logger,
+            _minimumLogLevel);
+        LogAt(LogLevel.Information)?.LogInformation(
             "Market Data client initialized with base URL {BaseAddress} and API version {ApiVersion}.",
             _options.BaseAddress,
             _options.ApiVersion);
         if (!string.IsNullOrWhiteSpace(_options.ApiToken))
         {
-            _logger?.LogDebug("API token configured with redacted suffix {TokenSuffix}.", RedactToken(_options.ApiToken));
+            LogAt(LogLevel.Debug)?.LogDebug("API token configured with redacted suffix {TokenSuffix}.", RedactToken(_options.ApiToken));
         }
         else
         {
-            _logger?.LogWarning("No API token configured; running in demo mode.");
+            LogAt(LogLevel.Warning)?.LogWarning("No API token configured; running in demo mode.");
         }
     }
+
+    /// <summary>
+    /// Returns <see cref="_logger"/> only when <paramref name="level"/> meets the configured
+    /// <see cref="MarketDataClientOptions.MinimumLogLevel"/> (MARKETDATA_LOGGING_LEVEL) threshold,
+    /// so SDK diagnostics below the threshold are never emitted. The default Information threshold
+    /// suppresses the Debug request/response logs unless DEBUG is configured. Returns
+    /// <see langword="null"/> when no logger is attached or the level is below the threshold, so the
+    /// call site's null-conditional log call is skipped entirely.
+    /// </summary>
+    private ILogger? LogAt(LogLevel level) =>
+        _logger is not null && level >= _minimumLogLevel ? _logger : null;
+
+    /// <summary>
+    /// Merges the client-level request defaults (from env / <see cref="MarketDataClientOptions"/>)
+    /// with a per-request <paramref name="options"/> using per-field precedence: a field set on
+    /// <paramref name="options"/> wins; otherwise the client-level default applies (§4 configuration
+    /// cascade: env / client defaults → per-method params, method wins). Endpoint methods compute
+    /// the effective options once and use them for both the query build and any endpoint-specific
+    /// reads (Columns, Headers, etc.). <see cref="MarketDataRequestOptions.Limit"/> and
+    /// <see cref="MarketDataRequestOptions.Offset"/> have no client-level default and pass through.
+    /// </summary>
+    internal MarketDataRequestOptions ApplyDefaults(MarketDataRequestOptions? options) =>
+        new()
+        {
+            DateFormat = options?.DateFormat ?? _options.DefaultDateFormat,
+            Mode = options?.Mode ?? _options.DefaultMode,
+            Limit = options?.Limit,
+            Offset = options?.Offset,
+            Columns = options?.Columns ?? _options.DefaultColumns,
+            Headers = options?.Headers ?? _options.DefaultAddHeaders,
+            Human = options?.Human ?? _options.DefaultHuman,
+        };
 
     public RateLimitSnapshot? LatestRateLimit => Volatile.Read(ref _latestRateLimit);
 
@@ -116,7 +151,7 @@ internal sealed class ApiClient : IDisposable
         {
             try
             {
-                _logger?.LogDebug("Sending GET request to {RequestUrl}.", SafeUri(requestUri));
+                LogAt(LogLevel.Debug)?.LogDebug("Sending GET request to {RequestUrl}.", SafeUri(requestUri));
                 return await SendOnceAsync(requestUri, cancellationToken).ConfigureAwait(false);
             }
             catch (MarketDataException exception) when (
@@ -129,7 +164,7 @@ internal sealed class ApiClient : IDisposable
                 if (exception is ServerException
                     && _statusGate.EvaluateForRetry(requestUri) == ServiceAvailability.Offline)
                 {
-                    _logger?.LogWarning(
+                    LogAt(LogLevel.Warning)?.LogWarning(
                         "Skipping retry for {RequestUrl}: the cached /status/ reports the service offline.",
                         SafeUri(requestUri));
                     throw;
@@ -147,7 +182,7 @@ internal sealed class ApiClient : IDisposable
             }
             catch (MarketDataException exception)
             {
-                _logger?.LogError(
+                LogAt(LogLevel.Error)?.LogError(
                     exception,
                     "Market Data request failed with {ExceptionType} for {RequestUrl}.",
                     exception.ExceptionType,
@@ -216,7 +251,7 @@ internal sealed class ApiClient : IDisposable
             }
 
             var result = new InternalApiResponse(body, requestUri, (int)response.StatusCode, requestId, rateLimit);
-            _logger?.LogDebug(
+            LogAt(LogLevel.Debug)?.LogDebug(
                 "Received HTTP {StatusCode} from {RequestUrl}.",
                 (int)response.StatusCode,
                 SafeUri(requestUri));
@@ -491,7 +526,7 @@ internal sealed class ApiClient : IDisposable
         }
         catch (MarketDataException exception)
         {
-            _logger?.LogError(
+            LogAt(LogLevel.Error)?.LogError(
                 exception,
                 "Startup token validation failed with {ExceptionType} for {RequestUrl}.",
                 exception.ExceptionType,

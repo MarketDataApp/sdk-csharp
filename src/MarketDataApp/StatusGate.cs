@@ -43,6 +43,7 @@ internal sealed class StatusGate
     private readonly string _apiVersion;
     private readonly Func<CancellationToken, Task<IReadOnlyList<ServiceStatus>>> _refreshAsync;
     private readonly ILogger? _logger;
+    private readonly LogLevel _minimumLogLevel;
     private readonly object _gate = new();
 
     private Snapshot? _snapshot;
@@ -52,12 +53,14 @@ internal sealed class StatusGate
         TimeProvider timeProvider,
         string apiVersion,
         Func<CancellationToken, Task<IReadOnlyList<ServiceStatus>>> refreshAsync,
-        ILogger? logger)
+        ILogger? logger,
+        LogLevel minimumLogLevel = LogLevel.Information)
     {
         _timeProvider = timeProvider;
         _apiVersion = apiVersion;
         _refreshAsync = refreshAsync;
         _logger = logger;
+        _minimumLogLevel = minimumLogLevel;
     }
 
     /// <summary>
@@ -134,10 +137,15 @@ internal sealed class StatusGate
         }
         catch (Exception exception)
         {
-            // A failed refresh must never surface; it just leaves the status unknown.
-            _logger?.LogDebug(
-                exception,
-                "Background /status/ refresh failed; service status left unknown.");
+            // A failed refresh must never surface; it just leaves the status unknown. Gated by the
+            // configured MARKETDATA_LOGGING_LEVEL threshold so this Debug diagnostic is suppressed
+            // unless DEBUG is configured.
+            if (_logger is not null && LogLevel.Debug >= _minimumLogLevel)
+            {
+                _logger.LogDebug(
+                    exception,
+                    "Background /status/ refresh failed; service status left unknown.");
+            }
         }
     }
 

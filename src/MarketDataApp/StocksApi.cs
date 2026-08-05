@@ -22,7 +22,8 @@ public sealed class StocksApi
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var query = RequestQuery.From(options);
+        var effective = _apiClient.ApplyDefaults(options);
+        var query = RequestQuery.From(effective);
         RequestQuery.Add(query, "extended", request.Extended?.ToString().ToLowerInvariant());
         RequestQuery.Add(query, "candle", request.Candle?.ToString().ToLowerInvariant());
         RequestQuery.Add(query, "52week", request.Week52?.ToString().ToLowerInvariant());
@@ -57,7 +58,7 @@ public sealed class StocksApi
                 "symbol", "ask", "askSize", "bid", "bidSize", "mid", "last", "change",
                 "changepct", "volume", "updated", "o", "h", "l", "c", "52weekHigh", "52weekLow"),
             Array.Empty<StockQuote>(),
-            requestedColumns: options?.Columns);
+            requestedColumns: effective.Columns);
         return JsonResponseParser.CreateResponse<StockQuotesResponse, IReadOnlyList<StockQuote>>(response, values);
     }
 
@@ -72,7 +73,8 @@ public sealed class StocksApi
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var query = RequestQuery.From(options);
+        var effective = _apiClient.ApplyDefaults(options);
+        var query = RequestQuery.From(effective);
         RequestQuery.Add(query, "symbols", string.Join(",", request.Symbols));
         var response = await _apiClient.GetAsync("stocks/prices", true, query, cancellationToken)
             .ConfigureAwait(false);
@@ -88,7 +90,7 @@ public sealed class StocksApi
                     row.Timestamp("updated")),
                 "symbol", "mid", "change", "changepct", "updated"),
             Array.Empty<StockPrice>(),
-            requestedColumns: options?.Columns);
+            requestedColumns: effective.Columns);
         return JsonResponseParser.CreateResponse<StockPricesResponse, IReadOnlyList<StockPrice>>(response, values);
     }
 
@@ -103,16 +105,17 @@ public sealed class StocksApi
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        var effective = _apiClient.ApplyDefaults(options);
         var response = await _apiClient.GetAsync(
             $"stocks/prices/{Uri.EscapeDataString(request.Symbol)}",
             true,
-            RequestQuery.From(options),
+            RequestQuery.From(effective),
             cancellationToken).ConfigureAwait(false);
         var values = JsonResponseParser.DecodeOrDefault(
             response,
             ParsePrices,
             Array.Empty<StockPrice>(),
-            requestedColumns: options?.Columns);
+            requestedColumns: effective.Columns);
         return JsonResponseParser.CreateResponse<StockPricesResponse, IReadOnlyList<StockPrice>>(response, values);
     }
 
@@ -127,7 +130,8 @@ public sealed class StocksApi
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var query = RequestQuery.From(options);
+        var effective = _apiClient.ApplyDefaults(options);
+        var query = RequestQuery.From(effective);
         RequestQuery.Add(query, "symbols", string.Join(",", request.Symbols));
         AddBoolean(query, "extended", request.Extended);
         AddBoolean(query, "candle", request.Candle);
@@ -138,7 +142,7 @@ public sealed class StocksApi
             response,
             ParseQuotes,
             Array.Empty<StockQuote>(),
-            requestedColumns: options?.Columns);
+            requestedColumns: effective.Columns);
         return JsonResponseParser.CreateResponse<StockQuotesResponse, IReadOnlyList<StockQuote>>(response, values);
     }
 
@@ -153,7 +157,8 @@ public sealed class StocksApi
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var query = RequestQuery.From(options);
+        var effective = _apiClient.ApplyDefaults(options);
+        var query = RequestQuery.From(effective);
         RequestQuery.Add(query, "symbols", string.Join(",", request.Symbols));
         AddBoolean(query, "extended", request.Extended);
         AddBoolean(query, "snapshot", request.Snapshot);
@@ -163,7 +168,7 @@ public sealed class StocksApi
             response,
             ParseQuotes,
             Array.Empty<StockQuote>(),
-            requestedColumns: options?.Columns);
+            requestedColumns: effective.Columns);
         return JsonResponseParser.CreateResponse<StockQuotesResponse, IReadOnlyList<StockQuote>>(response, values);
     }
 
@@ -180,22 +185,23 @@ public sealed class StocksApi
         ArgumentNullException.ThrowIfNull(request);
         RequestValidator.ValidateDateWindow(
             request.Date, request.From, request.To, request.Countback, nameof(request));
+        var effective = _apiClient.ApplyDefaults(options);
         var chunks = CandleChunks(request);
         if (chunks.Count == 1)
         {
             return await GetCandlesResponseAsync(
-                request, request.From, request.To, options, cancellationToken).ConfigureAwait(false);
+                request, request.From, request.To, effective, cancellationToken).ConfigureAwait(false);
         }
 
         var responses = await Task.WhenAll(
             chunks.Select(chunk => GetCandlesResponseAsync(
-                request, chunk.From, chunk.To, options, cancellationToken))).ConfigureAwait(false);
+                request, chunk.From, chunk.To, effective, cancellationToken))).ConfigureAwait(false);
         var merged = responses.SelectMany(response => response.Values).ToArray();
         var path = CandlePath(request);
         var logicalRequestUrl = _apiClient.CreateRequestUri(
             path,
             versioned: true,
-            CreateCandleQuery(request, request.From, request.To, options, csv: false));
+            CreateCandleQuery(request, request.From, request.To, effective, csv: false));
         return JsonResponseParser.CreateCompositeResponse<StockCandlesResponse, IReadOnlyList<StockCandle>>(
             merged,
             logicalRequestUrl,
@@ -217,7 +223,8 @@ public sealed class StocksApi
         ArgumentNullException.ThrowIfNull(request);
         RequestValidator.ValidateDateWindow(
             request.Date, request.From, request.To, request.Countback, nameof(request));
-        var query = RequestQuery.From(options);
+        var effective = _apiClient.ApplyDefaults(options);
+        var query = RequestQuery.From(effective);
         RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, request.Countback);
         var response = await _apiClient.GetAsync(
             $"stocks/news/{Uri.EscapeDataString(request.Symbol)}",
@@ -240,7 +247,7 @@ public sealed class StocksApi
                 return (Articles: (IReadOnlyList<StockNewsArticle>)articles, Updated: JsonResponseParser.Timestamp(root, "updated"));
             },
             (Articles: (IReadOnlyList<StockNewsArticle>)Array.Empty<StockNewsArticle>(), Updated: (DateTimeOffset?)null),
-            requestedColumns: options?.Columns);
+            requestedColumns: effective.Columns);
         return JsonResponseParser.CreateResponse<StockNewsResponse, IReadOnlyList<StockNewsArticle>>(
             response,
             result.Articles,
@@ -263,7 +270,8 @@ public sealed class StocksApi
     {
         ArgumentNullException.ThrowIfNull(request);
         ValidateEarningsRequest(request);
-        var query = RequestQuery.From(options);
+        var effective = _apiClient.ApplyDefaults(options);
+        var query = RequestQuery.From(effective);
         RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, request.Countback);
         RequestQuery.Add(query, "report", request.Report);
         var response = await _apiClient.GetAsync(
@@ -291,7 +299,7 @@ public sealed class StocksApi
                 "symbol", "fiscalYear", "fiscalQuarter", "date", "reportDate", "reportTime",
                 "currency", "reportedEPS", "estimatedEPS", "surpriseEPS", "surpriseEPSpct", "updated"),
             Array.Empty<StockEarning>(),
-            requestedColumns: options?.Columns);
+            requestedColumns: effective.Columns);
         return JsonResponseParser.CreateResponse<StockEarningsResponse, IReadOnlyList<StockEarning>>(response, values);
     }
 
@@ -306,7 +314,7 @@ public sealed class StocksApi
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var query = RequestQuery.Csv(options);
+        var query = RequestQuery.Csv(_apiClient.ApplyDefaults(options));
         AddBoolean(query, "extended", request.Extended);
         AddBoolean(query, "candle", request.Candle);
         AddBoolean(query, "52week", request.Week52);
@@ -326,7 +334,7 @@ public sealed class StocksApi
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var query = RequestQuery.Csv(options);
+        var query = RequestQuery.Csv(_apiClient.ApplyDefaults(options));
         RequestQuery.Add(query, "symbols", string.Join(",", request.Symbols));
         return await GetCsvAsync("stocks/prices", query, cancellationToken).ConfigureAwait(false);
     }
@@ -344,7 +352,7 @@ public sealed class StocksApi
         ArgumentNullException.ThrowIfNull(request);
         return await GetCsvAsync(
             $"stocks/prices/{Uri.EscapeDataString(request.Symbol)}",
-            RequestQuery.Csv(options),
+            RequestQuery.Csv(_apiClient.ApplyDefaults(options)),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -359,7 +367,7 @@ public sealed class StocksApi
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var query = RequestQuery.Csv(options);
+        var query = RequestQuery.Csv(_apiClient.ApplyDefaults(options));
         RequestQuery.Add(query, "symbols", string.Join(",", request.Symbols));
         AddBoolean(query, "extended", request.Extended);
         AddBoolean(query, "candle", request.Candle);
@@ -378,7 +386,7 @@ public sealed class StocksApi
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var query = RequestQuery.Csv(options);
+        var query = RequestQuery.Csv(_apiClient.ApplyDefaults(options));
         RequestQuery.Add(query, "symbols", string.Join(",", request.Symbols));
         AddBoolean(query, "extended", request.Extended);
         AddBoolean(query, "snapshot", request.Snapshot);
@@ -398,24 +406,25 @@ public sealed class StocksApi
         ArgumentNullException.ThrowIfNull(request);
         RequestValidator.ValidateDateWindow(
             request.Date, request.From, request.To, request.Countback, nameof(request));
+        var effective = _apiClient.ApplyDefaults(options);
         var chunks = CandleChunks(request);
         if (chunks.Count == 1)
         {
             return await GetCsvAsync(
                 CandlePath(request),
-                CreateCandleQuery(request, request.From, request.To, options, csv: true),
+                CreateCandleQuery(request, request.From, request.To, effective, csv: true),
                 cancellationToken).ConfigureAwait(false);
         }
 
         var responses = await Task.WhenAll(chunks.Select(chunk => GetCsvAsync(
             CandlePath(request),
-            CreateCandleQuery(request, chunk.From, chunk.To, options, csv: true),
+            CreateCandleQuery(request, chunk.From, chunk.To, effective, csv: true),
             cancellationToken))).ConfigureAwait(false);
-        var mergedCsv = MergeCandleCsv(responses, options?.Headers is not false);
+        var mergedCsv = MergeCandleCsv(responses, effective.Headers is not false);
         var logicalRequestUrl = _apiClient.CreateRequestUri(
             CandlePath(request),
             versioned: true,
-            CreateCandleQuery(request, request.From, request.To, options, csv: true));
+            CreateCandleQuery(request, request.From, request.To, effective, csv: true));
         return JsonResponseParser.CreateCompositeResponse<CsvResponse, string>(
             mergedCsv,
             logicalRequestUrl,
@@ -437,7 +446,7 @@ public sealed class StocksApi
         ArgumentNullException.ThrowIfNull(request);
         RequestValidator.ValidateDateWindow(
             request.Date, request.From, request.To, request.Countback, nameof(request));
-        var query = RequestQuery.Csv(options);
+        var query = RequestQuery.Csv(_apiClient.ApplyDefaults(options));
         RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, request.Countback);
         return await GetCsvAsync(
             $"stocks/news/{Uri.EscapeDataString(request.Symbol)}", query, cancellationToken)
@@ -456,7 +465,7 @@ public sealed class StocksApi
     {
         ArgumentNullException.ThrowIfNull(request);
         ValidateEarningsRequest(request);
-        var query = RequestQuery.Csv(options);
+        var query = RequestQuery.Csv(_apiClient.ApplyDefaults(options));
         RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, request.Countback);
         RequestQuery.Add(query, "report", request.Report);
         return await GetCsvAsync(
@@ -478,10 +487,10 @@ public sealed class StocksApi
         StockCandlesRequest request,
         DateOnly? from,
         DateOnly? to,
-        MarketDataRequestOptions? options,
+        MarketDataRequestOptions effective,
         CancellationToken cancellationToken)
     {
-        var query = CreateCandleQuery(request, from, to, options, csv: false);
+        var query = CreateCandleQuery(request, from, to, effective, csv: false);
         var path = CandlePath(request);
         var response = await _apiClient.GetAsync(path, true, query, cancellationToken)
             .ConfigureAwait(false);
@@ -498,7 +507,7 @@ public sealed class StocksApi
                     row.Long("v")),
                 "t", "o", "h", "l", "c", "v"),
             Array.Empty<StockCandle>(),
-            requestedColumns: options?.Columns);
+            requestedColumns: effective.Columns);
         return JsonResponseParser.CreateResponse<StockCandlesResponse, IReadOnlyList<StockCandle>>(response, values);
     }
 
@@ -506,10 +515,10 @@ public sealed class StocksApi
         StockCandlesRequest request,
         DateOnly? from,
         DateOnly? to,
-        MarketDataRequestOptions? options,
+        MarketDataRequestOptions effective,
         bool csv)
     {
-        var query = csv ? RequestQuery.Csv(options) : RequestQuery.From(options);
+        var query = csv ? RequestQuery.Csv(effective) : RequestQuery.From(effective);
         RequestQuery.AddDateWindow(query, request.Date, from, to, request.Countback);
         RequestQuery.Add(query, "exchange", request.Exchange);
         AddBoolean(query, "extended", request.Extended);

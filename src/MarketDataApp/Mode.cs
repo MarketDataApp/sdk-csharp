@@ -22,4 +22,25 @@ internal static class ModeExtensions
         Mode.Cached => "cached",
         _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null),
     };
+
+    /// <summary>Parses a wire value (<c>live</c>/<c>delayed</c>/<c>cached</c>, case-insensitive)
+    /// into a <see cref="Mode"/>.</summary>
+    internal static bool TryParseWireValue(string value, out Mode mode)
+    {
+        switch (value.Trim().ToLowerInvariant())
+        {
+            case "live":
+                mode = Mode.Live;
+                return true;
+            case "delayed":
+                mode = Mode.Delayed;
+                return true;
+            case "cached":
+                mode = Mode.Cached;
+                return true;
+            default:
+                mode = default;
+                return false;
+        }
+    }
 }

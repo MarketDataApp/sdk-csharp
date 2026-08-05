@@ -22,10 +22,11 @@ public sealed class OptionsApi
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        var effective = _apiClient.ApplyDefaults(options);
         var response = await _apiClient.GetAsync(
             $"options/lookup/{Uri.EscapeDataString(request.UserInput)}",
             true,
-            RequestQuery.From(options),
+            RequestQuery.From(effective),
             cancellationToken).ConfigureAwait(false);
         var value = JsonResponseParser.DecodeOrDefault(
             response,
@@ -34,7 +35,7 @@ public sealed class OptionsApi
                 ? symbol.GetString() ?? throw new JsonException("Missing optionSymbol.")
                 : throw new JsonException("Missing optionSymbol."),
             string.Empty,
-            requestedColumns: options?.Columns);
+            requestedColumns: effective.Columns);
         return JsonResponseParser.CreateResponse<OptionsLookupResponse, string>(response, value);
     }
 
@@ -49,7 +50,8 @@ public sealed class OptionsApi
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var query = RequestQuery.From(options);
+        var effective = _apiClient.ApplyDefaults(options);
+        var query = RequestQuery.From(effective);
         Add(query, "strike", request.Strike);
         AddDate(query, "date", request.Date);
         var response = await _apiClient.GetAsync(
@@ -69,7 +71,7 @@ public sealed class OptionsApi
                 return (Values: expirations, Updated: JsonResponseParser.Timestamp(root, "updated"));
             },
             (Values: (IReadOnlyList<DateTimeOffset>)Array.Empty<DateTimeOffset>(), Updated: (DateTimeOffset?)null),
-            requestedColumns: options?.Columns);
+            requestedColumns: effective.Columns);
         return JsonResponseParser.CreateResponse<OptionsExpirationsResponse, IReadOnlyList<DateTimeOffset>>(
             response,
             result.Values,
@@ -91,7 +93,8 @@ public sealed class OptionsApi
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var query = RequestQuery.From(options);
+        var effective = _apiClient.ApplyDefaults(options);
+        var query = RequestQuery.From(effective);
         AddDate(query, "date", request.Date);
         AddDate(query, "expiration", request.Expiration);
         var response = await _apiClient.GetAsync(
@@ -105,7 +108,7 @@ public sealed class OptionsApi
             new OptionStrikes(
                 null,
                 new Dictionary<DateOnly, IReadOnlyList<decimal>>()),
-            requestedColumns: options?.Columns);
+            requestedColumns: effective.Columns);
         return JsonResponseParser.CreateResponse<OptionsStrikesResponse, OptionStrikes>(response, values);
     }
 
@@ -127,7 +130,7 @@ public sealed class OptionsApi
             request.Date,
             request.From,
             request.To,
-            options,
+            _apiClient.ApplyDefaults(options),
             cancellationToken).ConfigureAwait(false);
         return response;
     }
@@ -147,6 +150,7 @@ public sealed class OptionsApi
         ArgumentNullException.ThrowIfNull(request);
         RequestValidator.ValidateDateWindow(
             request.Date, request.From, request.To, countback: null, nameof(request));
+        var effective = _apiClient.ApplyDefaults(options);
         var tasks = request.OptionSymbols.Select(async symbol =>
         {
             var response = await GetQuoteResponseAsync(
@@ -154,7 +158,7 @@ public sealed class OptionsApi
                 request.Date,
                 request.From,
                 request.To,
-                options,
+                effective,
                 cancellationToken).ConfigureAwait(false);
             return (symbol, response);
         });
@@ -174,7 +178,8 @@ public sealed class OptionsApi
     {
         ArgumentNullException.ThrowIfNull(request);
         ValidateChainRequest(request);
-        var query = RequestQuery.From(options);
+        var effective = _apiClient.ApplyDefaults(options);
+        var query = RequestQuery.From(effective);
         AddExpirationFilter(query, request.Expiration);
         AddBoolean(query, "weekly", request.Weekly);
         AddBoolean(query, "monthly", request.Monthly);
@@ -206,7 +211,7 @@ public sealed class OptionsApi
             response,
             ParseOptionQuotes,
             Array.Empty<OptionQuote>(),
-            requestedColumns: options?.Columns);
+            requestedColumns: effective.Columns);
         return JsonResponseParser.CreateResponse<OptionsChainResponse, IReadOnlyList<OptionQuote>>(response, values);
     }
 
@@ -223,7 +228,7 @@ public sealed class OptionsApi
         ArgumentNullException.ThrowIfNull(request);
         return await GetCsvAsync(
             $"options/lookup/{Uri.EscapeDataString(request.UserInput)}",
-            RequestQuery.Csv(options),
+            RequestQuery.Csv(_apiClient.ApplyDefaults(options)),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -238,7 +243,7 @@ public sealed class OptionsApi
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var query = RequestQuery.Csv(options);
+        var query = RequestQuery.Csv(_apiClient.ApplyDefaults(options));
         Add(query, "strike", request.Strike);
         AddDate(query, "date", request.Date);
         return await GetCsvAsync(
@@ -257,7 +262,7 @@ public sealed class OptionsApi
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var query = RequestQuery.Csv(options);
+        var query = RequestQuery.Csv(_apiClient.ApplyDefaults(options));
         AddDate(query, "date", request.Date);
         AddDate(query, "expiration", request.Expiration);
         return await GetCsvAsync(
@@ -279,7 +284,7 @@ public sealed class OptionsApi
         ArgumentNullException.ThrowIfNull(request);
         RequestValidator.ValidateDateWindow(
             request.Date, request.From, request.To, countback: null, nameof(request));
-        var query = RequestQuery.Csv(options);
+        var query = RequestQuery.Csv(_apiClient.ApplyDefaults(options));
         RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, countback: null);
         return await GetCsvAsync(
             $"options/quotes/{Uri.EscapeDataString(request.OptionSymbol)}", query, cancellationToken)
@@ -299,9 +304,10 @@ public sealed class OptionsApi
         ArgumentNullException.ThrowIfNull(request);
         RequestValidator.ValidateDateWindow(
             request.Date, request.From, request.To, countback: null, nameof(request));
+        var effective = _apiClient.ApplyDefaults(options);
         var tasks = request.OptionSymbols.Select(async symbol =>
         {
-            var query = RequestQuery.Csv(options);
+            var query = RequestQuery.Csv(effective);
             RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, countback: null);
             var response = await GetCsvAsync(
                 $"options/quotes/{Uri.EscapeDataString(symbol)}", query, cancellationToken)
@@ -324,7 +330,7 @@ public sealed class OptionsApi
     {
         ArgumentNullException.ThrowIfNull(request);
         ValidateChainRequest(request);
-        var query = RequestQuery.Csv(options);
+        var query = RequestQuery.Csv(_apiClient.ApplyDefaults(options));
         AddExpirationFilter(query, request.Expiration);
         AddBoolean(query, "weekly", request.Weekly);
         AddBoolean(query, "monthly", request.Monthly);
@@ -366,10 +372,10 @@ public sealed class OptionsApi
         DateOnly? date,
         DateOnly? from,
         DateOnly? to,
-        MarketDataRequestOptions? options,
+        MarketDataRequestOptions effective,
         CancellationToken cancellationToken)
     {
-        var query = RequestQuery.From(options);
+        var query = RequestQuery.From(effective);
         RequestQuery.AddDateWindow(query, date, from, to, countback: null);
         var response = await _apiClient.GetAsync(
             $"options/quotes/{Uri.EscapeDataString(optionSymbol)}",
@@ -380,7 +386,7 @@ public sealed class OptionsApi
             response,
             ParseOptionQuotes,
             Array.Empty<OptionQuote>(),
-            requestedColumns: options?.Columns);
+            requestedColumns: effective.Columns);
         return JsonResponseParser.CreateResponse<OptionsQuotesResponse, IReadOnlyList<OptionQuote>>(response, values);
     }
 

@@ -22,7 +22,8 @@ public sealed class MarketsApi
     {
         ArgumentNullException.ThrowIfNull(request);
         ValidateRequest(request);
-        var query = RequestQuery.From(options);
+        var effective = _apiClient.ApplyDefaults(options);
+        var query = RequestQuery.From(effective);
         RequestQuery.Add(query, "country", request.Country);
         RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, request.Countback);
 
@@ -35,7 +36,7 @@ public sealed class MarketsApi
                 row => new MarketStatus(row.Timestamp("date"), row.String("status")),
                 "date", "status"),
             Array.Empty<MarketStatus>(),
-            requestedColumns: options?.Columns);
+            requestedColumns: effective.Columns);
         return JsonResponseParser.CreateResponse<MarketStatusResponse, IReadOnlyList<MarketStatus>>(response, values);
     }
 
@@ -51,7 +52,7 @@ public sealed class MarketsApi
     {
         ArgumentNullException.ThrowIfNull(request);
         ValidateRequest(request);
-        var query = RequestQuery.Csv(options);
+        var query = RequestQuery.Csv(_apiClient.ApplyDefaults(options));
         RequestQuery.Add(query, "country", request.Country);
         RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, request.Countback);
         var response = await _apiClient.GetAsync("markets/status", true, query, cancellationToken)

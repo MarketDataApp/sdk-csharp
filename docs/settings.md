@@ -3,7 +3,7 @@
 ## Client options
 
 `MarketDataClientOptions.FromConfiguration(IConfiguration)` reads these application
-keys:
+keys. Transport keys:
 
 | Key | Property | Default |
 |---|---|---|
@@ -11,7 +11,66 @@ keys:
 | `MARKETDATA_BASE_URL` | `BaseAddress` | `https://api.marketdata.app/` |
 | `MARKETDATA_API_VERSION` | `ApiVersion` | `v1` |
 | `MARKETDATA_MAX_RETRIES` | `MaxRetries` | 3 retries |
+| `MARKETDATA_RETRY_BASE_DELAY` | `RetryBaseDelay` | `00:00:01` |
+| `MARKETDATA_RETRY_MAX_DELAY` | `RetryMaxDelay` | `00:00:30` |
+| `MARKETDATA_MAX_RETRY_AFTER` | `MaxRetryAfter` | `00:10:00` |
+| `MARKETDATA_RETRY_JITTER_FACTOR` | `RetryJitterFactor` | `0` |
 | `MARKETDATA_MAX_CONCURRENT_REQUESTS` | `MaxConcurrentRequests` | 50 |
+| `MARKETDATA_USER_AGENT` | `UserAgent` | `marketdata-sdk-csharp/{version}` |
+
+Request-formatting defaults and diagnostics. The formatting keys seed client-level
+defaults for the per-request `MarketDataRequestOptions` fields of the same name
+(see the cascade below):
+
+| Key | Property | Default | Notes |
+|---|---|---|---|
+| `MARKETDATA_DATE_FORMAT` | `DefaultDateFormat` | `null` | `unix` / `timestamp` / `spreadsheet`. |
+| `MARKETDATA_MODE` | `DefaultMode` | `null` | `live` / `cached` / `delayed`. |
+| `MARKETDATA_COLUMNS` | `DefaultColumns` | `null` | Comma-separated column list. |
+| `MARKETDATA_ADD_HEADERS` | `DefaultAddHeaders` | `null` | `true` / `false`; applies to CSV requests only. |
+| `MARKETDATA_USE_HUMAN_READABLE` | `DefaultHuman` | `null` | `true` / `false`; applies to CSV / human-readable output only. |
+| `MARKETDATA_LOGGING_LEVEL` | `MinimumLogLevel` | `Information` | `DEBUG` / `INFO` / `WARNING` / `ERROR` (or a .NET `LogLevel` name). Controls the SDK's own log verbosity. |
+| `MARKETDATA_OUTPUT_FORMAT` | `OutputFormat` | `null` | `json` / `csv`. Advisory / default-hinting only (see note). |
+
+Invalid values for any key throw a `FormatException` naming the offending key.
+
+### `MARKETDATA_OUTPUT_FORMAT` (C# semantics)
+
+`OutputFormat` is **advisory / default-hinting only**. In this SDK the effective output
+format is chosen by *which method you call*: the typed endpoint methods (e.g.
+`GetQuoteAsync`) return typed models decoded from JSON, while the paired `*CsvAsync`
+methods (e.g. `GetQuoteCsvAsync`) return CSV. Configuring `MARKETDATA_OUTPUT_FORMAT`
+stores the hint on `OutputFormat` but never reroutes a typed method to CSV or vice versa.
+
+### `MARKETDATA_LOGGING_LEVEL` (C# semantics)
+
+`MinimumLogLevel` controls the verbosity of the **SDK's own** diagnostics emitted through
+the configured `ILogger`. A message is emitted only when its level is at or above the
+threshold. The default `Information` therefore suppresses the SDK's Debug request/response
+logs unless `MARKETDATA_LOGGING_LEVEL=DEBUG` is configured.
+
+### Configuration cascade
+
+Request options resolve **per field** in this order: env / client-level defaults →
+per-method `MarketDataRequestOptions` params, with the **per-method value winning**. When a
+`MarketDataRequestOptions` field is left `null`, the matching client-level default
+(`DefaultDateFormat`, `DefaultMode`, `DefaultColumns`, `DefaultAddHeaders`, `DefaultHuman`)
+is applied; when the field is set, it overrides the default. `Limit` and `Offset` have no
+client-level default and are taken only from the per-method options.
+
+```csharp
+// MARKETDATA_DATE_FORMAT=timestamp, MARKETDATA_MODE=cached configured in the environment.
+var options = MarketDataClientOptions.FromEnvironment();
+using var client = new MarketDataClient(httpClient, options);
+
+// dateformat=timestamp and mode=cached are applied from the client defaults.
+await client.Stocks.GetPricesAsync(new StockPricesRequest("AAPL"));
+
+// dateformat=unix wins from the per-method options; mode=cached still fills from the default.
+await client.Stocks.GetPricesAsync(
+    new StockPricesRequest("AAPL"),
+    new MarketDataRequestOptions { DateFormat = DateFormat.Unix });
+```
 
 ## Default configuration sources
 

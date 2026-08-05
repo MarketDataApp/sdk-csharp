@@ -22,7 +22,8 @@ public sealed class FundsApi
         ArgumentNullException.ThrowIfNull(request);
         RequestValidator.ValidateDateWindow(
             request.Date, request.From, request.To, request.Countback, nameof(request));
-        var query = RequestQuery.From(options);
+        var effective = _apiClient.ApplyDefaults(options);
+        var query = RequestQuery.From(effective);
         RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, request.Countback);
         var path =
             $"funds/candles/{Uri.EscapeDataString(request.Resolution.WireValue)}/{Uri.EscapeDataString(request.Symbol)}";
@@ -41,7 +42,7 @@ public sealed class FundsApi
                     row.Decimal("c")),
                 "t", "o", "h", "l", "c"),
             Array.Empty<FundCandle>(),
-            requestedColumns: options?.Columns);
+            requestedColumns: effective.Columns);
         return JsonResponseParser.CreateResponse<FundCandlesResponse, IReadOnlyList<FundCandle>>(response, values);
     }
 
@@ -58,7 +59,7 @@ public sealed class FundsApi
         ArgumentNullException.ThrowIfNull(request);
         RequestValidator.ValidateDateWindow(
             request.Date, request.From, request.To, request.Countback, nameof(request));
-        var query = RequestQuery.Csv(options);
+        var query = RequestQuery.Csv(_apiClient.ApplyDefaults(options));
         RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, request.Countback);
         var path =
             $"funds/candles/{Uri.EscapeDataString(request.Resolution.WireValue)}/{Uri.EscapeDataString(request.Symbol)}";

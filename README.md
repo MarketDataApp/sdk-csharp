@@ -194,11 +194,37 @@ such as user secrets, environment variables, and Azure Key Vault.
 | `MARKETDATA_RETRY_JITTER_FACTOR`        | `RetryJitterFactor`     | `0`                | Random variation in `[0, 1]` added to delays to prevent many clients retrying simultaneously. |
 | `MARKETDATA_MAX_CONCURRENT_REQUESTS`    | `MaxConcurrentRequests` | `50`               | Maximum in-flight HTTP requests at one time (semaphore-guarded). |
 | `MARKETDATA_USER_AGENT`                | `UserAgent`             | `marketdata-sdk-csharp/{version}` | `User-Agent` header value. |
+| `MARKETDATA_DATE_FORMAT`               | `DefaultDateFormat`     | `null`             | Default response date/time format: `unix` / `timestamp` / `spreadsheet`. |
+| `MARKETDATA_MODE`                      | `DefaultMode`           | `null`             | Default data mode: `live` / `cached` / `delayed`. |
+| `MARKETDATA_COLUMNS`                   | `DefaultColumns`        | `null`             | Default response columns (comma-separated). |
+| `MARKETDATA_ADD_HEADERS`               | `DefaultAddHeaders`     | `null`             | Default for the CSV header row (`true`/`false`); CSV requests only. |
+| `MARKETDATA_USE_HUMAN_READABLE`        | `DefaultHuman`          | `null`             | Default for human-readable CSV output (`true`/`false`); CSV / human-readable output only. |
+| `MARKETDATA_LOGGING_LEVEL`             | `MinimumLogLevel`       | `Information`      | Minimum level for the SDK's own log output: `DEBUG`/`INFO`/`WARNING`/`ERROR` (or a .NET `LogLevel` name). See note. |
+| `MARKETDATA_OUTPUT_FORMAT`             | `OutputFormat`          | `null`             | Advisory preferred output: `json` / `csv`. See note. |
 
-All listed `MARKETDATA_*` keys, including retry tuning, `MaxConcurrentRequests`, and
-`UserAgent`, are supported by `FromConfiguration`. `TimeProvider` is not configurable
-via `IConfiguration`; pass it directly to the constructor to replace the system clock,
-which is useful in unit tests.
+All listed `MARKETDATA_*` keys, including retry tuning, `MaxConcurrentRequests`,
+`UserAgent`, and the request-formatting defaults, are supported by `FromConfiguration`.
+Invalid values throw a `FormatException` naming the offending key. `TimeProvider` is not
+configurable via `IConfiguration`; pass it directly to the constructor to replace the
+system clock, which is useful in unit tests.
+
+**Configuration cascade.** Request options resolve **per field**: env / client-level
+defaults → per-method `MarketDataRequestOptions` params, with the **per-method value
+winning**. When a `MarketDataRequestOptions` field is left `null`, the matching client-level
+default (`DefaultDateFormat`, `DefaultMode`, `DefaultColumns`, `DefaultAddHeaders`,
+`DefaultHuman`) is applied; when the field is set, it overrides the default. `Limit` and
+`Offset` have no client-level default and come only from the per-method options.
+
+**`MARKETDATA_OUTPUT_FORMAT` semantics (C#).** `OutputFormat` is advisory /
+default-hinting only. The effective output format is determined by *which method you call*:
+the typed methods (e.g. `GetQuoteAsync`) return typed models decoded from JSON, and the
+paired `*CsvAsync` methods (e.g. `GetQuoteCsvAsync`) return CSV. Configuring this key never
+reroutes a typed method to CSV or vice versa.
+
+**`MARKETDATA_LOGGING_LEVEL` semantics (C#).** `MinimumLogLevel` controls the verbosity of
+the SDK's own diagnostics sent to the configured `ILogger`; a message is emitted only when
+its level is at or above the threshold. The default `Information` suppresses the SDK's Debug
+request/response logs unless `DEBUG` is configured.
 
 Startup token validation is opt-in through the async factory. `await
 MarketDataClient.CreateAsync(httpClient, options)` performs a single `GET /user/` that

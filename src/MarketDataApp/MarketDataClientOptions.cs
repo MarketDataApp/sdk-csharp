@@ -36,6 +36,50 @@ public sealed record MarketDataClientOptions
     /// <summary>Logger used for SDK lifecycle, request, response, and error diagnostics.</summary>
     public ILogger? Logger { get; init; }
     /// <summary>
+    /// Client-level default response date/time format, used when a per-request
+    /// <see cref="MarketDataRequestOptions.DateFormat"/> is not supplied (§4 cascade). Read from
+    /// <c>MARKETDATA_DATE_FORMAT</c> (<c>unix</c>/<c>timestamp</c>/<c>spreadsheet</c>).
+    /// </summary>
+    public DateFormat? DefaultDateFormat { get; init; }
+    /// <summary>
+    /// Client-level default data mode, used when a per-request
+    /// <see cref="MarketDataRequestOptions.Mode"/> is not supplied (§4 cascade). Read from
+    /// <c>MARKETDATA_MODE</c> (<c>live</c>/<c>cached</c>/<c>delayed</c>).
+    /// </summary>
+    public Mode? DefaultMode { get; init; }
+    /// <summary>
+    /// Client-level default response columns, used when a per-request
+    /// <see cref="MarketDataRequestOptions.Columns"/> is not supplied (§4 cascade). Read from the
+    /// comma-separated <c>MARKETDATA_COLUMNS</c>.
+    /// </summary>
+    public IReadOnlyList<string>? DefaultColumns { get; init; }
+    /// <summary>
+    /// Client-level default for whether CSV output includes a header row, used when a per-request
+    /// <see cref="MarketDataRequestOptions.Headers"/> is not supplied (§4 cascade). Read from
+    /// <c>MARKETDATA_ADD_HEADERS</c>. Applies to CSV requests only.
+    /// </summary>
+    public bool? DefaultAddHeaders { get; init; }
+    /// <summary>
+    /// Client-level default for human-readable CSV output, used when a per-request
+    /// <see cref="MarketDataRequestOptions.Human"/> is not supplied (§4 cascade). Read from
+    /// <c>MARKETDATA_USE_HUMAN_READABLE</c>. Applies to CSV / human-readable output only.
+    /// </summary>
+    public bool? DefaultHuman { get; init; }
+    /// <summary>
+    /// Minimum severity a SDK diagnostic must reach to be emitted through <see cref="Logger"/>
+    /// (default <see cref="LogLevel.Information"/>, so the Debug request/response logs are
+    /// suppressed unless DEBUG is configured). Read from <c>MARKETDATA_LOGGING_LEVEL</c>
+    /// (<c>DEBUG</c>/<c>INFO</c>/<c>WARNING</c>/<c>ERROR</c>, or a .NET <see cref="LogLevel"/> name).
+    /// </summary>
+    public LogLevel? MinimumLogLevel { get; init; } = LogLevel.Information;
+    /// <summary>
+    /// Advisory preferred output format read from <c>MARKETDATA_OUTPUT_FORMAT</c>
+    /// (<c>json</c>/<c>csv</c>). In this SDK the effective format is determined by which method is
+    /// called — typed methods return JSON-decoded models and the <c>*CsvAsync</c> methods return
+    /// CSV — so this value is default-hinting only and never reroutes a typed method to CSV.
+    /// </summary>
+    public OutputFormat? OutputFormat { get; init; }
+    /// <summary>
     /// Gates whether <see cref="MarketDataClient.CreateAsync"/> validates an authenticated token
     /// with <c>/user/</c> and seeds the rate-limit snapshot at startup (default <c>true</c>).
     /// Set to <c>false</c> for short-lived runtimes that prefer first-request (lazy) validation.
@@ -82,7 +126,14 @@ public sealed record MarketDataClientOptions
             MaxRetryAfter = ReadTimeSpan(configuration, "MARKETDATA_MAX_RETRY_AFTER", TimeSpan.FromMinutes(10)),
             RetryJitterFactor = ReadDouble(configuration, "MARKETDATA_RETRY_JITTER_FACTOR", 0),
             MaxConcurrentRequests = ReadInt(configuration, "MARKETDATA_MAX_CONCURRENT_REQUESTS", 50),
-            UserAgent = configuration["MARKETDATA_USER_AGENT"] ?? DefaultUserAgentValue
+            UserAgent = configuration["MARKETDATA_USER_AGENT"] ?? DefaultUserAgentValue,
+            DefaultDateFormat = ReadDateFormat(configuration, "MARKETDATA_DATE_FORMAT"),
+            DefaultMode = ReadMode(configuration, "MARKETDATA_MODE"),
+            DefaultColumns = ReadColumns(configuration["MARKETDATA_COLUMNS"]),
+            DefaultAddHeaders = ReadBool(configuration, "MARKETDATA_ADD_HEADERS"),
+            DefaultHuman = ReadBool(configuration, "MARKETDATA_USE_HUMAN_READABLE"),
+            MinimumLogLevel = ReadLogLevel(configuration, "MARKETDATA_LOGGING_LEVEL", LogLevel.Information),
+            OutputFormat = ReadOutputFormat(configuration, "MARKETDATA_OUTPUT_FORMAT")
         };
     }
 
@@ -136,6 +187,104 @@ public sealed record MarketDataClientOptions
             ? value
             : throw new FormatException(
                 $"Configuration value '{name}' must be a TimeSpan.");
+    }
+
+    private static DateFormat? ReadDateFormat(IConfiguration configuration, string name)
+    {
+        var configured = configuration[name];
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            return null;
+        }
+
+        return DateFormatExtensions.TryParseWireValue(configured, out var value)
+            ? value
+            : throw new FormatException(
+                $"Configuration value '{name}' must be one of: unix, timestamp, spreadsheet.");
+    }
+
+    private static Mode? ReadMode(IConfiguration configuration, string name)
+    {
+        var configured = configuration[name];
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            return null;
+        }
+
+        return ModeExtensions.TryParseWireValue(configured, out var value)
+            ? value
+            : throw new FormatException(
+                $"Configuration value '{name}' must be one of: live, cached, delayed.");
+    }
+
+    private static IReadOnlyList<string>? ReadColumns(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var columns = value.Split(
+            ',',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return columns.Length == 0 ? null : columns;
+    }
+
+    private static bool? ReadBool(IConfiguration configuration, string name)
+    {
+        var configured = configuration[name];
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            return null;
+        }
+
+        return bool.TryParse(configured.Trim(), out var value)
+            ? value
+            : throw new FormatException(
+                $"Configuration value '{name}' must be a boolean (true or false).");
+    }
+
+    private static LogLevel ReadLogLevel(IConfiguration configuration, string name, LogLevel defaultValue)
+    {
+        var configured = configuration[name];
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            return defaultValue;
+        }
+
+        // Accept the requirement's DEBUG/INFO/WARNING/ERROR names (case-insensitive) plus the
+        // full set of .NET LogLevel names so either spelling of, e.g., Information works.
+        return configured.Trim().ToLowerInvariant() switch
+        {
+            "trace" => LogLevel.Trace,
+            "debug" => LogLevel.Debug,
+            "info" or "information" => LogLevel.Information,
+            "warn" or "warning" => LogLevel.Warning,
+            "error" => LogLevel.Error,
+            "critical" => LogLevel.Critical,
+            "none" => LogLevel.None,
+            _ => throw new FormatException(
+                $"Configuration value '{name}' must be one of: DEBUG, INFO, WARNING, ERROR "
+                + "(or a .NET LogLevel name).")
+        };
+    }
+
+    private static OutputFormat? ReadOutputFormat(IConfiguration configuration, string name)
+    {
+        var configured = configuration[name];
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            return null;
+        }
+
+        // Fully qualified: the OutputFormat property shadows the enum type name in this scope.
+        return configured.Trim().ToLowerInvariant() switch
+        {
+            "json" => MarketDataApp.OutputFormat.Json,
+            "csv" => MarketDataApp.OutputFormat.Csv,
+            _ => throw new FormatException(
+                $"Configuration value '{name}' must be one of: json, csv.")
+        };
     }
 
     private static string CreateDefaultUserAgent()

@@ -1,5 +1,6 @@
 using MarketDataApp.Tests.TestSupport;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace MarketDataApp.Tests.Configuration;
 
@@ -84,6 +85,138 @@ public sealed class MarketDataClientOptionsTests
         Assert.Equal(0.1, options.RetryJitterFactor);
         Assert.Equal(12, options.MaxConcurrentRequests);
         Assert.Equal("test-client/1.0", options.UserAgent);
+    }
+
+    [Fact]
+    public void FromConfiguration_BindsFormattingDefaults()
+    {
+        var options = MarketDataClientOptions.FromConfiguration(Configuration(
+            new Dictionary<string, string?>
+            {
+                ["MARKETDATA_DATE_FORMAT"] = "timestamp",
+                ["MARKETDATA_MODE"] = "cached",
+                ["MARKETDATA_COLUMNS"] = "symbol, mid , last",
+                ["MARKETDATA_ADD_HEADERS"] = "false",
+                ["MARKETDATA_USE_HUMAN_READABLE"] = "true",
+                ["MARKETDATA_LOGGING_LEVEL"] = "DEBUG",
+                ["MARKETDATA_OUTPUT_FORMAT"] = "csv"
+            }));
+
+        Assert.Equal(DateFormat.Timestamp, options.DefaultDateFormat);
+        Assert.Equal(Mode.Cached, options.DefaultMode);
+        Assert.Equal(new[] { "symbol", "mid", "last" }, options.DefaultColumns);
+        Assert.False(options.DefaultAddHeaders);
+        Assert.True(options.DefaultHuman);
+        Assert.Equal(LogLevel.Debug, options.MinimumLogLevel);
+        Assert.Equal(OutputFormat.Csv, options.OutputFormat);
+    }
+
+    [Fact]
+    public void FromConfiguration_LeavesFormattingDefaultsUnsetWhenKeysAbsent()
+    {
+        var options = MarketDataClientOptions.FromConfiguration(Configuration(
+            new Dictionary<string, string?>()));
+
+        Assert.Null(options.DefaultDateFormat);
+        Assert.Null(options.DefaultMode);
+        Assert.Null(options.DefaultColumns);
+        Assert.Null(options.DefaultAddHeaders);
+        Assert.Null(options.DefaultHuman);
+        Assert.Null(options.OutputFormat);
+        // MinimumLogLevel keeps its Information default so Debug SDK logs stay suppressed.
+        Assert.Equal(LogLevel.Information, options.MinimumLogLevel);
+    }
+
+    [Theory]
+    [InlineData("unix", DateFormat.Unix)]
+    [InlineData("timestamp", DateFormat.Timestamp)]
+    [InlineData("spreadsheet", DateFormat.Spreadsheet)]
+    [InlineData("TIMESTAMP", DateFormat.Timestamp)]
+    public void FromConfiguration_MapsDateFormat(string configured, DateFormat expected)
+    {
+        var options = MarketDataClientOptions.FromConfiguration(Configuration(
+            new Dictionary<string, string?> { ["MARKETDATA_DATE_FORMAT"] = configured }));
+
+        Assert.Equal(expected, options.DefaultDateFormat);
+    }
+
+    [Theory]
+    [InlineData("live", Mode.Live)]
+    [InlineData("delayed", Mode.Delayed)]
+    [InlineData("cached", Mode.Cached)]
+    [InlineData("CACHED", Mode.Cached)]
+    public void FromConfiguration_MapsMode(string configured, Mode expected)
+    {
+        var options = MarketDataClientOptions.FromConfiguration(Configuration(
+            new Dictionary<string, string?> { ["MARKETDATA_MODE"] = configured }));
+
+        Assert.Equal(expected, options.DefaultMode);
+    }
+
+    [Theory]
+    [InlineData("DEBUG", LogLevel.Debug)]
+    [InlineData("debug", LogLevel.Debug)]
+    [InlineData("INFO", LogLevel.Information)]
+    [InlineData("information", LogLevel.Information)]
+    [InlineData("WARNING", LogLevel.Warning)]
+    [InlineData("warn", LogLevel.Warning)]
+    [InlineData("ERROR", LogLevel.Error)]
+    [InlineData("Trace", LogLevel.Trace)]
+    [InlineData("Critical", LogLevel.Critical)]
+    [InlineData("None", LogLevel.None)]
+    public void FromConfiguration_MapsLoggingLevel(string configured, LogLevel expected)
+    {
+        var options = MarketDataClientOptions.FromConfiguration(Configuration(
+            new Dictionary<string, string?> { ["MARKETDATA_LOGGING_LEVEL"] = configured }));
+
+        Assert.Equal(expected, options.MinimumLogLevel);
+    }
+
+    [Theory]
+    [InlineData("MARKETDATA_DATE_FORMAT", "iso")]
+    [InlineData("MARKETDATA_MODE", "realtime")]
+    [InlineData("MARKETDATA_LOGGING_LEVEL", "verbose")]
+    [InlineData("MARKETDATA_OUTPUT_FORMAT", "xml")]
+    [InlineData("MARKETDATA_ADD_HEADERS", "maybe")]
+    [InlineData("MARKETDATA_USE_HUMAN_READABLE", "sometimes")]
+    public void FromConfiguration_RejectsMalformedFormattingValues(string key, string value)
+    {
+        var configuration = Configuration(new Dictionary<string, string?> { [key] = value });
+
+        var exception = Assert.Throws<FormatException>(
+            () => MarketDataClientOptions.FromConfiguration(configuration));
+
+        Assert.Contains(key, exception.Message);
+    }
+
+    [Fact]
+    public void FromConfiguration_SplitsColumnsAndTrimsBlankEntries()
+    {
+        var options = MarketDataClientOptions.FromConfiguration(Configuration(
+            new Dictionary<string, string?> { ["MARKETDATA_COLUMNS"] = " symbol , ,mid ,, last " }));
+
+        Assert.Equal(new[] { "symbol", "mid", "last" }, options.DefaultColumns);
+    }
+
+    [Fact]
+    public void FromConfiguration_TreatsSeparatorOnlyColumnsAsUnset()
+    {
+        var options = MarketDataClientOptions.FromConfiguration(Configuration(
+            new Dictionary<string, string?> { ["MARKETDATA_COLUMNS"] = ",,," }));
+
+        Assert.Null(options.DefaultColumns);
+    }
+
+    [Theory]
+    [InlineData("json", OutputFormat.Json)]
+    [InlineData("csv", OutputFormat.Csv)]
+    [InlineData("CSV", OutputFormat.Csv)]
+    public void FromConfiguration_MapsOutputFormat(string configured, OutputFormat expected)
+    {
+        var options = MarketDataClientOptions.FromConfiguration(Configuration(
+            new Dictionary<string, string?> { ["MARKETDATA_OUTPUT_FORMAT"] = configured }));
+
+        Assert.Equal(expected, options.OutputFormat);
     }
 
     private static IConfiguration Configuration(IDictionary<string, string?> values) =>
