@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace MarketDataApp.Exceptions;
 
 /// <summary>
@@ -35,35 +37,43 @@ public abstract class MarketDataException : Exception
     /// <summary>Simple class name of this exception type.</summary>
     public string ExceptionType => GetType().Name;
 
-    // "America/New_York" is the IANA ID used by Linux/macOS; "Eastern Standard Time" is the
-    // legacy Windows ID. Resolving both keeps GetSupportInfo() working across every OS this
-    // SDK targets, instead of throwing TimeZoneNotFoundException off Windows.
-    private static readonly Lazy<TimeZoneInfo> EasternTimeZone = new(() =>
-    {
-        try
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
-        }
-        catch (TimeZoneNotFoundException)
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
-        }
-    });
+    // Fixed header for the support block (per MarketData.app SDK requirements §6.3).
+    // The footer is a rule of dashes the same length as the header.
+    private const string SupportInfoHeader = "--- MARKET DATA SUPPORT INFO ---";
 
     /// <summary>
-    /// Returns a formatted support-ticket block with all diagnostic fields,
-    /// suitable for pasting into a bug report.
+    /// A formatted diagnostic block containing every support field, in a fixed order and
+    /// column-aligned, suitable for pasting into a Market Data support ticket. The
+    /// timestamp is rendered from the US/Eastern <see cref="Timestamp"/> as
+    /// <c>yyyy-MM-dd HH:mm:ss</c> using the invariant culture.
     /// </summary>
-    public string GetSupportInfo()
+    public string SupportInfo
     {
-        var eastern = TimeZoneInfo.ConvertTime(Timestamp, EasternTimeZone.Value);
-        return $"""
-            Exception Type : {ExceptionType}
-            Message        : {Message}
-            Status Code    : {StatusCode}
-            Request URL    : {RequestUrl}
-            Request ID     : {RequestId ?? "(none)"}
-            Timestamp (ET) : {eastern:yyyy-MM-dd HH:mm:ss zzz}
-            """;
+        get
+        {
+            // Timestamp is already normalized to US/Eastern by ErrorContext; format only.
+            var timestamp = Timestamp.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+
+            (string Label, string Value)[] fields =
+            [
+                ("request_id:", string.IsNullOrEmpty(RequestId) ? "(none)" : RequestId),
+                ("request_url:", RequestUrl.ToString()),
+                ("status_code:", StatusCode.ToString(CultureInfo.InvariantCulture)),
+                ("timestamp:", timestamp),
+                ("message:", Message),
+                ("exception_type:", ExceptionType),
+            ];
+
+            // Pad every label to the width of the longest ("exception_type:") so values align.
+            var width = fields.Max(f => f.Label.Length);
+            var lines = new string[fields.Length + 2];
+            lines[0] = SupportInfoHeader;
+            for (var i = 0; i < fields.Length; i++)
+            {
+                lines[i + 1] = $"{fields[i].Label.PadRight(width)} {fields[i].Value}";
+            }
+            lines[^1] = new string('-', SupportInfoHeader.Length);
+            return string.Join('\n', lines);
+        }
     }
 }

@@ -555,7 +555,7 @@ Every exception exposes:
 - `RequestUrl` — URL that was requested
 - `RequestId` — server-assigned ID for support tickets
 - `Timestamp` — when the exception was created
-- `GetSupportInfo()` — pre-formatted support block with all fields
+- `SupportInfo` — pre-formatted support block with all fields
 
 ```csharp
 try
@@ -578,8 +578,21 @@ catch (AuthenticationException ex)
 catch (MarketDataException ex)
 {
     // Catch-all for all other SDK errors
-    Console.Error.WriteLine(ex.GetSupportInfo());
+    Console.Error.WriteLine(ex.SupportInfo);
 }
+```
+
+`SupportInfo` renders a fixed, column-aligned block for support tickets:
+
+```text
+--- MARKET DATA SUPPORT INFO ---
+request_id:     BOAxvA
+request_url:    https://api.marketdata.app/v1/stocks/quotes/AAPL/
+status_code:    429
+timestamp:      2026-08-04 09:30:00
+message:        Rate limit exceeded
+exception_type: RateLimitException
+--------------------------------
 ```
 
 ---

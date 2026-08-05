@@ -126,5 +126,5 @@ catch (AuthenticationException ex)
 catch (MarketDataException ex)
 {
     Console.Error.WriteLine($"{ex.ExceptionType} ({ex.StatusCode}): {ex.Message}");
-    Console.Error.WriteLine(ex.GetSupportInfo());
+    Console.Error.WriteLine(ex.SupportInfo);
 }
