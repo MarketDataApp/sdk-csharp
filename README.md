@@ -14,8 +14,14 @@
 
 [![CI](https://github.com/MarketDataApp/sdk-csharp/actions/workflows/ci.yml/badge.svg)](https://github.com/MarketDataApp/sdk-csharp/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/MarketDataApp/sdk-csharp/graph/badge.svg)](https://codecov.io/gh/MarketDataApp/sdk-csharp)
+[![Status: Alpha](https://img.shields.io/badge/status-alpha%20(in%20development)-orange)](https://github.com/MarketDataApp/sdk-csharp)
 
 </div>
+
+> [!WARNING]
+> **Alpha — in active development. Not ready for public or production use.**
+> This SDK has not had a stable release and its public API may change without notice.
+> NuGet packages are pre-release (`0.0.0-alpha.*`) until a stable `v1.0.0` is tagged.
 
 ## Features
 
