@@ -58,6 +58,14 @@
     <None Include="..\..\README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
+  <!-- Grant the unit-test assembly access to internal transport/parsing helpers so their
+       defensive branches (null-argument guards, service-key edge cases, formatting helpers)
+       can be exercised as real behavior tests rather than excluded from coverage. This changes
+       no runtime behavior. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="MarketDataApp.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="DotNetEnv" Version="3.2.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.10" />

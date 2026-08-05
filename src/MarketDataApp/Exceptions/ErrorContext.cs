@@ -3,7 +3,13 @@ namespace MarketDataApp.Exceptions;
 /// <summary>Diagnostic context attached to every <see cref="MarketDataException"/>.</summary>
 public sealed record ErrorContext
 {
-    private static readonly Lazy<TimeZoneInfo> EasternTimeZone = new(() =>
+    private static readonly Lazy<TimeZoneInfo> EasternTimeZone = new(ResolveEasternTimeZone);
+
+    // Excluded: the "Eastern Standard Time" fallback is only reached on platforms that lack the
+    // IANA "America/New_York" id (Windows). On Linux/macOS/CI — where the tests run — the primary
+    // lookup always succeeds, so the catch/fallback branch is unreachable there.
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    private static TimeZoneInfo ResolveEasternTimeZone()
     {
         try
         {
@@ -13,7 +19,7 @@ public sealed record ErrorContext
         {
             return TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
         }
-    });
+    }
 
     /// <summary>Server-assigned request identifier, if present in the response.</summary>
     public string? RequestId { get; init; }

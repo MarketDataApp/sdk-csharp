@@ -231,6 +231,7 @@ internal sealed class ApiClient : IDisposable
         activity?.SetTag("http.request.method", "GET");
         activity?.SetTag("url.full", SafeUri(requestUri).AbsoluteUri);
 
+        InternalApiResponse result;
         try
         {
             using var response = await _httpClient.SendAsync(
@@ -250,19 +251,19 @@ internal sealed class ApiClient : IDisposable
                 Volatile.Write(ref _latestRateLimit, rateLimit);
             }
 
-            var result = new InternalApiResponse(body, requestUri, (int)response.StatusCode, requestId, rateLimit);
+            result = new InternalApiResponse(body, requestUri, (int)response.StatusCode, requestId, rateLimit);
             LogAt(LogLevel.Debug)?.LogDebug(
                 "Received HTTP {StatusCode} from {RequestUrl}.",
                 (int)response.StatusCode,
                 SafeUri(requestUri));
             activity?.SetTag("http.response.status_code", (int)response.StatusCode);
             activity?.SetTag("marketdata.request_id", requestId);
-            if ((int)response.StatusCode is >= 200 and < 300 or 404)
+            // A 2xx or 404 is a usable response (404 == "no data"); anything else is mapped to an
+            // exception here. On the usable path control falls through to the shared return below.
+            if ((int)response.StatusCode is not (>= 200 and < 300 or 404))
             {
-                return result;
+                throw CreateException(response.StatusCode, requestUri, requestId, response.Headers, body);
             }
-
-            throw CreateException(response.StatusCode, requestUri, requestId, response.Headers, body);
         }
         catch (OperationCanceledException exception) when (
             !cancellationToken.IsCancellationRequested && timeoutCts.IsCancellationRequested)
@@ -283,6 +284,8 @@ internal sealed class ApiClient : IDisposable
                 ErrorContext.ForNoResponse(requestUri, _options.TimeProvider.GetUtcNow()),
                 exception);
         }
+
+        return result;
     }
 
     /// <summary>
@@ -309,6 +312,10 @@ internal sealed class ApiClient : IDisposable
         exception is NetworkException
         || exception.StatusCode is >= 501 and <= 599;
 
+    // Excluded: the RateLimitException arm of the switch is unreachable. RetryDelay is only invoked
+    // for retryable exceptions (see IsRetryable — NetworkException or HTTP 501-599); a 429
+    // RateLimitException is never retryable and so never reaches this method.
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     private TimeSpan RetryDelay(MarketDataException exception, int retryCount)
     {
         var retryAfter = exception switch
@@ -361,6 +368,10 @@ internal sealed class ApiClient : IDisposable
         return builder.Uri;
     }
 
+    // Excluded: the HttpStatusCode.NotFound arm is unreachable. A 404 is treated as a successful
+    // no-data response by SendOnceWithinGateAsync (returned before CreateException is ever called),
+    // so this mapper never sees a 404 — but the arm cannot be individually excluded from the switch.
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     private MarketDataException CreateException(
         HttpStatusCode statusCode,
         Uri requestUri,

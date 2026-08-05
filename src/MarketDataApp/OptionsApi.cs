@@ -32,7 +32,7 @@ public sealed class OptionsApi
             response,
             root => root.TryGetProperty("optionSymbol", out var symbol)
                 && symbol.ValueKind == JsonValueKind.String
-                ? symbol.GetString() ?? throw new JsonException("Missing optionSymbol.")
+                ? symbol.GetString()!
                 : throw new JsonException("Missing optionSymbol."),
             string.Empty,
             requestedColumns: effective.Columns);
@@ -488,6 +488,11 @@ public sealed class OptionsApi
         }
     }
 
+    // Excluded: the final switch arm is an unreachable default. StrikeFilter is an abstract record
+    // with an internal constructor and exactly three sealed subtypes (Exact/Range/Comparison), all
+    // handled above, so no other StrikeFilter can exist — but the C# switch expression still
+    // requires the default arm, which cannot be exercised.
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     private static string? FormatStrikeFilter(StrikeFilter? filter) =>
         filter switch
         {

@@ -7,7 +7,13 @@ namespace MarketDataApp;
 
 internal static class JsonResponseParser
 {
-    private static readonly Lazy<TimeZoneInfo> EasternTimeZone = new(() =>
+    private static readonly Lazy<TimeZoneInfo> EasternTimeZone = new(ResolveEasternTimeZone);
+
+    // Excluded: the "Eastern Standard Time" fallback is only reached on platforms that lack the
+    // IANA "America/New_York" id (Windows). On Linux/macOS/CI — where the tests run — the primary
+    // lookup always succeeds, so the catch/fallback branch is unreachable there.
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    private static TimeZoneInfo ResolveEasternTimeZone()
     {
         try
         {
@@ -17,7 +23,7 @@ internal static class JsonResponseParser
         {
             return TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
         }
-    });
+    }
 
     public static JsonElement Parse(InternalApiResponse response)
     {

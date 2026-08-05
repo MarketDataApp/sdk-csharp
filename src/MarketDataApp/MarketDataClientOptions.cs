@@ -287,6 +287,11 @@ public sealed record MarketDataClientOptions
         };
     }
 
+    // Excluded: the version-fallback branches (missing AssemblyInformationalVersion, then missing
+    // AssemblyName.Version, then the literal "unknown") are unreachable in a normally-built
+    // assembly. MinVer always stamps AssemblyInformationalVersion, so the primary path is always
+    // taken and the "?? ..." fallbacks cannot be exercised.
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     private static string CreateDefaultUserAgent()
     {
         var assembly = typeof(MarketDataClientOptions).Assembly;
