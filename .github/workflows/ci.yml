@@ -63,7 +63,7 @@ jobs:
         os: ${{ fromJSON(needs.setup.outputs.os) }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0   # full history required for Source Link and MinVer
 
@@ -174,7 +174,7 @@ jobs:
       MARKETDATA_TOKEN: ${{ secrets.MARKETDATA_TOKEN }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0   # full history required for Source Link and MinVer
 
