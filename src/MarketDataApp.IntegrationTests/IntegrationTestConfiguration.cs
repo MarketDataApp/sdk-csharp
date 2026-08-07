@@ -1,5 +1,3 @@
-using DotNetEnv;
-using DotNetEnv.Configuration;
 using Microsoft.Extensions.Configuration;
 
 namespace MarketDataApp.IntegrationTests;
@@ -10,19 +8,9 @@ internal static class IntegrationTestConfiguration
 
     private static IConfiguration BuildConfiguration()
     {
-        var environmentFile = Path.Combine(AppContext.BaseDirectory, ".env");
-        var builder = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["MARKETDATA_MAX_RETRIES"] = "1"
-            });
-
-        if (File.Exists(environmentFile))
-        {
-            builder.AddDotNetEnv(environmentFile, new LoadOptions(clobberExistingVars: false));
-        }
-
-        return builder.AddEnvironmentVariables().Build();
+        var config = MarketDataClientOptions.CreateEnvironmentConfiguration();
+        config["MARKETDATA_MAX_RETRIES"] = "1";
+        return config;
     }
 
     public static string? ApiToken => Instance["MARKETDATA_TOKEN"];

@@ -135,18 +135,27 @@ public sealed record MarketDataClientOptions
     /// </summary>
     public static MarketDataClientOptions FromEnvironment()
     {
+        return FromConfiguration(CreateEnvironmentConfiguration());
+    }
+
+    /// <summary>
+    /// Creates configuration from user secrets, an optional .env file, and process
+    /// environment variables, in increasing precedence order.
+    /// </summary>
+    public static IConfiguration CreateEnvironmentConfiguration()
+    {
         var builder = new ConfigurationBuilder()
             .AddUserSecrets<MarketDataClientOptions>(optional: true);
 
-        if (File.Exists(".env"))
+        var envFile = Path.Combine(AppContext.BaseDirectory, ".env");
+        if (File.Exists(envFile))
         {
-            builder.AddDotNetEnv(".env", new DotNetEnv.LoadOptions(clobberExistingVars: false));
+            builder.AddDotNetEnv(envFile, new DotNetEnv.LoadOptions(clobberExistingVars: false));
         }
 
-        var configuration = builder
+        return builder
             .AddEnvironmentVariables()
             .Build();
-        return FromConfiguration(configuration);
     }
 
     /// <summary>
