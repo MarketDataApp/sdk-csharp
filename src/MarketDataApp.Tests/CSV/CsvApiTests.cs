@@ -38,6 +38,20 @@ public sealed class CsvApiTests
     }
 
     [Fact]
+    public async Task Csv_AllowsSpreadsheetDateFormat()
+    {
+        var handler = CreateHandler("symbol,updated\r\nAAPL,45292.5\r\n");
+        var client = MarketDataTestClient.Create(handler);
+
+        var response = await client.Stocks.GetPricesCsvAsync(
+            new StockPricesRequest("AAPL"),
+            new MarketDataRequestOptions { DateFormat = DateFormat.Spreadsheet });
+
+        Assert.Contains("45292.5", response.Csv);
+        Assert.Contains("dateformat=spreadsheet", handler.LastRequest!.RequestUri!.Query);
+    }
+
+    [Fact]
     public async Task FundsCsv_UsesFundEndpoint()
     {
         var handler = CreateHandler("t,o,h,l,c\r\n1737072000,1,2,0.5,1.5\r\n");

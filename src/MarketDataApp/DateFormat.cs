@@ -9,7 +9,9 @@ public enum DateFormat
     /// <summary>ISO-8601 timestamp string.</summary>
     Timestamp,
 
-    /// <summary>Excel/spreadsheet serial date number.</summary>
+    /// <summary>Excel/spreadsheet serial date number. Supported by the <c>*CsvAsync</c> methods
+    /// only; typed methods reject it because serial dates would be misparsed by their
+    /// Unix/ISO timestamp decoding.</summary>
     Spreadsheet,
 }
 

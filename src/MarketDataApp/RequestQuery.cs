@@ -4,9 +4,20 @@ namespace MarketDataApp;
 
 internal static class RequestQuery
 {
-    public static List<KeyValuePair<string, string?>> From(MarketDataRequestOptions? options)
+    public static List<KeyValuePair<string, string?>> From(
+        MarketDataRequestOptions? options,
+        bool allowSpreadsheet = false)
     {
         RequestValidator.ValidateRequestOptions(options);
+        if (!allowSpreadsheet && options?.DateFormat == DateFormat.Spreadsheet)
+        {
+            throw new ArgumentException(
+                "DateFormat.Spreadsheet returns Excel serial date numbers, which typed methods "
+                + "would misparse as Unix timestamps. Use the *CsvAsync methods for spreadsheet "
+                + "output.",
+                nameof(options));
+        }
+
         var query = new List<KeyValuePair<string, string?>>();
         if (options is null)
         {
@@ -23,7 +34,7 @@ internal static class RequestQuery
 
     public static List<KeyValuePair<string, string?>> Csv(MarketDataRequestOptions? options)
     {
-        var query = From(options);
+        var query = From(options, allowSpreadsheet: true);
         Add(query, "format", "csv");
         Add(query, "headers", options?.Headers?.ToString().ToLowerInvariant());
         Add(query, "human", options?.Human?.ToString().ToLowerInvariant());
