@@ -32,6 +32,35 @@ public sealed class StocksApiTests
     }
 
     [Fact]
+    public async Task TypedMethods_RejectSpreadsheetDateFormat()
+    {
+        var handler = new StubHttpMessageHandler(
+            _ => throw new InvalidOperationException("typed spreadsheet requests must fail before any HTTP call"));
+        var client = MarketDataTestClient.Create(handler);
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() => client.Stocks.GetQuoteAsync(
+            new StockQuoteRequest("AAPL"),
+            new MarketDataRequestOptions { DateFormat = DateFormat.Spreadsheet }));
+
+        Assert.Contains("Spreadsheet", exception.Message);
+        Assert.Contains("CsvAsync", exception.Message);
+    }
+
+    [Fact]
+    public async Task TypedMethods_RejectSpreadsheetClientDefaultDateFormat()
+    {
+        var handler = new StubHttpMessageHandler(
+            _ => throw new InvalidOperationException("typed spreadsheet requests must fail before any HTTP call"));
+        var client = MarketDataTestClient.Create(handler, new MarketDataClientOptions
+        {
+            DefaultDateFormat = DateFormat.Spreadsheet
+        });
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => client.Stocks.GetQuoteAsync(new StockQuoteRequest("AAPL")));
+    }
+
+    [Fact]
     public async Task GetPricesAsync_ParsesPriceRows()
     {
         var handler = new StubHttpMessageHandler(_ => MarketDataTestClient.JsonResponse("""
