@@ -1,3 +1,5 @@
+using System.Net;
+using System.Text;
 using MarketDataApp;
 using MarketDataApp.Funds;
 using MarketDataApp.Stocks;
@@ -81,11 +83,15 @@ public sealed class ValueTypeTests
     [Fact]
     public async Task DateFormatSpreadsheet_IsSerializedOnTheWire()
     {
-        var handler = new StubHttpMessageHandler(_ =>
-            MarketDataTestClient.JsonResponse("""{"s":"ok","symbol":["AAPL"],"mid":[1.0]}"""));
+        // Spreadsheet is a CSV-only format: typed methods reject it (see StocksApiTests), so the
+        // wire serialization contract is exercised through a CSV endpoint.
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("symbol,mid\r\nAAPL,1.0\r\n", Encoding.UTF8, "text/csv")
+        });
         var client = MarketDataTestClient.Create(handler);
 
-        await client.Stocks.GetPricesAsync(
+        await client.Stocks.GetPricesCsvAsync(
             new StockPricesRequest("AAPL"),
             new MarketDataRequestOptions { DateFormat = DateFormat.Spreadsheet });
 
