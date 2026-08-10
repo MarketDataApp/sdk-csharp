@@ -547,7 +547,7 @@ internal sealed class ApiClient : IDisposable
         }
     }
 
-    private static string RedactToken(string token) =>
+    internal static string RedactToken(string token) =>
         token.Length <= 4 ? "****" : $"****{token[^4..]}";
 
     private sealed class MarketDataExceptionAdapter(string message, ErrorContext context)

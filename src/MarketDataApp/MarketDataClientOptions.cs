@@ -2,6 +2,7 @@ using DotNetEnv.Configuration;
 using Microsoft.Extensions.Configuration;
 using System.Globalization;
 using System.Reflection;
+using System.Text;
 using Microsoft.Extensions.Logging;
 
 namespace MarketDataApp;
@@ -94,6 +95,35 @@ public sealed record MarketDataClientOptions
     /// performs startup validation; errors surface on the first request in that path.
     /// </summary>
     public bool ValidateTokenOnStartup { get; init; } = true;
+
+    // Replaces the compiler-generated PrintMembers, which would print ApiToken verbatim and leak
+    // the credential into any log that stringifies the options. Tokens may surface with at most
+    // their last 4 characters; all other public members keep the generated record format.
+    private bool PrintMembers(StringBuilder builder)
+    {
+        builder.Append("ApiToken = ")
+            .Append(string.IsNullOrEmpty(ApiToken) ? ApiToken : ApiClient.RedactToken(ApiToken));
+        builder.Append(", BaseAddress = ").Append(BaseAddress);
+        builder.Append(", ApiVersion = ").Append(ApiVersion);
+        builder.Append(", MaxRetries = ").Append(MaxRetries);
+        builder.Append(", RetryBaseDelay = ").Append(RetryBaseDelay);
+        builder.Append(", RetryMaxDelay = ").Append(RetryMaxDelay);
+        builder.Append(", MaxRetryAfter = ").Append(MaxRetryAfter);
+        builder.Append(", RetryJitterFactor = ").Append(RetryJitterFactor);
+        builder.Append(", MaxConcurrentRequests = ").Append(MaxConcurrentRequests);
+        builder.Append(", TimeProvider = ").Append(TimeProvider);
+        builder.Append(", UserAgent = ").Append(UserAgent);
+        builder.Append(", Logger = ").Append(Logger);
+        builder.Append(", DefaultDateFormat = ").Append(DefaultDateFormat);
+        builder.Append(", DefaultMode = ").Append(DefaultMode);
+        builder.Append(", DefaultColumns = ").Append(DefaultColumns);
+        builder.Append(", DefaultAddHeaders = ").Append(DefaultAddHeaders);
+        builder.Append(", DefaultHuman = ").Append(DefaultHuman);
+        builder.Append(", MinimumLogLevel = ").Append(MinimumLogLevel);
+        builder.Append(", OutputFormat = ").Append(OutputFormat);
+        builder.Append(", ValidateTokenOnStartup = ").Append(ValidateTokenOnStartup);
+        return true;
+    }
 
     /// <summary>
     /// Loads MARKETDATA_* values from user secrets, an optional .env file, and process
