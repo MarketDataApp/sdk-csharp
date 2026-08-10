@@ -127,6 +127,26 @@ public sealed class MarketDataClientOptionsTests
         Assert.Equal(LogLevel.Information, options.MinimumLogLevel);
     }
 
+    [Fact]
+    public void ToString_RedactsTheApiToken()
+    {
+        var options = new MarketDataClientOptions { ApiToken = "fake-token-abcdefghijklmnop-9999" };
+
+        var text = options.ToString();
+
+        Assert.DoesNotContain("fake-token-abcdefghijklmnop", text);
+        Assert.Contains("ApiToken = ****9999", text);
+        Assert.Contains("BaseAddress = https://api.marketdata.app/", text);
+    }
+
+    [Fact]
+    public void ToString_WithoutToken_PrintsAnEmptyApiToken()
+    {
+        var options = new MarketDataClientOptions();
+
+        Assert.Contains("ApiToken = , BaseAddress = ", options.ToString());
+    }
+
     [Theory]
     [InlineData("unix", DateFormat.Unix)]
     [InlineData("timestamp", DateFormat.Timestamp)]
