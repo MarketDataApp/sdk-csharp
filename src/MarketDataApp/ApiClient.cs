@@ -133,6 +133,9 @@ internal sealed class ApiClient : IDisposable
 
     public RateLimitSnapshot? LatestRateLimit => Volatile.Read(ref _latestRateLimit);
 
+    /// <summary>Configured time source, exposed so endpoint helpers stay on the clock seam.</summary>
+    internal TimeProvider TimeProvider => _options.TimeProvider;
+
     /// <summary>Releases the concurrency gate owned by this client. The caller-owned
     /// <see cref="HttpClient"/> is intentionally not disposed.</summary>
     public void Dispose() => _concurrencyGate.Dispose();

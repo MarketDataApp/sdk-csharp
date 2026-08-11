@@ -28,6 +28,32 @@ public sealed class StocksIntegrationTests : IntegrationTestBase
     }
 
     [IntegrationFact]
+    public async Task Candles_LongIntradayRange_HasNoDuplicateOrMissingBoundaryBars()
+    {
+        // Spans exactly one year-chunk boundary (>1 year of 30-minute bars). Guards both failure
+        // modes of chunking against the live API: duplicated boundary-day bars (overlapping
+        // chunks under the inclusive from/to contract) and missing boundary days (half-open
+        // chunks against a server that excluded the endpoint).
+        var response = await Client.Stocks.GetCandlesAsync(
+            new StockCandlesRequest(StockResolution.Minutes(30), "AAPL")
+            {
+                From = new DateOnly(2024, 3, 5),
+                To = new DateOnly(2025, 4, 4)
+            });
+
+        AssertSuccess(response.StatusCode);
+        Assert.True(response.IsComposite);
+        Assert.NotEmpty(response.Values);
+        Assert.Equal(response.Values.Count, response.Values.DistinctBy(candle => candle.Time).Count());
+        // Chunk boundary for this range: 2025-03-05 / 2025-03-06, both regular trading days.
+        // Bars must exist on each side of the boundary.
+        Assert.Contains(response.Values, candle =>
+            candle.Time is { } time && DateOnly.FromDateTime(time.Date) == new DateOnly(2025, 3, 5));
+        Assert.Contains(response.Values, candle =>
+            candle.Time is { } time && DateOnly.FromDateTime(time.Date) == new DateOnly(2025, 3, 6));
+    }
+
+    [IntegrationFact]
     public async Task PriceCsv_ReturnsExpectedShape()
     {
         var response = await Client.Stocks.GetPriceCsvAsync(new StockPriceRequest("AAPL"));

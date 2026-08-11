@@ -160,7 +160,7 @@ public sealed class StocksApi
         RequestValidator.ValidateDateWindow(
             request.Date, request.From, request.To, request.Countback, nameof(request));
         var effective = _apiClient.ApplyDefaults(options);
-        var chunks = CandleChunks(request);
+        var chunks = CandleChunks(request, _apiClient.TimeProvider);
         if (chunks.Count == 1)
         {
             return await GetCandlesResponseAsync(
@@ -170,7 +170,13 @@ public sealed class StocksApi
         var responses = await Task.WhenAll(
             chunks.Select(chunk => GetCandlesResponseAsync(
                 request, chunk.From, chunk.To, effective, cancellationToken))).ConfigureAwait(false);
-        var merged = responses.SelectMany(response => response.Values).ToArray();
+        // Defense in depth on top of half-open chunking: a bar can never appear twice even if the
+        // server returns overlapping windows. Bars without a timestamp are indistinguishable, so
+        // DistinctBy keeps the first; the server contract always populates t.
+        var merged = responses
+            .SelectMany(response => response.Values)
+            .DistinctBy(candle => candle.Time)
+            .ToArray();
         var path = CandlePath(request);
         var logicalRequestUrl = _apiClient.CreateRequestUri(
             path,
@@ -363,7 +369,7 @@ public sealed class StocksApi
         RequestValidator.ValidateDateWindow(
             request.Date, request.From, request.To, request.Countback, nameof(request));
         var effective = _apiClient.ApplyDefaults(options);
-        var chunks = CandleChunks(request);
+        var chunks = CandleChunks(request, _apiClient.TimeProvider);
         if (chunks.Count == 1)
         {
             return await GetCsvAsync(
@@ -535,7 +541,7 @@ public sealed class StocksApi
 
     private sealed record CandleDateRange(DateOnly? From, DateOnly? To);
 
-    private static IReadOnlyList<CandleDateRange> CandleChunks(StockCandlesRequest request)
+    private static IReadOnlyList<CandleDateRange> CandleChunks(StockCandlesRequest request, TimeProvider timeProvider)
     {
         if (request.From is not { } from
             || !request.Resolution.IsIntraday
@@ -544,7 +550,7 @@ public sealed class StocksApi
             return [new CandleDateRange(request.From, request.To)];
         }
 
-        var to = request.To ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var to = request.To ?? DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
         if (from >= to)
         {
             return [new CandleDateRange(from, to)];
@@ -557,7 +563,9 @@ public sealed class StocksApi
             var next = current.AddDays(365);
             if (next > to) next = to;
             ranges.Add(new CandleDateRange(current, next));
-            current = next;
+            // from/to are inclusive on the wire, so the next chunk starts the day AFTER this
+            // chunk's end; sharing the boundary day would fetch (and bill) its bars twice.
+            current = next.AddDays(1);
         }
 
         return ranges;
