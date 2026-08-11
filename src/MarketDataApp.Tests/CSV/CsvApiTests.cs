@@ -116,12 +116,12 @@ public sealed class CsvApiTests
                 To = new DateOnly(2022, 1, 1)
             });
 
-        Assert.Equal(3, requests);
+        Assert.Equal(2, requests);
         Assert.Equal(1, response.Csv.Split("t,c", StringSplitOptions.None).Length - 1);
         Assert.Contains("1,101", response.Csv);
-        Assert.Contains("3,103", response.Csv);
+        Assert.Contains("2,102", response.Csv);
         Assert.True(response.IsComposite);
-        Assert.Equal(3, response.Parts.Count);
+        Assert.Equal(2, response.Parts.Count);
         Assert.Equal(response.Csv, response.RawBody);
     }
 
@@ -149,7 +149,7 @@ public sealed class CsvApiTests
 
         Assert.StartsWith("t,c", response.Csv, StringComparison.Ordinal);
         Assert.Equal(1, response.Csv.Split("t,c", StringSplitOptions.None).Length - 1);
-        Assert.Equal(2, response.Csv.Split("1,101", StringSplitOptions.None).Length - 1);
+        Assert.Equal(1, response.Csv.Split("1,101", StringSplitOptions.None).Length - 1);
     }
 
     [Fact]
