@@ -963,8 +963,8 @@ ActivitySource.AddActivityListener(listener);
 ## Integration tests
 
 The integration test project `src/MarketDataApp.IntegrationTests` requires a live API
-token and uses standard .NET configuration. An environment-variable gate ensures it
-**never runs in normal CI**.
+token and uses standard .NET configuration. An environment-variable gate keeps it out
+of default local test runs; CI enables the gate explicitly where the suite must run.
 
 ### Environment variables
 
@@ -987,13 +987,15 @@ finally {
 }
 ```
 
-### Running in CI (manual dispatch only)
+### Running in CI
 
-The `.github/workflows/ci.yml` workflow exposes a **Run live integration tests**
-checkbox that is only visible on manual workflow dispatch. When the checkbox is
-checked and the `MARKETDATA_TOKEN` user secret is configured, the `integration`
-job maps that secret to `MARKETDATA_TOKEN`. It is never triggered on push or pull
-request events.
+The `integration` job in `.github/workflows/ci.yml` runs the live suite automatically
+on every pull request and on published releases, and can additionally be triggered on
+demand via the **Run live integration tests** checkbox on manual workflow dispatch. It
+is never triggered by ordinary pushes. The job sets
+`MARKETDATA_RUN_INTEGRATION_TESTS=true` and maps the `MARKETDATA_TOKEN` repository
+secret into the environment; on fork PRs, which cannot read repository secrets, the
+`IntegrationFact` guard skips the individual tests instead of failing.
 
 ---
 

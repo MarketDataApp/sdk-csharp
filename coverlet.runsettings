@@ -32,9 +32,7 @@
                values — they are declared here to document the policy and to map back
                to source. The gate that actually FAILS the build is coverlet.msbuild
                via `-p:Threshold=100 -p:ThresholdType=line,branch -p:ThresholdStat=total`
-               in .github/workflows/ci.yml. Coverage is currently ~81% line / ~72%
-               branch, so that CI gate is EXPECTED to fail until the coverage work
-               lands; do not run it as a local pass criterion yet. -->
+               in .github/workflows/ci.yml. -->
           <Threshold>100</Threshold>
           <ThresholdType>line,branch</ThresholdType>
           <ThresholdStat>total</ThresholdStat>
