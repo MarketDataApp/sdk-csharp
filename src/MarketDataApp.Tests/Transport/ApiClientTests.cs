@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Diagnostics;
+using System.Globalization;
 using MarketDataApp;
 using MarketDataApp.Exceptions;
 using MarketDataApp.Stocks;
@@ -499,6 +500,61 @@ public sealed class ApiClientTests
             "AAPL250117C00170000"));
 
         Assert.Equal(2, handler.MaximumConcurrency);
+    }
+
+    [Fact]
+    public async Task RateLimitMetadata_IsRequestScoped_UnderConcurrentRequests()
+    {
+        // §14 testing requirements: "request-scoped rate limit metadata under concurrent
+        // requests". Every response must carry exactly the headers of ITS OWN request, with
+        // no cross-contamination while many requests are in flight through the shared gate.
+        const int totalRequests = 24;
+        var expectedReset = DateTimeOffset.FromUnixTimeSeconds(1737072000);
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            // Correlate the reply to its request via the symbol in the path
+            // (/v1/stocks/quotes/SYM{n}/), deriving distinct rate-limit values per request.
+            var path = request.RequestUri!.AbsolutePath.TrimEnd('/');
+            var index = int.Parse(
+                path[(path.LastIndexOf("SYM", StringComparison.Ordinal) + 3)..],
+                CultureInfo.InvariantCulture);
+            var response = MarketDataTestClient.JsonResponse($$"""
+            {"s":"ok","symbol":["SYM{{index}}"],"last":[1.0]}
+            """);
+            response.Headers.TryAddWithoutValidation("x-api-ratelimit-limit", "5000");
+            response.Headers.TryAddWithoutValidation(
+                "x-api-ratelimit-remaining", (5000 - index).ToString(CultureInfo.InvariantCulture));
+            response.Headers.TryAddWithoutValidation("x-api-ratelimit-reset", "1737072000");
+            response.Headers.TryAddWithoutValidation(
+                "x-api-ratelimit-consumed", index.ToString(CultureInfo.InvariantCulture));
+            return response;
+        });
+        var client = MarketDataTestClient.Create(handler, new MarketDataClientOptions
+        {
+            MaxConcurrentRequests = 8,
+            MaxRetries = 0
+        });
+
+        var responses = await Task.WhenAll(Enumerable.Range(1, totalRequests).Select(index =>
+            client.Stocks.GetQuoteAsync(new StockQuoteRequest($"SYM{index}"))));
+
+        for (var index = 1; index <= totalRequests; index++)
+        {
+            var rateLimit = responses[index - 1].RateLimit;
+            Assert.NotNull(rateLimit);
+            Assert.Equal(5000, rateLimit!.Limit);
+            Assert.Equal(5000 - index, rateLimit.Remaining);
+            Assert.Equal(index, rateLimit.Consumed);
+            Assert.Equal(expectedReset, rateLimit.Reset);
+        }
+
+        // The client-level snapshot is last-writer-wins: one whole snapshot from some request,
+        // never a blend of fields from two.
+        var latest = client.LatestRateLimit;
+        Assert.NotNull(latest);
+        Assert.Equal(5000, latest!.Limit);
+        Assert.InRange(latest.Consumed, 1, totalRequests);
+        Assert.Equal(5000 - latest.Consumed, latest.Remaining);
     }
 
     [Fact]
