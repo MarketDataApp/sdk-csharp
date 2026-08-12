@@ -37,7 +37,7 @@
 - **Typed Request Models**: Immutable endpoint-specific request objects validate required values and keep endpoint parameters explicit
 - **Global Request Options**: `MarketDataRequestOptions` provides shared date-format, mode, limit, offset, column, and CSV formatting controls
 - **Response Metadata**: Status codes, request URLs and IDs, raw bodies, no-data indicators, composite parts, and response-saving helpers
-- **Resilient Transport**: Per-attempt timeouts, bounded concurrency, exponential backoff with jitter, and `Retry-After` support
+- **Resilient Transport**: Per-attempt timeouts, bounded concurrency, fixed exponential backoff, and `Retry-After` support
 - **Long Intraday Ranges**: Automatically chunks long intraday stock-candle windows and merges results
 - **Built-in Retry Logic**: Automatic retry with exponential backoff for reliable data fetching
 - **Rate Limit Tracking**: Per-response and client-level rate-limit snapshots with client-side protection
@@ -248,11 +248,7 @@ such as user secrets, environment variables, and Azure Key Vault.
 | `MARKETDATA_TOKEN`                 | `ApiToken`              | `null`             | Bearer token for authenticated requests. |
 | `MARKETDATA_BASE_URL`              | `BaseAddress`           | `https://api.marketdata.app/` | API base URI. |
 | `MARKETDATA_API_VERSION`               | `ApiVersion`            | `"v1"`             | Version path segment for versioned endpoints. |
-| `MARKETDATA_MAX_RETRIES`               | `MaxRetries`            | `3`                | Retry attempts *after* the original request. Maximum of 4 total attempts. |
-| `MARKETDATA_RETRY_BASE_DELAY`           | `RetryBaseDelay`         | `00:00:01`         | Starting exponential backoff delay. |
-| `MARKETDATA_RETRY_MAX_DELAY`            | `RetryMaxDelay`         | `00:00:30`         | Exponential backoff cap (no `Retry-After`). |
-| `MARKETDATA_MAX_RETRY_AFTER`            | `MaxRetryAfter`         | `00:10:00`         | Maximum server-supplied `Retry-After` delay honored automatically. |
-| `MARKETDATA_RETRY_JITTER_FACTOR`        | `RetryJitterFactor`     | `0`                | Random variation in `[0, 1]` added to delays to prevent many clients retrying simultaneously. |
+| `MARKETDATA_MAX_RETRIES`               | `MaxRetries`            | `3`                | Retry attempts *after* the original request. Maximum of 4 total attempts. The only configurable retry knob: backoff timing is fixed by the SDK requirements (1s base, doubling per attempt, 30s cap). |
 | `MARKETDATA_MAX_CONCURRENT_REQUESTS`    | `MaxConcurrentRequests` | `50`               | Maximum in-flight HTTP requests at one time (semaphore-guarded). |
 | `MARKETDATA_USER_AGENT`                | `UserAgent`             | `marketdata-sdk-csharp/{version}` | `User-Agent` header value. |
 | `MARKETDATA_DATE_FORMAT`               | `DefaultDateFormat`     | `null`             | Default response date/time format: `unix` / `timestamp` / `spreadsheet`. |
@@ -783,8 +779,9 @@ The following failures trigger automatic retries up to `MaxRetries` times (defau
 
 HTTP 400, 401, 403, 404, 408, 429, 500, and parse errors are **never** retried.
 
-Retry delay uses exponential backoff with jitter. When the server supplies a
-`Retry-After` header, that value takes precedence and is capped at `MaxRetryAfter`.
+Retry delay uses fixed exponential backoff: 1 second, then 2, then 4. When the server
+supplies a `Retry-After` header, that value takes precedence and is honored up to an
+internal 10-minute cap.
 
 ### Client-side rate-limit short-circuit
 
@@ -1023,8 +1020,8 @@ yet is identified explicitly.
 - Transport failures, HTTP 408, HTTP 429, and HTTP 5xx responses are eligible for retry.
 - `Retry-After` takes precedence over exponential backoff when supplied by the server.
 - The retry loop and backoff honor caller cancellation.
-- Exponential backoff includes configurable jitter and server-provided `Retry-After` is capped
-  by `MaxRetryAfter`.
+- Exponential backoff is fixed (1 second base, doubling per attempt, 30-second cap);
+  server-provided `Retry-After` is honored up to an internal 10-minute cap.
 
 ### Concurrency
 

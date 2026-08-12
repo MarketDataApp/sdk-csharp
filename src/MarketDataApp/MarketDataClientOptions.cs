@@ -20,14 +20,20 @@ public sealed record MarketDataClientOptions
     public string ApiVersion { get; init; } = "v1";
     /// <summary>Maximum number of retries after a transient request failure.</summary>
     public int MaxRetries { get; init; } = 3;
-    /// <summary>Initial exponential-backoff delay between retries.</summary>
-    public TimeSpan RetryBaseDelay { get; init; } = TimeSpan.FromSeconds(1);
-    /// <summary>Maximum exponential-backoff delay when the server does not provide Retry-After.</summary>
-    public TimeSpan RetryMaxDelay { get; init; } = TimeSpan.FromSeconds(30);
-    /// <summary>Maximum server-provided Retry-After delay honored by automatic retries.</summary>
-    public TimeSpan MaxRetryAfter { get; init; } = TimeSpan.FromMinutes(10);
-    /// <summary>Fractional random jitter applied to exponential backoff, from 0 through 1.</summary>
-    public double RetryJitterFactor { get; init; }
+    /// <summary>Initial exponential-backoff delay between retries. Fixed by the SDK
+    /// requirements (only <see cref="MaxRetries"/> is user-configurable); internal so tests
+    /// can drive deterministic schedules.</summary>
+    internal TimeSpan RetryBaseDelay { get; init; } = TimeSpan.FromSeconds(1);
+    /// <summary>Maximum exponential-backoff delay when the server does not provide Retry-After.
+    /// Fixed by the SDK requirements; internal for tests.</summary>
+    internal TimeSpan RetryMaxDelay { get; init; } = TimeSpan.FromSeconds(30);
+    /// <summary>Maximum server-provided Retry-After delay honored by automatic retries.
+    /// Fixed by the SDK requirements; internal for tests.</summary>
+    internal TimeSpan MaxRetryAfter { get; init; } = TimeSpan.FromMinutes(10);
+    /// <summary>Fractional random jitter applied to exponential backoff, from 0 through 1.
+    /// Always 0 in production (the requirements define a fixed 1s/2s/4s schedule); internal so
+    /// tests can exercise the jitter and clamp branches of the delay computation.</summary>
+    internal double RetryJitterFactor { get; init; }
     /// <summary>
     /// Test seam for the retry-backoff jitter sampler; returns a value in <c>[0, 1)</c>. When
     /// <see langword="null"/> (the default, and the only production value) the client uses
@@ -106,10 +112,6 @@ public sealed record MarketDataClientOptions
         builder.Append(", BaseAddress = ").Append(BaseAddress);
         builder.Append(", ApiVersion = ").Append(ApiVersion);
         builder.Append(", MaxRetries = ").Append(MaxRetries);
-        builder.Append(", RetryBaseDelay = ").Append(RetryBaseDelay);
-        builder.Append(", RetryMaxDelay = ").Append(RetryMaxDelay);
-        builder.Append(", MaxRetryAfter = ").Append(MaxRetryAfter);
-        builder.Append(", RetryJitterFactor = ").Append(RetryJitterFactor);
         builder.Append(", MaxConcurrentRequests = ").Append(MaxConcurrentRequests);
         builder.Append(", TimeProvider = ").Append(TimeProvider);
         builder.Append(", UserAgent = ").Append(UserAgent);
@@ -158,10 +160,6 @@ public sealed record MarketDataClientOptions
             BaseAddress = ReadUri(configuration["MARKETDATA_BASE_URL"]),
             ApiVersion = configuration["MARKETDATA_API_VERSION"] ?? "v1",
             MaxRetries = ReadInt(configuration, "MARKETDATA_MAX_RETRIES", 3),
-            RetryBaseDelay = ReadTimeSpan(configuration, "MARKETDATA_RETRY_BASE_DELAY", TimeSpan.FromSeconds(1)),
-            RetryMaxDelay = ReadTimeSpan(configuration, "MARKETDATA_RETRY_MAX_DELAY", TimeSpan.FromSeconds(30)),
-            MaxRetryAfter = ReadTimeSpan(configuration, "MARKETDATA_MAX_RETRY_AFTER", TimeSpan.FromMinutes(10)),
-            RetryJitterFactor = ReadDouble(configuration, "MARKETDATA_RETRY_JITTER_FACTOR", 0),
             MaxConcurrentRequests = ReadInt(configuration, "MARKETDATA_MAX_CONCURRENT_REQUESTS", 50),
             UserAgent = configuration["MARKETDATA_USER_AGENT"] ?? DefaultUserAgentValue,
             DefaultDateFormat = ReadDateFormat(configuration, "MARKETDATA_DATE_FORMAT"),
@@ -191,39 +189,6 @@ public sealed record MarketDataClientOptions
             ? value
             : throw new FormatException(
                 $"Configuration value '{name}' must be an integer.");
-    }
-
-    private static double ReadDouble(IConfiguration configuration, string name, double defaultValue)
-    {
-        var configured = configuration[name];
-        if (configured is null)
-        {
-            return defaultValue;
-        }
-
-        return double.TryParse(configured, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : throw new FormatException(
-                $"Configuration value '{name}' must be a number.");
-    }
-
-    private static TimeSpan ReadTimeSpan(
-        IConfiguration configuration,
-        string name,
-        TimeSpan defaultValue) =>
-        ReadTimeSpanValue(configuration[name], name, defaultValue);
-
-    private static TimeSpan ReadTimeSpanValue(string? configured, string name, TimeSpan defaultValue)
-    {
-        if (configured is null)
-        {
-            return defaultValue;
-        }
-
-        return TimeSpan.TryParse(configured, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : throw new FormatException(
-                $"Configuration value '{name}' must be a TimeSpan.");
     }
 
     private static DateFormat? ReadDateFormat(IConfiguration configuration, string name)

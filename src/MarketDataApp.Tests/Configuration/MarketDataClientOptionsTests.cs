@@ -15,10 +15,6 @@ public sealed class MarketDataClientOptionsTests
             ["MARKETDATA_BASE_URL"] = "https://example.test/api/",
             ["MARKETDATA_API_VERSION"] = "v2",
             ["MARKETDATA_MAX_RETRIES"] = "4",
-            ["MARKETDATA_RETRY_BASE_DELAY"] = "00:00:00.100",
-            ["MARKETDATA_RETRY_MAX_DELAY"] = "00:00:10",
-            ["MARKETDATA_MAX_RETRY_AFTER"] = "00:02:00",
-            ["MARKETDATA_RETRY_JITTER_FACTOR"] = "0.1",
             ["MARKETDATA_MAX_CONCURRENT_REQUESTS"] = "12",
             ["MARKETDATA_USER_AGENT"] = "test-client/1.0"
         });
@@ -29,12 +25,28 @@ public sealed class MarketDataClientOptionsTests
         Assert.Equal(new Uri("https://example.test/api/"), options.BaseAddress);
         Assert.Equal("v2", options.ApiVersion);
         Assert.Equal(4, options.MaxRetries);
-        Assert.Equal(TimeSpan.FromMilliseconds(100), options.RetryBaseDelay);
-        Assert.Equal(TimeSpan.FromSeconds(10), options.RetryMaxDelay);
-        Assert.Equal(TimeSpan.FromMinutes(2), options.MaxRetryAfter);
-        Assert.Equal(0.1, options.RetryJitterFactor);
         Assert.Equal(12, options.MaxConcurrentRequests);
         Assert.Equal("test-client/1.0", options.UserAgent);
+    }
+
+    [Fact]
+    public void RetryTuning_IsNotBoundFromConfiguration()
+    {
+        // Only MaxRetries is user-configurable (SDK requirements): the retry timing knobs are
+        // internal and their former configuration keys must be ignored, keeping fixed defaults.
+        var options = MarketDataClientOptions.FromConfiguration(Configuration(
+            new Dictionary<string, string?>
+            {
+                ["MARKETDATA_RETRY_BASE_DELAY"] = "00:00:10",
+                ["MARKETDATA_RETRY_MAX_DELAY"] = "00:00:20",
+                ["MARKETDATA_MAX_RETRY_AFTER"] = "00:01:00",
+                ["MARKETDATA_RETRY_JITTER_FACTOR"] = "0.9"
+            }));
+
+        Assert.Equal(TimeSpan.FromSeconds(1), options.RetryBaseDelay);
+        Assert.Equal(TimeSpan.FromSeconds(30), options.RetryMaxDelay);
+        Assert.Equal(TimeSpan.FromMinutes(10), options.MaxRetryAfter);
+        Assert.Equal(0, options.RetryJitterFactor);
     }
 
     [Fact]
@@ -52,39 +64,16 @@ public sealed class MarketDataClientOptionsTests
     }
 
     [Fact]
-    public void Client_RejectsInvalidConfiguredRanges()
+    public void Client_RejectsInvalidRetryDelayRanges()
     {
-        var options = MarketDataClientOptions.FromConfiguration(Configuration(
-            new Dictionary<string, string?>
-            {
-                ["MARKETDATA_RETRY_BASE_DELAY"] = "00:00:10",
-                ["MARKETDATA_RETRY_MAX_DELAY"] = "00:00:01"
-            }));
+        var options = new MarketDataClientOptions
+        {
+            RetryBaseDelay = TimeSpan.FromSeconds(10),
+            RetryMaxDelay = TimeSpan.FromSeconds(1)
+        };
         using var handler = new StubHttpMessageHandler(_ => throw new InvalidOperationException());
 
         Assert.Throws<ArgumentException>(() => MarketDataTestClient.Create(handler, options));
-    }
-
-    [Fact]
-    public void FromConfiguration_BindsAllTransportTuningOptions()
-    {
-        var options = MarketDataClientOptions.FromConfiguration(Configuration(
-            new Dictionary<string, string?>
-            {
-                ["MARKETDATA_RETRY_BASE_DELAY"] = "00:00:00.100",
-                ["MARKETDATA_RETRY_MAX_DELAY"] = "00:00:10",
-                ["MARKETDATA_MAX_RETRY_AFTER"] = "00:02:00",
-                ["MARKETDATA_RETRY_JITTER_FACTOR"] = "0.1",
-                ["MARKETDATA_MAX_CONCURRENT_REQUESTS"] = "12",
-                ["MARKETDATA_USER_AGENT"] = "test-client/1.0"
-            }));
-
-        Assert.Equal(TimeSpan.FromMilliseconds(100), options.RetryBaseDelay);
-        Assert.Equal(TimeSpan.FromSeconds(10), options.RetryMaxDelay);
-        Assert.Equal(TimeSpan.FromMinutes(2), options.MaxRetryAfter);
-        Assert.Equal(0.1, options.RetryJitterFactor);
-        Assert.Equal(12, options.MaxConcurrentRequests);
-        Assert.Equal("test-client/1.0", options.UserAgent);
     }
 
     [Fact]
