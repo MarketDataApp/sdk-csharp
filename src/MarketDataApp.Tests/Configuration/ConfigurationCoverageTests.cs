@@ -1,8 +1,10 @@
 using MarketDataApp;
+using MarketDataApp.Tests.TestSupport;
 using Microsoft.Extensions.Configuration;
 
 namespace MarketDataApp.Tests.Configuration;
 
+[Collection(DotEnvCwdCollection.Name)]
 public sealed class ConfigurationCoverageTests
 {
     private static IConfiguration Configuration(IDictionary<string, string?> values) =>
@@ -37,13 +39,9 @@ public sealed class ConfigurationCoverageTests
     [Fact]
     public void FromEnvironment_WithoutDotEnvFile_ReturnsUsableOptions()
     {
-        var envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
-        // Guard: ensure no stray .env from a sibling test is present for this branch.
-        var hadDotEnv = File.Exists(envPath);
-        if (hadDotEnv)
-        {
-            return; // A concurrent test owns the .env file; skip the no-.env branch this run.
-        }
+        // Serialized via DotEnvCwdCollection, so no sibling test owns .env while this runs;
+        // the delete only clears a leftover from an aborted earlier run (no-op otherwise).
+        File.Delete(Path.Combine(Directory.GetCurrentDirectory(), ".env"));
 
         var options = MarketDataClientOptions.FromEnvironment();
 
@@ -55,28 +53,22 @@ public sealed class ConfigurationCoverageTests
     public void FromEnvironment_WithDotEnvFile_LoadsValues()
     {
         var envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
-        var alreadyExisted = File.Exists(envPath);
+        var tempPath = envPath + ".tmp";
         try
         {
-            if (!alreadyExisted)
-            {
-                File.WriteAllText(envPath, "MARKETDATA_MAX_RETRIES=7\n");
-            }
+            // Write-then-move: a rename is atomic on the same volume, so no reader can ever
+            // observe a half-written .env even if a future test escapes the collection.
+            File.WriteAllText(tempPath, "MARKETDATA_MAX_RETRIES=7\n");
+            File.Move(tempPath, envPath, overwrite: true);
 
             var options = MarketDataClientOptions.FromEnvironment();
 
-            Assert.NotNull(options);
-            if (!alreadyExisted)
-            {
-                Assert.Equal(7, options.MaxRetries);
-            }
+            Assert.Equal(7, options.MaxRetries);
         }
         finally
         {
-            if (!alreadyExisted && File.Exists(envPath))
-            {
-                File.Delete(envPath);
-            }
+            File.Delete(envPath);
+            File.Delete(tempPath);
         }
     }
 }
