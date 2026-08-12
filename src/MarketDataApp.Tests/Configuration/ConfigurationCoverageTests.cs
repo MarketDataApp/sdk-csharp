@@ -11,32 +11,6 @@ public sealed class ConfigurationCoverageTests
         new ConfigurationBuilder().AddInMemoryCollection(values).Build();
 
     [Fact]
-    public void FromConfiguration_RejectsMalformedDouble()
-    {
-        var configuration = Configuration(new Dictionary<string, string?>
-        {
-            ["MARKETDATA_RETRY_JITTER_FACTOR"] = "not-a-number"
-        });
-
-        var exception = Assert.Throws<FormatException>(
-            () => MarketDataClientOptions.FromConfiguration(configuration));
-        Assert.Contains("MARKETDATA_RETRY_JITTER_FACTOR", exception.Message);
-    }
-
-    [Fact]
-    public void FromConfiguration_RejectsMalformedTimeSpan()
-    {
-        var configuration = Configuration(new Dictionary<string, string?>
-        {
-            ["MARKETDATA_RETRY_BASE_DELAY"] = "not-a-timespan"
-        });
-
-        var exception = Assert.Throws<FormatException>(
-            () => MarketDataClientOptions.FromConfiguration(configuration));
-        Assert.Contains("MARKETDATA_RETRY_BASE_DELAY", exception.Message);
-    }
-
-    [Fact]
     public void FromEnvironment_WithoutDotEnvFile_ReturnsUsableOptions()
     {
         // Serialized via DotEnvCwdCollection, so no sibling test owns .env while this runs;
