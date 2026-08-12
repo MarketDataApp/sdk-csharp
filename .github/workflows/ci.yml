@@ -58,8 +58,9 @@ jobs:
       fail-fast: false
       matrix:
         # Dynamic per §7: ubuntu-only on PRs, full matrix otherwise. The library
-        # targets net10.0 only, so we vary the runtime OS rather than the TFM to
-        # exercise multiple runtime environments (§13).
+        # multi-targets net8.0 and net10.0 (both LTS), and every leg runs the unit
+        # suite on BOTH runtimes (§13 multiple runtime versions), so the matrix
+        # only needs to vary the OS.
         os: ${{ fromJSON(needs.setup.outputs.os) }}
 
     steps:
@@ -70,8 +71,11 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          # Pinned to the repo's SDK band (see global.json: 10.0.x).
-          dotnet-version: '10.0.x'
+          # SDK pinned to the repo's band (see global.json: 10.0.x); the 8.0.x entry
+          # additionally provides the .NET 8 runtime that the net8.0 test leg runs on.
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
       - name: Restore
         run: dotnet restore MarketDataApp.slnx
@@ -90,21 +94,40 @@ jobs:
       # Coverage is at 100% line and 100% branch, so this gate passes; it fails the
       # job if coverage regresses below 100%. The gate runs on EVERY matrix leg and
       # therefore on every event (PR, push, release, dispatch) per §7.
-      - name: Test with coverage (100% line+branch gate)
+      #
+      # One explicit invocation per target framework: letting a single `dotnet test`
+      # fan out over both TFMs runs the legs in parallel with interleaved output and
+      # racy coverage-report writes; -f per leg keeps runs deterministic, gates each
+      # runtime independently, and gives each report a stable file name.
+      - name: Test on .NET 8 with coverage (100% line+branch gate)
         # Force bash on every runner (incl. Windows via Git Bash) so the multi-line
         # command and backslash continuations parse consistently across the matrix.
         shell: bash
         run: |
           dotnet test src/MarketDataApp.Tests/MarketDataApp.Tests.csproj \
-            --no-build -c Release \
+            --no-build -c Release -f net8.0 \
             -p:CollectCoverage=true \
             -p:CoverletOutputFormat=opencover \
-            -p:CoverletOutput=TestResults/coverage.opencover.xml \
+            -p:CoverletOutput=TestResults/coverage.net8.0.opencover.xml \
             -p:Threshold=100 \
             -p:ThresholdType=line%2cbranch \
             -p:ThresholdStat=total \
             --results-directory TestResults \
-            --logger "trx;LogFileName=test-results.trx"
+            --logger "trx;LogFileName=test-results-net8.0.trx"
+
+      - name: Test on .NET 10 with coverage (100% line+branch gate)
+        shell: bash
+        run: |
+          dotnet test src/MarketDataApp.Tests/MarketDataApp.Tests.csproj \
+            --no-build -c Release -f net10.0 \
+            -p:CollectCoverage=true \
+            -p:CoverletOutputFormat=opencover \
+            -p:CoverletOutput=TestResults/coverage.net10.0.opencover.xml \
+            -p:Threshold=100 \
+            -p:ThresholdType=line%2cbranch \
+            -p:ThresholdStat=total \
+            --results-directory TestResults \
+            --logger "trx;LogFileName=test-results-net10.0.trx"
 
       # Publish coverage to Codecov from the ubuntu leg only (one canonical
       # upload). Works tokenless for public repos; CODECOV_TOKEN is only needed
@@ -115,7 +138,7 @@ jobs:
         uses: codecov/codecov-action@v7
         with:
           # coverlet.msbuild writes CoverletOutput relative to the test project dir.
-          files: src/MarketDataApp.Tests/TestResults/coverage.opencover.xml
+          files: src/MarketDataApp.Tests/TestResults/coverage.net8.0.opencover.xml,src/MarketDataApp.Tests/TestResults/coverage.net10.0.opencover.xml
           slug: MarketDataApp/sdk-csharp
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -145,7 +168,7 @@ jobs:
         with:
           name: coverage-${{ matrix.os }}
           # coverlet.msbuild writes CoverletOutput relative to the test project dir.
-          path: src/MarketDataApp.Tests/TestResults/coverage.opencover.xml
+          path: src/MarketDataApp.Tests/TestResults/coverage.*.opencover.xml
           if-no-files-found: warn
 
       - name: Upload NuGet packages

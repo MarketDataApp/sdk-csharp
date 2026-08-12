@@ -81,7 +81,8 @@
 dotnet add package MarketDataApp
 ```
 
-**Requirements**: .NET 10.0 or newer.
+**Requirements**: .NET 8.0 or newer. The package multi-targets `net8.0` and `net10.0`
+(both LTS), so projects on either runtime get a native build.
 
 ---
 
