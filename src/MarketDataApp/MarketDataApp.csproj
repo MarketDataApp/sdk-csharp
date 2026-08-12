@@ -70,13 +70,13 @@
   <ItemGroup>
     <PackageReference Include="DotNetEnv" Version="3.2.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.10" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.10" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.10" />
     <!-- Provides AddHttpClient / IHttpClientFactory for the DI extensions (transitively pulls in
          Microsoft.Extensions.DependencyInjection.Abstractions). -->
-    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.10" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
     <!-- Provides the built-in console logging provider and ConsoleFormatter base type for the
          opt-in AddMarketDataCanonicalConsole() / MarketDataConsoleFormatter canonical log layout. -->
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.10" />
