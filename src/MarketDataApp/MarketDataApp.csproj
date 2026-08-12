@@ -54,9 +54,12 @@
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
-  <!-- Include the repository README as the NuGet package readme -->
+  <!-- Ship the repository README (NuGet package readme) and the LICENSE file inside the
+       package. PackageLicenseExpression above declares the SPDX license id; the file itself
+       must also travel in the distribution per the SDK packaging requirements. -->
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="/" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="/" />
   </ItemGroup>
 
   <!-- Grant the unit-test assembly access to internal transport/parsing helpers so their
