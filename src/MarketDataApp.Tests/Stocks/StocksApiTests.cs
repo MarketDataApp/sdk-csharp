@@ -138,15 +138,17 @@ public sealed class StocksApiTests
         var requests = new List<Uri>();
         var handler = new StubHttpMessageHandler(request =>
         {
+            int index;
             lock (requests)
             {
                 requests.Add(request.RequestUri!);
+                index = requests.Count;
             }
 
-            return MarketDataTestClient.JsonResponse("""
+            return MarketDataTestClient.JsonResponse($$"""
             {
               "s": "ok",
-              "t": [1706745600],
+              "t": [{{1706745600 + index * 300}}],
               "o": [189.0],
               "h": [191.0],
               "l": [188.5],
@@ -164,16 +166,83 @@ public sealed class StocksApiTests
                 To = new DateOnly(2022, 1, 1)
             });
 
-        Assert.Equal(3, requests.Count);
-        Assert.Equal(3, response.Values.Count);
+        Assert.Equal(2, requests.Count);
+        Assert.Equal(2, response.Values.Count);
         Assert.True(response.IsComposite);
-        Assert.Equal(3, response.Parts.Count);
+        Assert.Equal(2, response.Parts.Count);
         Assert.Null(response.RequestId);
         Assert.Null(response.RateLimit);
         Assert.Equal(string.Empty, response.RawBody);
-        Assert.Contains(requests, uri => uri.Query.Contains("from=2020-01-01"));
-        Assert.Contains(requests, uri => uri.Query.Contains("from=2020-12-31"));
-        Assert.Contains(requests, uri => uri.Query.Contains("from=2021-12-31"));
+        // Half-open chunking: the second chunk starts the day AFTER the first chunk's end,
+        // because from/to are inclusive on the wire.
+        Assert.Contains(requests, uri => uri.Query.Contains("from=2020-01-01") && uri.Query.Contains("to=2020-12-31"));
+        Assert.Contains(requests, uri => uri.Query.Contains("from=2021-01-01") && uri.Query.Contains("to=2022-01-01"));
+    }
+
+    [Fact]
+    public async Task GetCandlesAsync_DeduplicatesBarsSharedAcrossChunks()
+    {
+        // Both chunks answer with the SAME bar (same t): the merged series must contain it once,
+        // while the composite still exposes both raw parts.
+        var handler = new StubHttpMessageHandler(_ => MarketDataTestClient.JsonResponse("""
+        {
+          "s": "ok",
+          "t": [1706745600],
+          "o": [189.0],
+          "h": [191.0],
+          "l": [188.5],
+          "c": [190.25],
+          "v": [1000000]
+        }
+        """));
+        var client = MarketDataTestClient.Create(handler);
+
+        var response = await client.Stocks.GetCandlesAsync(
+            new StockCandlesRequest(StockResolution.Minutes(5), "AAPL")
+            {
+                From = new DateOnly(2020, 1, 1),
+                To = new DateOnly(2022, 1, 1)
+            });
+
+        Assert.True(response.IsComposite);
+        Assert.Equal(2, response.Parts.Count);
+        Assert.Single(response.Values);
+    }
+
+    [Fact]
+    public async Task GetCandlesAsync_OpenEndedRangeChunksUsingTheInjectedClock()
+    {
+        var requests = new List<Uri>();
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            int index;
+            lock (requests)
+            {
+                requests.Add(request.RequestUri!);
+                index = requests.Count;
+            }
+
+            return MarketDataTestClient.JsonResponse($$"""
+            {"s":"ok","t":[{{1600000000 + index}}],"o":[1.0],"h":[1.0],"l":[1.0],"c":[1.0],"v":[1]}
+            """);
+        });
+        var client = MarketDataTestClient.Create(handler, new MarketDataClientOptions
+        {
+            TimeProvider = new ManualTimeProvider(new DateTimeOffset(2022, 6, 15, 12, 0, 0, TimeSpan.Zero))
+        });
+
+        var response = await client.Stocks.GetCandlesAsync(
+            new StockCandlesRequest(StockResolution.Minutes(5), "AAPL")
+            {
+                From = new DateOnly(2020, 1, 1)
+            });
+
+        // Open-ended To resolves against the injected clock (2022-06-15), never the system clock.
+        Assert.Equal(3, requests.Count);
+        Assert.Equal(3, response.Values.Count);
+        Assert.Contains(requests, uri => uri.Query.Contains("from=2020-01-01") && uri.Query.Contains("to=2020-12-31"));
+        Assert.Contains(requests, uri => uri.Query.Contains("from=2021-01-01") && uri.Query.Contains("to=2022-01-01"));
+        Assert.Contains(requests, uri => uri.Query.Contains("from=2022-01-02") && uri.Query.Contains("to=2022-06-15"));
     }
 
     [Fact]
@@ -205,7 +274,7 @@ public sealed class StocksApiTests
 
         Assert.True(response.IsComposite);
         Assert.True(response.IsNoData);
-        Assert.Equal(3, response.Parts.Count);
+        Assert.Equal(2, response.Parts.Count);
         Assert.Empty(response.Values);
     }
 
