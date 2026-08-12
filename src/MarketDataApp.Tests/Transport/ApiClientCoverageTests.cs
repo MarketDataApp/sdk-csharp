@@ -11,7 +11,10 @@ namespace MarketDataApp.Tests.Transport;
 /// Coverage-completing tests for <see cref="ApiClient"/> reached through the public
 /// <see cref="MarketDataClient"/> surface: constructor option validation, HTTP error-status
 /// mappings, resource disposal, and startup token-redaction logging.
+/// Member of <see cref="DotEnvCwdCollection"/>: two tests construct clients without options,
+/// which reads the CWD .env via FromEnvironment and must never overlap the .env fixtures.
 /// </summary>
+[Collection(DotEnvCwdCollection.Name)]
 public sealed class ApiClientCoverageTests
 {
     private static MarketDataClient Create(HttpMessageHandler handler, MarketDataClientOptions options) =>
