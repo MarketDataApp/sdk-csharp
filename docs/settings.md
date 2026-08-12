@@ -11,10 +11,6 @@ keys. Transport keys:
 | `MARKETDATA_BASE_URL` | `BaseAddress` | `https://api.marketdata.app/` |
 | `MARKETDATA_API_VERSION` | `ApiVersion` | `v1` |
 | `MARKETDATA_MAX_RETRIES` | `MaxRetries` | 3 retries |
-| `MARKETDATA_RETRY_BASE_DELAY` | `RetryBaseDelay` | `00:00:01` |
-| `MARKETDATA_RETRY_MAX_DELAY` | `RetryMaxDelay` | `00:00:30` |
-| `MARKETDATA_MAX_RETRY_AFTER` | `MaxRetryAfter` | `00:10:00` |
-| `MARKETDATA_RETRY_JITTER_FACTOR` | `RetryJitterFactor` | `0` |
 | `MARKETDATA_MAX_CONCURRENT_REQUESTS` | `MaxConcurrentRequests` | 50 |
 | `MARKETDATA_USER_AGENT` | `UserAgent` | `marketdata-sdk-csharp/{version}` |
 
@@ -131,23 +127,20 @@ MARKETDATA_BASE_URL=https://api.marketdata.app/
 Environment variables override matching values from `.env` and user secrets. Do not
 commit `.env` files containing secrets.
 
-Advanced retry delays, jitter, `TimeProvider`, and `UserAgent` are configured
-programmatically:
+`TimeProvider` and `UserAgent` are configured programmatically:
 
 ```csharp
 var options = new MarketDataClientOptions
 {
     ApiToken = token,
-    Timeout = TimeSpan.FromSeconds(30),
     MaxRetries = 2,
-    RetryBaseDelay = TimeSpan.FromMilliseconds(250),
-    RetryMaxDelay = TimeSpan.FromSeconds(10),
-    MaxRetryAfter = TimeSpan.FromMinutes(2),
-    RetryJitterFactor = 0.2,
     TimeProvider = TimeProvider.System,
     UserAgent = "my-app/1.0"
 };
 ```
+
+Retry timing (the 1s base delay, exponential growth, and the `Retry-After` cap) is fixed
+by the SDK requirements and is not configurable; `MaxRetries` is the only retry knob.
 
 ## Simple endpoint calls
 
