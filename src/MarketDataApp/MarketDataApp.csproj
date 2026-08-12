@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- Both current LTS releases (§14 asks CI to cover multiple runtime versions; net8 is
+         also the broadest installed base). -->
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -40,7 +42,7 @@
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
 
-    <!-- Package validation — checks API surface consistency for net10.0 -->
+    <!-- Package validation — checks API surface consistency across both target frameworks -->
     <EnablePackageValidation>true</EnablePackageValidation>
   </PropertyGroup>
 
