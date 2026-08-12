@@ -1,8 +1,8 @@
 # Market Data C#/.NET SDK
 
-This directory contains detailed documentation for the unofficial, community-maintained
-C#/.NET SDK for [Market Data](https://www.marketdata.app/). It is not affiliated with,
-endorsed by, or sponsored by Market Data.
+This directory contains detailed documentation for the official Market Data C#/.NET
+SDK, maintained by [Market Data](https://www.marketdata.app/). Originally created by
+Omid Rad (Exceptal) and donated to Market Data.
 
 The SDK targets .NET 10 and the latest stable C# language version. Public endpoint
 methods are asynchronous, accept `CancellationToken`, and return typed response records
