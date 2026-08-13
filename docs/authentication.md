@@ -11,8 +11,8 @@ You can create a client without passing options:
 ```csharp
 using MarketDataApp;
 
-using var httpClient = new HttpClient();
-var client = new MarketDataClient(httpClient);
+// The SDK creates and owns its HttpClient when none is supplied.
+using var client = new MarketDataClient();
 ```
 
 When no options are supplied, the SDK loads `MARKETDATA_*` values from these sources:
@@ -67,9 +67,7 @@ In asynchronous applications, prefer the async factory, which runs the validatio
 blocking the calling thread:
 
 ```csharp
-using var httpClient = new HttpClient();
-var client = await MarketDataClient.CreateAsync(
-    httpClient,
+using var client = await MarketDataClient.CreateAsync(
     new MarketDataClientOptions { ApiToken = "your-api-token" });
 ```
 

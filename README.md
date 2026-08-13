@@ -89,20 +89,21 @@ dotnet add package MarketDataApp
 ## Quick start
 
 ```csharp
-// Back the HttpClient with the SDK's handler factory to get the 2-second connection timeout
-// (§10); the SDK still enforces the fixed 99-second request timeout on every attempt.
-// A plain `new HttpClient()` works too — it just has no separate connect timeout.
-using var httpClient = new HttpClient(MarketDataClient.CreateDefaultHttpHandler());
-// CreateAsync validates the token with /user/ and seeds the rate-limit snapshot at startup.
-// The plain constructor `new MarketDataClient(httpClient)` runs the same validation as a
-// blocking call; set ValidateTokenOnStartup = false to skip startup validation on either path.
-var client = await MarketDataClient.CreateAsync(httpClient);
+// The SDK creates and owns its HttpClient here, pre-configured with the SDK requirements:
+// the default handler (2-second connection timeout, §10) plus the fixed 99-second request
+// timeout enforced internally. CreateAsync also validates the token with /user/ and seeds
+// the rate-limit snapshot at startup; set ValidateTokenOnStartup = false to skip that.
+using var client = await MarketDataClient.CreateAsync();
 var quote = await client.Stocks.GetQuoteAsync("AAPL");
 foreach (var q in quote.Values)
 {
     Console.WriteLine($"{q.Symbol}: mid={q.Mid:F2}  last={q.Last:F2}  volume={q.Volume:N0}");
 }
 ```
+
+Managing your own `HttpClient`? Every entry point also accepts one, and the SDK never
+reconfigures a supplied client — see
+[Client lifetime and HttpClient injection](#client-lifetime-and-httpclient-injection).
 
 See [`examples/QuickStart/`](examples/QuickStart/) for a full runnable example covering
 cancellation, CSV export, exception handling, and bulk quotes.
@@ -118,15 +119,26 @@ Set `WebApiSample:OpenBrowserOnStart` to `false` to disable this behavior.
 
 ## Client lifetime and HttpClient injection
 
-The SDK never creates or disposes `HttpClient`. **The application owns the lifetime.**
+Two ownership modes:
+
+- **SDK-owned (default).** The overloads without an `HttpClient` parameter
+  (`new MarketDataClient(options)`, `MarketDataClient.CreateAsync(options)`) create a client
+  backed by `CreateDefaultHttpHandler()` with the HttpClient-level timeout disabled, because the
+  SDK enforces its own fixed 99-second request timeout. `Dispose()` also disposes the owned
+  client.
+- **Application-owned.** Supply your own `HttpClient` and the application controls the lifetime:
+  the SDK never reconfigures it (its handler and `Timeout` are respected as-is) and never
+  disposes it.
 
 ### Console or background service
 
 ```csharp
-// Own and dispose the HttpClient yourself.
-using var httpClient = new HttpClient();
-// CreateAsync validates the token and seeds the rate-limit snapshot at startup.
-var client = await MarketDataClient.CreateAsync(httpClient, options);
+// Simplest: the SDK creates and owns the HttpClient with the SDK's transport defaults.
+using var client = await MarketDataClient.CreateAsync(options);
+
+// Or manage the HttpClient yourself; the SDK uses it as configured and never disposes it.
+using var httpClient = new HttpClient(MarketDataClient.CreateDefaultHttpHandler());
+var client2 = await MarketDataClient.CreateAsync(httpClient, options);
 ```
 
 ### ASP.NET Core — singleton via IHttpClientFactory
@@ -172,7 +184,10 @@ app.MapGet("/quote/{symbol}", async (
 `AddMarketDataClient` registers `MarketDataClient` as a **singleton** over an
 `IHttpClientFactory`-managed `HttpClient` whose primary handler is the SDK default handler
 (`MarketDataClient.CreateDefaultHttpHandler()`), so the 2-second connection timeout applies and
-pooled connections rotate DNS. A single client instance is safe to use concurrently.
+pooled connections rotate DNS; the HttpClient-level timeout is disabled in favor of the SDK's
+fixed 99-second request timeout. These are defaults, not enforcement: configure the same named
+client (`"MarketDataApp"`) after calling `AddMarketDataClient` and your configuration wins. A
+single client instance is safe to use concurrently.
 
 Three overloads resolve the options for you:
 
@@ -758,8 +773,11 @@ per-attempt deadline is exceeded, and caller `CancellationToken` cancellation re
 distinguishable from an SDK timeout (`OperationCanceledException` vs `NetworkException`).
 
 A separate, shorter **2-second connection timeout** (the TCP + TLS handshake) is a
-property of the caller-owned `HttpClient` handler, so the SDK cannot apply it for you.
-Opt in by backing the `HttpClient` with the handler factory:
+property of the `HttpClient` handler. The SDK-owned client (the overloads without an
+`HttpClient` parameter) and the DI-registered named client apply it automatically through
+`CreateDefaultHttpHandler()`, with the HttpClient-level timeout disabled so it cannot race
+the SDK's 99-second policy. When you manage your own `HttpClient`, opt in by backing it
+with the handler factory:
 
 ```csharp
 // The handler supplies the 2-second connect timeout; the SDK still enforces the
@@ -772,6 +790,11 @@ var client = await MarketDataClient.CreateAsync(httpClient);
 `ConnectTimeout = TimeSpan.FromSeconds(2)` plus sensible connection-pool defaults. If you
 already configure your own handler, set `SocketsHttpHandler.ConnectTimeout` to
 `TimeSpan.FromSeconds(2)` directly instead.
+
+A caller-managed `HttpClient` is never reconfigured, so its own `Timeout` (100 seconds by
+default) stays in effect and may fire before the SDK's 99-second deadline. When it does,
+the failure surfaces as a `NetworkException` like any other timeout, never as a raw
+`TaskCanceledException`.
 
 ### Automatic retries
 
@@ -1007,12 +1030,16 @@ yet is identified explicitly.
 
 ### HTTP client and asynchronous behavior
 
-- The application owns and injects `HttpClient`; the SDK never creates or disposes it.
+- The application can inject and own `HttpClient` (the SDK never reconfigures or disposes a
+  supplied client), or omit it and let the SDK create, configure, and dispose its own over the
+  default handler.
 - Public endpoint methods are asynchronous and accept `CancellationToken`.
 - A fixed, non-configurable 99-second request timeout applies independently to each HTTP
   attempt. Caller cancellation remains distinguishable from an SDK timeout. The separate
-  2-second connection timeout is supplied by the caller-owned handler
-  (`MarketDataClient.CreateDefaultHttpHandler()`).
+  2-second connection timeout comes from the default handler — automatic on SDK-owned and DI
+  clients, opt-in via `MarketDataClient.CreateDefaultHttpHandler()` for caller-owned ones. A
+  caller-configured `HttpClient.Timeout` is respected and surfaces as `NetworkException` when
+  it fires first.
 - Endpoint requests are HTTP `GET` operations. Automatic retries never apply to parsing,
   authentication, validation, or other deterministic failures.
 

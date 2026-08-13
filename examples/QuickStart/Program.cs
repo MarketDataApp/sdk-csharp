@@ -17,16 +17,18 @@ if (string.IsNullOrWhiteSpace(options.ApiToken))
     return;
 }
 
-using var httpClient = new HttpClient();
 using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 var cancellationToken = cancellation.Token;
 
 try
 {
-    // CreateAsync validates the token with /user/ and seeds the rate-limit snapshot before the
-    // first data request, without blocking; the plain constructor runs the same validation as a
-    // blocking call. Set ValidateTokenOnStartup = false on the options to skip startup validation.
-    var client = await MarketDataClient.CreateAsync(httpClient, options, cancellationToken);
+    // No HttpClient in sight: the SDK creates and owns one configured with its requirements
+    // (default handler with the 2-second connect timeout; the SDK's fixed 99-second request
+    // timeout governs each attempt). CreateAsync also validates the token with /user/ and seeds
+    // the rate-limit snapshot before the first data request, without blocking; the plain
+    // constructor runs the same validation as a blocking call, and ValidateTokenOnStartup =
+    // false skips it. Disposing the client also disposes the SDK-owned HttpClient.
+    using var client = await MarketDataClient.CreateAsync(options, cancellationToken);
 
     // Stocks: a single quote, a candle window, and one batched request for several symbols.
     var quoteResponse = await client.Stocks.GetQuoteAsync("AAPL", cancellationToken: cancellationToken);
