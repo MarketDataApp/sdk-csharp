@@ -14,9 +14,10 @@ using var httpClient = new HttpClient();
 var client = await MarketDataClient.CreateAsync(httpClient);
 ```
 
-The plain constructor `new MarketDataClient(httpClient)` performs no network I/O and no
-startup validation; authentication and rate-limit errors surface on the first request.
-See [authentication](authentication.md#startup-token-validation) for details.
+The plain constructor `new MarketDataClient(httpClient)` runs the same startup validation
+as a blocking request when a token is configured; set `ValidateTokenOnStartup = false` to
+skip startup validation and let authentication and rate-limit errors surface on the first
+request. See [authentication](authentication.md#startup-token-validation) for details.
 
 When `options` is omitted, the client loads configuration from user secrets, an
 optional `.env` file in the current working directory, and process environment
@@ -47,10 +48,11 @@ rotation). Three overloads resolve the options:
 Registrations use `TryAdd*`, so an application can override either the options or the
 client by registering its own before calling the extension.
 
-The DI path uses the `MarketDataClient` constructor and performs **no eager startup token
-validation** — authentication and rate-limit errors surface on the first request. For
-fail-fast startup validation, build the client with `await MarketDataClient.CreateAsync(...)`
-and register that instance instead.
+The DI path uses the `MarketDataClient` constructor: when a token is configured and
+`ValidateTokenOnStartup` is `true` (the default), the token is validated with a blocking
+`GET /user/` the first time the singleton is resolved, and an invalid token throws
+`AuthenticationException` at that point. Register options with
+`ValidateTokenOnStartup = false` to defer errors to the first request instead.
 
 A single `MarketDataClient` is safe to use concurrently. Its
 `MaxConcurrentRequests` option limits in-flight requests, including internal fan-out.
@@ -75,9 +77,9 @@ var candles = await client.Stocks.GetCandlesAsync(
     cancellationToken: timeout.Token);
 ```
 
-Caller cancellation produces `OperationCanceledException`. The configured
-`MarketDataClientOptions.Timeout` applies separately to each HTTP attempt; an SDK
-timeout is surfaced as `NetworkException`.
+Caller cancellation produces `OperationCanceledException`. The SDK's fixed 99-second
+request timeout applies separately to each HTTP attempt; an SDK timeout is surfaced as
+`NetworkException`.
 
 ## Client-wide rate limits
 

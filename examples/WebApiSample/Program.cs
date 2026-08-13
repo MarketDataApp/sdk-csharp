@@ -36,12 +36,13 @@ builder.Configuration.AddUserSecrets<Program>(optional: true);
 // creates or disposes the HttpClient itself. A single MarketDataClient is safe to share
 // across concurrent requests.
 //
-// This DI path uses the MarketDataClient constructor, so it performs NO eager startup token
-// validation and NO network I/O at registration — authentication and rate-limit errors
-// surface on the first request (handled by the endpoints below). To validate the token and
-// seed the rate-limit snapshot eagerly instead, build the client with the async factory
-// `await MarketDataClient.CreateAsync(httpClient, options)` before registering it
-// (see examples/McpServer/Program.cs).
+// This DI path uses the MarketDataClient constructor: registration itself performs no I/O,
+// and when MARKETDATA_TOKEN is configured the token is validated with a blocking GET /user/
+// (seeding the rate-limit snapshot) the first time the singleton is resolved — an invalid
+// token throws AuthenticationException at that point. Register options with
+// ValidateTokenOnStartup = false to defer auth errors to the first request (handled by the
+// endpoints below); to validate before the host starts instead, build the client with the
+// async factory (see examples/McpServer/Program.cs).
 //
 // The IConfiguration overload reads all MARKETDATA_* keys (MARKETDATA_TOKEN,
 // MARKETDATA_BASE_URL, retry/concurrency tuning, MARKETDATA_API_VERSION, MARKETDATA_USER_AGENT).

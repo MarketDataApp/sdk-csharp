@@ -94,7 +94,8 @@ dotnet add package MarketDataApp
 // A plain `new HttpClient()` works too — it just has no separate connect timeout.
 using var httpClient = new HttpClient(MarketDataClient.CreateDefaultHttpHandler());
 // CreateAsync validates the token with /user/ and seeds the rate-limit snapshot at startup.
-// Use the plain constructor `new MarketDataClient(httpClient)` to skip startup validation.
+// The plain constructor `new MarketDataClient(httpClient)` runs the same validation as a
+// blocking call; set ValidateTokenOnStartup = false to skip startup validation on either path.
 var client = await MarketDataClient.CreateAsync(httpClient);
 var quote = await client.Stocks.GetQuoteAsync("AAPL");
 foreach (var q in quote.Values)
@@ -140,9 +141,10 @@ builder.Services.AddMarketDataClient(builder.Configuration);
 ```
 
 A single `MarketDataClient` instance is safe to use concurrently from multiple
-requests or threads. This path performs no startup validation; see
+requests or threads. When a token is configured, the singleton validates it with a blocking
+`GET /user/` the first time it is resolved; see
 [Dependency injection (ASP.NET Core)](#dependency-injection-aspnet-core) for the overloads,
-override behavior, and eager-validation guidance.
+override behavior, and how to defer validation.
 
 ---
 
@@ -191,10 +193,12 @@ is always respected and never overridden, and when no logging is configured the 
 constructs silently. Pair it with `builder.Logging.AddMarketDataCanonicalConsole()` to render the
 SDK's canonical `{timestamp} - {logger_name} - {level} - {message}` console line.
 
-> **No eager startup validation.** The DI path uses the `MarketDataClient` constructor, so it does
-> **not** validate the token at startup — authentication and rate-limit errors surface on the first
-> request. For fail-fast startup validation, build the client with
-> `await MarketDataClient.CreateAsync(...)` and register that instance instead.
+> **Startup validation at first resolve.** The DI path uses the `MarketDataClient` constructor:
+> when a token is configured and `ValidateTokenOnStartup` is `true` (the default), the token is
+> validated with a blocking `GET /user/` the first time the singleton is resolved — typically
+> during startup wiring — and an invalid token throws `AuthenticationException` at that point.
+> Register options with `ValidateTokenOnStartup = false` to defer errors to the first request
+> instead.
 
 ---
 
@@ -283,18 +287,17 @@ the SDK's own diagnostics sent to the configured `ILogger`; a message is emitted
 its level is at or above the threshold. The default `Information` suppresses the SDK's Debug
 request/response logs unless `DEBUG` is configured.
 
-Startup token validation is opt-in through the async factory. `await
-MarketDataClient.CreateAsync(httpClient, options)` performs a single `GET /user/` that
-fails fast on an invalid token (throwing `AuthenticationException`) and seeds the
-client-wide rate-limit snapshot before the first request. It is enabled by default and
-governed by `ValidateTokenOnStartup`; set `ValidateTokenOnStartup = false` when a
-short-lived process should defer validation until its first authenticated request. In
-demo mode (no token) `CreateAsync` makes no request.
+Startup token validation is on by default on both startup paths and governed by
+`ValidateTokenOnStartup`. `await MarketDataClient.CreateAsync(httpClient, options)`
+performs an asynchronous `GET /user/` that fails fast on an invalid token (throwing
+`AuthenticationException`) and seeds the client-wide rate-limit snapshot before the first
+request. The plain constructor `new MarketDataClient(httpClient, options)` runs the same
+validation as a blocking request, which makes it the fail-fast path for synchronous hosts
+and dependency-injection factories; prefer `CreateAsync` wherever the call site can await.
 
-The plain constructor `new MarketDataClient(httpClient, options)` performs no network I/O
-and no startup validation — authentication and rate-limit errors surface on the first
-request. This is the idiomatic no-validation (opt-out) path and is also the right choice
-for synchronous dependency-injection factories.
+Set `ValidateTokenOnStartup = false` to skip the startup request and defer validation
+until the first authenticated request. In demo mode (no token) neither path makes a
+startup request.
 
 Pass an `ILogger` through `Logger`, or use `options.WithLogger(logger)`, to receive
 structured SDK diagnostics. Tokens are always redacted in log output.

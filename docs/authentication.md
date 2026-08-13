@@ -56,7 +56,15 @@ can then throw `AuthenticationException`.
 
 ## Startup token validation
 
-Use the async factory to validate the token when the client is created:
+When an API token is configured, the client validates it at startup by default — on both
+construction paths. The startup `GET /user/`:
+
+1. fails fast on an invalid token by throwing `AuthenticationException`, and
+2. seeds the client-wide rate-limit snapshot (`client.LatestRateLimit`) before the first
+   data request.
+
+In asynchronous applications, prefer the async factory, which runs the validation without
+blocking the calling thread:
 
 ```csharp
 using var httpClient = new HttpClient();
@@ -65,23 +73,15 @@ var client = await MarketDataClient.CreateAsync(
     new MarketDataClientOptions { ApiToken = "your-api-token" });
 ```
 
-`CreateAsync` performs a single `GET /user/` that:
-
-1. fails fast on an invalid token by throwing `AuthenticationException`, and
-2. seeds the client-wide rate-limit snapshot (`client.LatestRateLimit`) before the first
-   data request.
-
-Startup validation is on by default and governed by
-`MarketDataClientOptions.ValidateTokenOnStartup`. Set it to `false` for short-lived
-processes that prefer first-request (lazy) validation, or when no token is configured
-(demo mode), in which case `CreateAsync` returns immediately without a request.
-
-The plain constructor performs no network I/O and no startup validation:
+The plain constructor runs the same validation as a blocking request, which makes it the
+fail-fast path for synchronous hosts and dependency-injection factories, which cannot
+`await`:
 
 ```csharp
-// No startup validation — auth and rate-limit errors surface on the first request.
+// Validates the token with a blocking GET /user/ when a token is configured.
 var client = new MarketDataClient(httpClient, options);
 ```
 
-This constructor is the idiomatic no-validation path and is also the right choice for
-synchronous dependency-injection factories, which cannot `await`.
+Startup validation is governed by `MarketDataClientOptions.ValidateTokenOnStartup`. Set
+it to `false` for first-request (lazy) validation with no startup network I/O. When no
+token is configured (demo mode), neither path makes a startup request.
