@@ -158,6 +158,36 @@ public sealed class TelemetryTests
         Assert.Contains(http.Events, e => e.Name == "exception");
     }
 
+    [Fact]
+    public async Task CallerHttpClientTimeout_RecordsTimeoutStatusAndException()
+    {
+        var captured = new List<Activity>();
+        using var listener = CreateListener(captured);
+        ActivitySource.AddActivityListener(listener);
+
+        // Here the caller-managed HttpClient's own Timeout cancels the attempt (not the SDK's
+        // 99s CTS); the taxonomy mapping must record the same timeout telemetry.
+        var handler = new HangingHandler();
+        using var httpClient = new HttpClient(handler)
+        {
+            Timeout = TimeSpan.FromMilliseconds(50)
+        };
+        var client = new MarketDataClient(httpClient, new MarketDataClientOptions
+        {
+            MaxRetries = 0
+        });
+
+        using var root = new Activity("test").Start();
+        var exception = await Assert.ThrowsAsync<NetworkException>(
+            () => client.Stocks.GetPricesAsync(new StockPricesRequest("AAPL")));
+
+        Assert.Contains("HttpClient", exception.Message);
+        var http = SingleActivity(captured, root.TraceId, "marketdata.http.get");
+        Assert.Equal(ActivityStatusCode.Error, http.Status);
+        Assert.Equal("timeout", http.StatusDescription);
+        Assert.Contains(http.Events, e => e.Name == "exception");
+    }
+
     // The following two tests register NO listener. Because xunit runs this class's tests serially
     // and no other test class registers a listener, StartActivity returns null, exercising the
     // activity == null branch of the transport's error-recording code.

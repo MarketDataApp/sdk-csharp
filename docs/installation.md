@@ -28,12 +28,11 @@ published version.
 ```csharp
 using MarketDataApp;
 
-using var httpClient = new HttpClient();
+// The SDK creates and owns the HttpClient (default handler, SDK-managed timeouts).
 // CreateAsync validates the token and seeds the rate-limit snapshot at startup; the plain
 // constructor runs the same validation as a blocking call. Set ValidateTokenOnStartup = false
 // to skip startup validation.
-var client = await MarketDataClient.CreateAsync(
-    httpClient,
+using var client = await MarketDataClient.CreateAsync(
     new MarketDataClientOptions { ApiToken = "your-api-token" });
 
 var response = await client.Stocks.GetQuoteAsync(

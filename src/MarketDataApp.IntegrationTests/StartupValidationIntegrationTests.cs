@@ -33,4 +33,16 @@ public sealed class StartupValidationIntegrationTests
 
         Assert.NotNull(client.LatestRateLimit);
     }
+
+    [IntegrationFact]
+    public void Constructor_OwnedHttpClient_ValidatesAndSeedsRateLimit()
+    {
+        // No HttpClient supplied: the SDK creates and owns the transport (default handler with
+        // the 2-second connect timeout, no HttpClient-level timeout) and still runs the blocking
+        // startup validation against the live API.
+        using var client = new MarketDataClient(
+            MarketDataClientOptions.FromConfiguration(IntegrationTestConfiguration.Instance));
+
+        Assert.NotNull(client.LatestRateLimit);
+    }
 }

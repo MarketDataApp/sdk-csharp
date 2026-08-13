@@ -283,6 +283,20 @@ internal sealed class ApiClient : IDisposable
                 ErrorContext.ForNoResponse(requestUri, _options.TimeProvider.GetUtcNow()),
                 exception);
         }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Neither the caller's token nor the SDK's fixed 99-second timeout fired, so the
+            // cancellation came from the application-supplied HttpClient's own Timeout. The SDK
+            // never overrides a caller-managed client, so that shorter timeout is allowed to win,
+            // but it must surface inside the exception taxonomy rather than as a raw
+            // TaskCanceledException.
+            activity?.SetStatus(ActivityStatusCode.Error, "timeout");
+            activity?.AddException(exception);
+            throw new NetworkException(
+                "The Market Data API request was canceled by the HttpClient's configured Timeout.",
+                ErrorContext.ForNoResponse(requestUri, _options.TimeProvider.GetUtcNow()),
+                exception);
+        }
         catch (HttpRequestException exception)
         {
             activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
@@ -527,7 +541,8 @@ internal sealed class ApiClient : IDisposable
     /// <see langword="true"/> when startup token validation should run: an API token is configured
     /// and <see cref="MarketDataClientOptions.ValidateTokenOnStartup"/> has not been disabled.
     /// Shared gate for both startup paths — the synchronous <see cref="MarketDataClient"/>
-    /// constructor and <see cref="MarketDataClient.CreateAsync"/>. In demo mode (no token) there
+    /// constructor and <see cref="MarketDataClient.CreateAsync(HttpClient, MarketDataClientOptions?, CancellationToken)"/>.
+    /// In demo mode (no token) there
     /// is no credential to validate, so the gate is always closed.
     /// </summary>
     internal bool ShouldValidateTokenOnStartup =>

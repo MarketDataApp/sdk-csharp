@@ -5,19 +5,28 @@
 
 ## HttpClient ownership
 
-The application injects and owns `HttpClient`. `MarketDataClient` does not dispose it.
-In a console application, create the client with the async factory so the token is
-validated and the rate-limit snapshot is seeded at startup:
+By default the SDK creates and owns its `HttpClient`: the overloads without an
+`HttpClient` parameter back it with `CreateDefaultHttpHandler()` (2-second connection
+timeout, pooled-connection rotation) and disable the HttpClient-level timeout, because the
+SDK enforces its own fixed 99-second request timeout. `Dispose()` also disposes the owned
+client:
 
 ```csharp
-using var httpClient = new HttpClient();
+using var client = await MarketDataClient.CreateAsync();
+```
+
+An application can instead supply its own `HttpClient`. The SDK then never reconfigures it
+(its handler and `Timeout` are respected as-is) and never disposes it:
+
+```csharp
+using var httpClient = new HttpClient(MarketDataClient.CreateDefaultHttpHandler());
 var client = await MarketDataClient.CreateAsync(httpClient);
 ```
 
-The plain constructor `new MarketDataClient(httpClient)` runs the same startup validation
-as a blocking request when a token is configured; set `ValidateTokenOnStartup = false` to
-skip startup validation and let authentication and rate-limit errors surface on the first
-request. See [authentication](authentication.md#startup-token-validation) for details.
+Both constructors run the same startup validation as a blocking request when a token is
+configured; set `ValidateTokenOnStartup = false` to skip startup validation and let
+authentication and rate-limit errors surface on the first request. See
+[authentication](authentication.md#startup-token-validation) for details.
 
 When `options` is omitted, the client loads configuration from user secrets, an
 optional `.env` file in the current working directory, and process environment
@@ -37,7 +46,9 @@ Then take `MarketDataClient` as a constructor-injected dependency (or a minimal-
 parameter). `AddMarketDataClient` registers `MarketDataClient` as a **singleton** over an
 `IHttpClientFactory`-managed `HttpClient` whose primary handler is
 `MarketDataClient.CreateDefaultHttpHandler()` (2-second connect timeout, pooled-connection
-rotation). Three overloads resolve the options:
+rotation) and whose HttpClient-level timeout is disabled in favor of the SDK's fixed
+99-second request timeout; configuring the same named client after the extension overrides
+these defaults. Three overloads resolve the options:
 
 | Overload | Options source |
 |----------|----------------|
@@ -79,7 +90,8 @@ var candles = await client.Stocks.GetCandlesAsync(
 
 Caller cancellation produces `OperationCanceledException`. The SDK's fixed 99-second
 request timeout applies separately to each HTTP attempt; an SDK timeout is surfaced as
-`NetworkException`.
+`NetworkException`. A caller-managed `HttpClient`'s own `Timeout` is respected and also
+surfaces as `NetworkException` when it fires first.
 
 ## Client-wide rate limits
 
