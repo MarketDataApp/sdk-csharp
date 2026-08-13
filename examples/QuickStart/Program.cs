@@ -24,8 +24,8 @@ var cancellationToken = cancellation.Token;
 try
 {
     // CreateAsync validates the token with /user/ and seeds the rate-limit snapshot before the
-    // first data request. Use the plain constructor (new MarketDataClient(httpClient, options))
-    // to skip startup validation and let auth/rate-limit errors surface on the first request.
+    // first data request, without blocking; the plain constructor runs the same validation as a
+    // blocking call. Set ValidateTokenOnStartup = false on the options to skip startup validation.
     var client = await MarketDataClient.CreateAsync(httpClient, options, cancellationToken);
 
     // Stocks: a single quote, a candle window, and one batched request for several symbols.

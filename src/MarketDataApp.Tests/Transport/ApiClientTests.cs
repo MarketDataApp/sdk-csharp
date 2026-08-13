@@ -88,24 +88,78 @@ public sealed class ApiClientTests
     }
 
     [Fact]
-    public void Constructor_DoesNotValidateTokenOrCallNetwork()
+    public void Constructor_WithValidToken_ValidatesAndSeedsRateLimit()
     {
         var requests = new List<string>();
         var handler = new StubHttpMessageHandler(request =>
         {
             requests.Add(request.RequestUri!.AbsolutePath);
-            return new HttpResponseMessage(HttpStatusCode.Unauthorized)
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+        handler.ResponseHeaders["x-api-ratelimit-limit"] = "100";
+        handler.ResponseHeaders["x-api-ratelimit-remaining"] = "97";
+        handler.ResponseHeaders["x-api-ratelimit-reset"] = "1737072000";
+        handler.ResponseHeaders["x-api-ratelimit-consumed"] = "3";
+
+        var client = new MarketDataClient(
+            new HttpClient(handler),
+            new MarketDataClientOptions { ApiToken = "secret-token" });
+
+        Assert.Equal(["/user/"], requests);
+        Assert.NotNull(client.LatestRateLimit);
+        Assert.Equal(97, client.LatestRateLimit!.Remaining);
+    }
+
+    [Fact]
+    public void Constructor_WithInvalidToken_ThrowsAuthenticationException()
+    {
+        var handler = new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.Unauthorized)
             {
                 Content = new StringContent("invalid token")
-            };
+            });
+
+        // The synchronous startup path fails fast: a bad token throws from the constructor
+        // (unwrapped from the bridge) instead of surfacing on the first request.
+        Assert.Throws<AuthenticationException>(() => new MarketDataClient(
+            new HttpClient(handler),
+            new MarketDataClientOptions { ApiToken = "bad-token" }));
+    }
+
+    [Fact]
+    public void Constructor_WithValidationDisabled_SkipsStartupRequest()
+    {
+        var requests = new List<string>();
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            requests.Add(request.RequestUri!.AbsolutePath);
+            return new HttpResponseMessage(HttpStatusCode.OK);
         });
 
-        // A bad token must not throw and must not trigger any network I/O in the constructor.
-        _ = new MarketDataClient(
+        var client = new MarketDataClient(
             new HttpClient(handler),
-            new MarketDataClientOptions { ApiToken = "bad-token" });
+            new MarketDataClientOptions { ApiToken = "secret-token", ValidateTokenOnStartup = false });
 
         Assert.Empty(requests);
+        Assert.Null(client.LatestRateLimit);
+    }
+
+    [Fact]
+    public void Constructor_WithoutToken_SkipsStartupRequest()
+    {
+        var requests = new List<string>();
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            requests.Add(request.RequestUri!.AbsolutePath);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        var client = new MarketDataClient(
+            new HttpClient(handler),
+            new MarketDataClientOptions { ApiToken = null });
+
+        Assert.Empty(requests);
+        Assert.Null(client.LatestRateLimit);
     }
 
     [Fact]
