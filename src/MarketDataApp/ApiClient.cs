@@ -524,10 +524,21 @@ internal sealed class ApiClient : IDisposable
     }
 
     /// <summary>
-    /// Performs an asynchronous <c>GET /user/</c> to fail fast on an invalid token
-    /// (throwing <see cref="AuthenticationException"/>) and to seed
-    /// <see cref="LatestRateLimit"/> from the response headers. Invoked by
-    /// <see cref="MarketDataClient.CreateAsync"/>; never called from a constructor.
+    /// <see langword="true"/> when startup token validation should run: an API token is configured
+    /// and <see cref="MarketDataClientOptions.ValidateTokenOnStartup"/> has not been disabled.
+    /// Shared gate for both startup paths — the synchronous <see cref="MarketDataClient"/>
+    /// constructor and <see cref="MarketDataClient.CreateAsync"/>. In demo mode (no token) there
+    /// is no credential to validate, so the gate is always closed.
+    /// </summary>
+    internal bool ShouldValidateTokenOnStartup =>
+        _options.ValidateTokenOnStartup && !string.IsNullOrWhiteSpace(_options.ApiToken);
+
+    /// <summary>
+    /// Performs a <c>GET /user/</c> to fail fast on an invalid token (throwing
+    /// <see cref="AuthenticationException"/>) and to seed <see cref="LatestRateLimit"/> from the
+    /// response headers. Runs the full request pipeline, so the fixed 99-second timeout, the
+    /// retry schedule, and the error mapping match every other request. Invoked from both
+    /// startup paths when <see cref="ShouldValidateTokenOnStartup"/> allows it.
     /// </summary>
     internal async Task ValidateTokenAndSeedRateLimitAsync(CancellationToken cancellationToken)
     {
@@ -549,6 +560,19 @@ internal sealed class ApiClient : IDisposable
             throw;
         }
     }
+
+    /// <summary>
+    /// Synchronous bridge over <see cref="ValidateTokenAndSeedRateLimitAsync"/> for the blocking
+    /// constructor path. <see cref="Task.Run(Func{Task})"/> re-enters the pipeline on a
+    /// thread-pool thread with no ambient <see cref="SynchronizationContext"/>, so blocking the
+    /// constructing thread cannot deadlock the awaited continuations, and the request still flows
+    /// through the handler chain's asynchronous <c>SendAsync</c> like every other SDK request —
+    /// async-only custom handlers (resilience wrappers, delegating middleware) keep working.
+    /// </summary>
+    internal void ValidateTokenAndSeedRateLimit() =>
+        Task.Run(() => ValidateTokenAndSeedRateLimitAsync(CancellationToken.None))
+            .GetAwaiter()
+            .GetResult();
 
     internal static string RedactToken(string token) =>
         token.Length <= 4 ? "****" : $"****{token[^4..]}";

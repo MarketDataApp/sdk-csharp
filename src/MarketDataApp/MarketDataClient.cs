@@ -36,22 +36,47 @@ public sealed class MarketDataClient : IDisposable
         };
 
     /// <summary>
-    /// Creates a client using the supplied <see cref="HttpClient"/>. This constructor performs
-    /// no network I/O and no startup token validation; authentication and rate-limit errors
-    /// surface on the first request. Use <see cref="CreateAsync"/> to validate the token and
-    /// seed the rate-limit snapshot at startup.
+    /// Creates a client using the supplied <see cref="HttpClient"/>. When an API token is present
+    /// and <see cref="MarketDataClientOptions.ValidateTokenOnStartup"/> is <c>true</c> (the
+    /// default), the constructor performs a blocking <c>GET /user/</c> to fail fast on an invalid
+    /// token (throwing <see cref="Exceptions.AuthenticationException"/>) and to seed
+    /// <see cref="LatestRateLimit"/>. In demo mode (no token), or when validation is disabled,
+    /// the constructor performs no network I/O and authentication errors surface on the first
+    /// request. Prefer <see cref="CreateAsync"/> where the call site can await: it runs the same
+    /// validation without blocking the calling thread.
     /// </summary>
     /// <param name="httpClient">HTTP client managed by the application or dependency-injection container.</param>
     /// <param name="options">Optional client configuration.</param>
     public MarketDataClient(HttpClient httpClient, MarketDataClientOptions? options = null)
+        : this(httpClient, options ?? MarketDataClientOptions.FromEnvironment(), validateSynchronously: true)
     {
-        options ??= MarketDataClientOptions.FromEnvironment();
+    }
+
+    private MarketDataClient(
+        HttpClient httpClient,
+        MarketDataClientOptions options,
+        bool validateSynchronously)
+    {
         _apiClient = new ApiClient(httpClient, options);
         Utilities = new UtilitiesApi(_apiClient);
         Markets = new MarketsApi(_apiClient);
         Stocks = new StocksApi(_apiClient);
         Funds = new FundsApi(_apiClient);
         Options = new OptionsApi(_apiClient);
+        if (validateSynchronously && _apiClient.ShouldValidateTokenOnStartup)
+        {
+            try
+            {
+                _apiClient.ValidateTokenAndSeedRateLimit();
+            }
+            catch
+            {
+                // The instance never escapes a throwing constructor: release the ApiClient-owned
+                // concurrency gate before surfacing the validation failure.
+                _apiClient.Dispose();
+                throw;
+            }
+        }
     }
 
     /// <summary>
@@ -60,8 +85,8 @@ public sealed class MarketDataClient : IDisposable
     /// performs an asynchronous <c>GET /user/</c> to fail fast on an invalid token (throwing
     /// <see cref="Exceptions.AuthenticationException"/>) and to seed <see cref="LatestRateLimit"/>.
     /// In demo mode (no token) or when validation is disabled, no request is made and the client
-    /// is returned immediately. This is the idiomatic async alternative to blocking startup
-    /// validation in a constructor.
+    /// is returned immediately. This is the idiomatic async alternative to the constructor's
+    /// blocking startup validation.
     /// </summary>
     /// <param name="httpClient">HTTP client managed by the application or dependency-injection container.</param>
     /// <param name="options">Optional client configuration.</param>
@@ -71,12 +96,22 @@ public sealed class MarketDataClient : IDisposable
         MarketDataClientOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        options ??= MarketDataClientOptions.FromEnvironment();
-        var client = new MarketDataClient(httpClient, options);
-        if (options.ValidateTokenOnStartup && !string.IsNullOrWhiteSpace(options.ApiToken))
+        var client = new MarketDataClient(
+            httpClient,
+            options ?? MarketDataClientOptions.FromEnvironment(),
+            validateSynchronously: false);
+        if (client._apiClient.ShouldValidateTokenOnStartup)
         {
-            await client._apiClient.ValidateTokenAndSeedRateLimitAsync(cancellationToken)
-                .ConfigureAwait(false);
+            try
+            {
+                await client._apiClient.ValidateTokenAndSeedRateLimitAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                client.Dispose();
+                throw;
+            }
         }
 
         return client;
