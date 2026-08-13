@@ -6,9 +6,15 @@ public abstract class IntegrationTestBase : IDisposable
 
     protected IntegrationTestBase()
     {
+        // Shared endpoint fixtures skip startup validation: xUnit constructs the test class per
+        // test, and a live GET /user/ per instance would burn quota and slow the suite. Both
+        // startup-validation paths are exercised deliberately in StartupValidationIntegrationTests.
         Client = new MarketDataClient(
             _httpClient,
-            MarketDataClientOptions.FromConfiguration(IntegrationTestConfiguration.Instance));
+            MarketDataClientOptions.FromConfiguration(IntegrationTestConfiguration.Instance) with
+            {
+                ValidateTokenOnStartup = false
+            });
     }
 
     protected MarketDataClient Client { get; }

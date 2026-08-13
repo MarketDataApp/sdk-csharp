@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http;
 using MarketDataApp.Tests.TestSupport;
 using Microsoft.Extensions.Configuration;
@@ -84,6 +85,53 @@ public sealed class MarketDataServiceCollectionExtensionsTests
         var factory = provider.GetRequiredService<IHttpClientFactory>();
         using var httpClient = factory.CreateClient(HttpClientName);
         Assert.NotNull(httpClient);
+    }
+
+    [Fact]
+    public void AddMarketDataClient_WithToken_ValidatesTokenOnFirstResolve()
+    {
+        var requests = new List<string>();
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            requests.Add(request.RequestUri!.AbsolutePath);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        var services = new ServiceCollection();
+        services.AddMarketDataClient(new MarketDataClientOptions { ApiToken = "di-token" });
+        // Swap the named client's primary handler for the stub after AddMarketDataClient: the
+        // last ConfigurePrimaryHttpMessageHandler registration wins, so no live socket opens.
+        services.AddHttpClient(HttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(() => handler);
+
+        using var provider = services.BuildServiceProvider();
+
+        // Constructing the singleton runs the blocking startup validation, so the typical
+        // ASP.NET Core entry point now fails fast on a bad token instead of on the first request.
+        _ = provider.GetRequiredService<MarketDataClient>();
+
+        Assert.Equal(["/user/"], requests);
+    }
+
+    [Fact]
+    public void AddMarketDataClient_WithValidationDisabled_ResolvesWithoutNetworkIO()
+    {
+        var handler = new StubHttpMessageHandler(_ =>
+            throw new InvalidOperationException("No request expected."));
+
+        var services = new ServiceCollection();
+        services.AddMarketDataClient(new MarketDataClientOptions
+        {
+            ApiToken = "di-token",
+            ValidateTokenOnStartup = false
+        });
+        services.AddHttpClient(HttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(() => handler);
+
+        using var provider = services.BuildServiceProvider();
+
+        var client = provider.GetRequiredService<MarketDataClient>();
+        Assert.NotNull(client);
     }
 
     // The category name the framework derives for ILogger<MarketDataClient>: the fully-qualified

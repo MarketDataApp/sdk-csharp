@@ -21,11 +21,12 @@ namespace Microsoft.Extensions.DependencyInjection;
 /// timeout applies and pooled connections rotate DNS.
 /// </para>
 /// <para>
-/// The dependency-injection path uses the <see cref="MarketDataClient"/> constructor and therefore
-/// performs <b>no eager startup token validation</b>: authentication and rate-limit errors surface
-/// on the first request rather than at registration time. Callers that want fail-fast startup
-/// validation should build the client with <see cref="MarketDataClient.CreateAsync"/> and register
-/// the resulting instance instead.
+/// The dependency-injection path uses the <see cref="MarketDataClient"/> constructor, so when a
+/// token is configured and <see cref="MarketDataClientOptions.ValidateTokenOnStartup"/> is
+/// <c>true</c> (the default), the token is validated with a blocking <c>GET /user/</c> the first
+/// time the singleton is resolved — typically during startup wiring — and an invalid token throws
+/// <see cref="MarketDataApp.Exceptions.AuthenticationException"/> at that point. Register options
+/// with <c>ValidateTokenOnStartup = false</c> to defer errors to the first request instead.
 /// </para>
 /// <para>
 /// Registrations use <c>TryAdd*</c> so an application can override either

@@ -154,7 +154,8 @@ public sealed class ApiClientCoverageTests
         var handler = new StubHttpMessageHandler(_ =>
             MarketDataTestClient.JsonResponse("""{"s":"ok","symbol":["AAPL"],"mid":[1.0]}"""));
 
-        // Constructor with no options falls back to FromEnvironment (demo mode, no network I/O).
+        // Constructor with no options falls back to FromEnvironment; the test environment has no
+        // MARKETDATA_TOKEN, so demo mode skips startup validation and no network I/O happens here.
         var client = new MarketDataClient(new HttpClient(handler));
         await client.Stocks.GetPricesAsync(new StockPricesRequest("AAPL"));
         client.Dispose();
@@ -192,13 +193,16 @@ public sealed class ApiClientCoverageTests
     public void StartupLogging_RedactsConfiguredTokenSuffix()
     {
         var logger = new CapturingLogger();
+        // Redaction of the initialization log is the subject; skip the startup /user/ request
+        // the configured token would otherwise trigger.
         _ = new MarketDataClient(
             new HttpClient(NoRequest()),
             new MarketDataClientOptions
             {
                 ApiToken = "secret-token-1234",
                 Logger = logger,
-                MinimumLogLevel = LogLevel.Debug
+                MinimumLogLevel = LogLevel.Debug,
+                ValidateTokenOnStartup = false
             });
 
         var tokenLog = Assert.Single(
@@ -218,7 +222,8 @@ public sealed class ApiClientCoverageTests
             {
                 ApiToken = "ab",
                 Logger = logger,
-                MinimumLogLevel = LogLevel.Debug
+                MinimumLogLevel = LogLevel.Debug,
+                ValidateTokenOnStartup = false
             });
 
         var tokenLog = Assert.Single(
