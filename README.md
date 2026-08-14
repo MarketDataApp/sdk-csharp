@@ -105,8 +105,11 @@ Managing your own `HttpClient`? Every entry point also accepts one, and the SDK 
 reconfigures a supplied client — see
 [Client lifetime and HttpClient injection](#client-lifetime-and-httpclient-injection).
 
+See [`examples/`](examples/) for the full index of runnable samples.
 See [`examples/QuickStart/`](examples/QuickStart/) for a full runnable example covering
 cancellation, CSV export, exception handling, and bulk quotes.
+See [`examples/Watchlist/`](examples/Watchlist/) for a console watchlist mini-app: batched
+quotes on a refresh loop, a rate-limit footer, taxonomy-aware error recovery, and CSV export.
 See [`examples/McpServer/`](examples/McpServer/) for a runnable
 [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes quote,
 candle, and market-status tools over stdio.
