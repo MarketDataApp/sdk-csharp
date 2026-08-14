@@ -110,6 +110,8 @@ See [`examples/QuickStart/`](examples/QuickStart/) for a full runnable example c
 cancellation, CSV export, exception handling, and bulk quotes.
 See [`examples/Watchlist/`](examples/Watchlist/) for a console watchlist mini-app: batched
 quotes on a refresh loop, a rate-limit footer, taxonomy-aware error recovery, and CSV export.
+See [`examples/OptionsChainMonitor/`](examples/OptionsChainMonitor/) for a live filtered
+options chain: typed chain filters, IV/delta/open-interest rendering, and chain quota habits.
 See [`examples/McpServer/`](examples/McpServer/) for a runnable
 [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes quote,
 candle, and market-status tools over stdio.
