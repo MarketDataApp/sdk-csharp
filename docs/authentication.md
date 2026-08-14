@@ -60,8 +60,10 @@ When an API token is configured, the client validates it at startup by default �
 construction paths. The startup `GET /user/`:
 
 1. fails fast on an invalid token by throwing `AuthenticationException`, and
-2. seeds the client-wide rate-limit snapshot (`client.LatestRateLimit`) before the first
-   data request.
+2. seeds the client-wide rate-limit snapshot (`client.LatestRateLimit`) from the
+   `x-api-ratelimit-*` response headers — the canonical rate-limit source — before the
+   first data request. The headers are guaranteed for existing users, so a successful
+   validation that yields no snapshot logs a warning.
 
 In asynchronous applications, prefer the async factory, which runs the validation without
 blocking the calling thread:
