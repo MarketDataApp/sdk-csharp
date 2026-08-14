@@ -551,7 +551,9 @@ internal sealed class ApiClient : IDisposable
     /// <summary>
     /// Performs a <c>GET /user/</c> to fail fast on an invalid token (throwing
     /// <see cref="AuthenticationException"/>) and to seed <see cref="LatestRateLimit"/> from the
-    /// response headers. Runs the full request pipeline, so the fixed 99-second timeout, the
+    /// <c>x-api-ratelimit-*</c> response headers — the canonical rate-limit source per the API
+    /// contract; the <c>/user/</c> body is consumed by the account dashboard and is deliberately
+    /// not parsed here. Runs the full request pipeline, so the fixed 99-second timeout, the
     /// retry schedule, and the error mapping match every other request. Invoked from both
     /// startup paths when <see cref="ShouldValidateTokenOnStartup"/> allows it.
     /// </summary>
@@ -559,11 +561,22 @@ internal sealed class ApiClient : IDisposable
     {
         try
         {
-            _ = await GetAsync(
+            var response = await GetAsync(
                 "user",
                 versioned: false,
                 Array.Empty<KeyValuePair<string, string?>>(),
                 cancellationToken).ConfigureAwait(false);
+            if (response.RateLimit is null)
+            {
+                // Per the API contract the x-api-ratelimit-* headers are guaranteed on /user/
+                // whenever the token resolves to an existing user, so a successful validation
+                // without the complete header set is an anomaly worth surfacing: the snapshot
+                // stays unseeded and the pre-flight rate-limit check stays inert until a data
+                // response supplies the headers.
+                LogAt(LogLevel.Warning)?.LogWarning(
+                    "Startup token validation succeeded for {RequestUrl} but the response carried no complete rate-limit headers; the rate-limit snapshot remains unseeded.",
+                    response.RequestUrl);
+            }
         }
         catch (MarketDataException exception)
         {
