@@ -381,6 +381,29 @@ public sealed class ApiClientTests
     }
 
     [Fact]
+    public async Task CallerHttpClientTimeout_IsConvertedToNetworkException()
+    {
+        // The SDK never reconfigures a caller-managed HttpClient, so a Timeout shorter than the
+        // SDK's fixed 99s is allowed to fire first — but it must surface as a NetworkException
+        // in the taxonomy, not as a raw TaskCanceledException.
+        var handler = new DelayingHandler();
+        using var httpClient = new HttpClient(handler)
+        {
+            Timeout = TimeSpan.FromMilliseconds(50)
+        };
+        var client = new MarketDataClient(httpClient, new MarketDataClientOptions
+        {
+            MaxRetries = 0
+        });
+
+        var exception = await Assert.ThrowsAsync<NetworkException>(
+            () => client.Stocks.GetQuoteAsync(new StockQuoteRequest("AAPL")));
+
+        Assert.Equal(0, exception.StatusCode);
+        Assert.Contains("HttpClient", exception.Message);
+    }
+
+    [Fact]
     public async Task MalformedJson_MapsToParseException()
     {
         var handler = new StubHttpMessageHandler(_ => MarketDataTestClient.JsonResponse("{ invalid"));

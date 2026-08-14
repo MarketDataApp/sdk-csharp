@@ -81,10 +81,12 @@ public sealed class MarketDataServiceCollectionExtensionsTests
         Assert.NotNull(client);
 
         // The named HttpClient is creatable via the factory; creating it exercises the
-        // ConfigurePrimaryHttpMessageHandler lambda (the SDK default handler).
+        // ConfigurePrimaryHttpMessageHandler lambda (the SDK default handler) and the
+        // ConfigureHttpClient lambda that disables the HttpClient-level timeout (the SDK
+        // enforces its own fixed 99-second request timeout instead).
         var factory = provider.GetRequiredService<IHttpClientFactory>();
         using var httpClient = factory.CreateClient(HttpClientName);
-        Assert.NotNull(httpClient);
+        Assert.Equal(Timeout.InfiniteTimeSpan, httpClient.Timeout);
     }
 
     [Fact]
