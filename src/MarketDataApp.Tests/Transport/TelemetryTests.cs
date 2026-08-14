@@ -188,9 +188,11 @@ public sealed class TelemetryTests
         Assert.Contains(http.Events, e => e.Name == "exception");
     }
 
-    // The following two tests register NO listener. Because xunit runs this class's tests serially
+    // The following tests register NO listener. Because xunit runs this class's tests serially
     // and no other test class registers a listener, StartActivity returns null, exercising the
-    // activity == null branch of the transport's error-recording code.
+    // activity == null branch of the transport's error-recording code. Null-branch tests MUST
+    // live in this class: from a parallel test class they race this class's listener windows
+    // (a registered ActivityListener is process-wide) and the 100% branch gate flakes.
 
     [Fact]
     public async Task NetworkError_WithoutListener_ExercisesNullActivityBranch()
@@ -221,6 +223,31 @@ public sealed class TelemetryTests
 
         var exception = await Assert.ThrowsAsync<NetworkException>(() => request);
         Assert.Contains("timed out", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task CallerHttpClientTimeout_WithoutListener_MapsToNetworkException()
+    {
+        // The SDK never reconfigures a caller-managed HttpClient, so a Timeout shorter than the
+        // SDK's fixed 99s is allowed to fire first — but it must surface as a NetworkException in
+        // the taxonomy, not as a raw TaskCanceledException. Run with no listener, this also
+        // deterministically exercises the activity == null branches of that catch arm; it moved
+        // here from ApiClientTests, where it raced this class's listener windows (#47).
+        var handler = new HangingHandler();
+        using var httpClient = new HttpClient(handler)
+        {
+            Timeout = TimeSpan.FromMilliseconds(50)
+        };
+        var client = new MarketDataClient(httpClient, new MarketDataClientOptions
+        {
+            MaxRetries = 0
+        });
+
+        var exception = await Assert.ThrowsAsync<NetworkException>(
+            () => client.Stocks.GetPricesAsync(new StockPricesRequest("AAPL")));
+
+        Assert.Equal(0, exception.StatusCode);
+        Assert.Contains("HttpClient", exception.Message);
     }
 
     private sealed class ThrowingHandler : HttpMessageHandler
