@@ -106,13 +106,19 @@ jobs:
       - name: Test on .NET 8 with coverage (100% line+branch gate)
         # Force bash on every runner (incl. Windows via Git Bash) so the multi-line
         # command and backslash continuations parse consistently across the matrix.
+        #
+        # CoverletOutput is a PREFIX, not a file name: because the test project
+        # multi-targets, coverlet always appends ".{tfm}.{format}.xml" to it, so this
+        # writes TestResults/coverage.net8.0.opencover.xml. Spelling the full file name
+        # here instead produced coverage.net8.0.opencover.net8.0.xml, which neither the
+        # coverage artifact glob nor the Codecov files list matched (#49).
         shell: bash
         run: |
           dotnet test src/MarketDataApp.Tests/MarketDataApp.Tests.csproj \
             --no-build -c Release -f net8.0 \
             -p:CollectCoverage=true \
             -p:CoverletOutputFormat=opencover \
-            -p:CoverletOutput=TestResults/coverage.net8.0.opencover.xml \
+            -p:CoverletOutput=TestResults/coverage \
             -p:Threshold=100 \
             -p:ThresholdType=line%2cbranch \
             -p:ThresholdStat=total \
@@ -126,7 +132,7 @@ jobs:
             --no-build -c Release -f net10.0 \
             -p:CollectCoverage=true \
             -p:CoverletOutputFormat=opencover \
-            -p:CoverletOutput=TestResults/coverage.net10.0.opencover.xml \
+            -p:CoverletOutput=TestResults/coverage \
             -p:Threshold=100 \
             -p:ThresholdType=line%2cbranch \
             -p:ThresholdStat=total \
