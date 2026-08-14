@@ -2,6 +2,7 @@
   <Folder Name="/docs/" />
   <Folder Name="/examples/">
     <Project Path="examples/McpServer/McpServer.csproj" />
+    <Project Path="examples/OptionsChainMonitor/OptionsChainMonitor.csproj" />
     <Project Path="examples/QuickStart/QuickStart.csproj" />
     <Project Path="examples/Watchlist/Watchlist.csproj" />
     <Project Path="examples/WebApiSample/WebApiSample.csproj" />
