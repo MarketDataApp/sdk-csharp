@@ -105,6 +105,39 @@ public sealed class ApiClientCoverageTests
             e => e.Level == LogLevel.Error && e.Message.Contains("Startup token validation failed"));
     }
 
+    [Fact]
+    public async Task StartupValidation_MissingRateLimitHeaders_LogsWarningAndLeavesSnapshotUnseeded()
+    {
+        // /user/ answers 200 but without the x-api-ratelimit-* headers. Per the API contract
+        // they are guaranteed whenever the token resolves to an existing user, so validation
+        // succeeds but the anomaly is surfaced as a warning and the snapshot stays unseeded.
+        var logger = new CapturingLogger();
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+
+        var client = await MarketDataClient.CreateAsync(
+            new HttpClient(handler),
+            new MarketDataClientOptions { ApiToken = "secret-token", Logger = logger });
+
+        Assert.Null(client.LatestRateLimit);
+        Assert.Contains(
+            logger.Entries,
+            e => e.Level == LogLevel.Warning && e.Message.Contains("no complete rate-limit headers"));
+    }
+
+    [Fact]
+    public void StartupValidation_MissingRateLimitHeaders_WithoutLogger_StillSucceeds()
+    {
+        // The same anomaly with no logger attached: the null-conditional warning call is
+        // skipped entirely and construction still succeeds (via the blocking startup path).
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+
+        var client = new MarketDataClient(
+            new HttpClient(handler),
+            new MarketDataClientOptions { ApiToken = "secret-token" });
+
+        Assert.Null(client.LatestRateLimit);
+    }
+
     [Theory]
     [InlineData(HttpStatusCode.BadRequest, typeof(BadRequestException))]
     [InlineData(HttpStatusCode.Forbidden, typeof(AuthenticationException))]
