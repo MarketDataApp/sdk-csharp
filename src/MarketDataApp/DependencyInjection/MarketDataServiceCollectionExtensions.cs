@@ -18,7 +18,9 @@ namespace Microsoft.Extensions.DependencyInjection;
 /// semaphore, the rate-limit snapshot, and the <c>/status</c> cache). The client is built over an
 /// <see cref="IHttpClientFactory"/>-managed <see cref="System.Net.Http.HttpClient"/> whose primary
 /// handler is <see cref="MarketDataClient.CreateDefaultHttpHandler"/>, so the 2-second connection
-/// timeout applies and pooled connections rotate DNS.
+/// timeout applies and pooled connections rotate DNS; the HttpClient-level timeout is disabled in
+/// favor of the SDK's fixed 99-second request timeout. These are defaults, not enforcement: an
+/// application that configures the same named client after calling the extension overrides them.
 /// </para>
 /// <para>
 /// The dependency-injection path uses the <see cref="MarketDataClient"/> constructor, so when a
@@ -96,9 +98,13 @@ public static class MarketDataServiceCollectionExtensions
         MarketDataClientOptions options)
     {
         // Back the named client with the SDK's default handler so the 2-second connect timeout
-        // applies and pooled connections rotate DNS / honor load-balancer changes.
+        // applies and pooled connections rotate DNS / honor load-balancer changes. The
+        // HttpClient-level timeout is disabled because the SDK enforces its own fixed 99-second
+        // per-attempt timeout; both are defaults only — an application that configures the same
+        // named client after calling AddMarketDataClient overrides them (its actions run later).
         services.AddHttpClient(HttpClientName)
-            .ConfigurePrimaryHttpMessageHandler(static () => MarketDataClient.CreateDefaultHttpHandler());
+            .ConfigurePrimaryHttpMessageHandler(static () => MarketDataClient.CreateDefaultHttpHandler())
+            .ConfigureHttpClient(static client => client.Timeout = Timeout.InfiniteTimeSpan);
 
         // TryAdd* lets an application override the options or the client by registering its own first.
         services.TryAddSingleton(options);

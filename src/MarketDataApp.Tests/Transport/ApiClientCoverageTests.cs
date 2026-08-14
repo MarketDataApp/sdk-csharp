@@ -178,6 +178,50 @@ public sealed class ApiClientCoverageTests
     }
 
     [Fact]
+    public void OwnedHttpClient_Constructor_UsesEnvironmentAndConstructs()
+    {
+        // No HttpClient in sight: the SDK creates and owns the transport (default handler, no
+        // HttpClient-level timeout) and falls back to FromEnvironment. The test environment has
+        // no MARKETDATA_TOKEN, so demo mode skips startup validation and nothing touches the
+        // network; disposing the client also disposes the owned transport.
+        using var client = new MarketDataClient();
+
+        Assert.NotNull(client.Stocks);
+    }
+
+    [Fact]
+    public async Task OwnedHttpClient_CreateAsync_UsesEnvironmentAndConstructs()
+    {
+        using var client = await MarketDataClient.CreateAsync();
+
+        Assert.NotNull(client.Stocks);
+        Assert.Null(client.LatestRateLimit);
+    }
+
+    [Fact]
+    public void OwnedHttpClient_InvalidOptions_DisposesOwnedClientAndThrows()
+    {
+        // The owned-client path must not leak the SDK-created HttpClient when the options are
+        // rejected: the filtered constructor catch disposes it before rethrowing.
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => new MarketDataClient(new MarketDataClientOptions { MaxConcurrentRequests = 0 }));
+    }
+
+    [Fact]
+    public async Task OwnedHttpClient_CreateAsync_WithValidationDisabled_MakesNoRequest()
+    {
+        // Owned transport + configured token, but validation opted out: construction must not
+        // touch the network (the owned client is real, so any request here would go on the wire).
+        using var client = await MarketDataClient.CreateAsync(new MarketDataClientOptions
+        {
+            ApiToken = "secret-token",
+            ValidateTokenOnStartup = false
+        });
+
+        Assert.Null(client.LatestRateLimit);
+    }
+
+    [Fact]
     public void CreateDefaultHttpHandler_AppliesTwoSecondConnectTimeout()
     {
         using var handler = MarketDataClient.CreateDefaultHttpHandler();

@@ -97,7 +97,8 @@ public sealed record MarketDataClientOptions
     /// Gates whether an authenticated client validates its token with <c>/user/</c> and seeds the
     /// rate-limit snapshot at startup (default <c>true</c>). Both startup paths honor it: the
     /// <see cref="MarketDataClient"/> constructor validates with a blocking request, and
-    /// <see cref="MarketDataClient.CreateAsync"/> validates asynchronously. Set to <c>false</c>
+    /// <see cref="MarketDataClient.CreateAsync(HttpClient, MarketDataClientOptions?, CancellationToken)"/>
+    /// validates asynchronously. Set to <c>false</c>
     /// for first-request (lazy) validation with no startup network I/O. In demo mode (no token)
     /// startup validation is always skipped.
     /// </summary>
