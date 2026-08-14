@@ -3,8 +3,12 @@ name: CI
 on:
   push:
     branches: [ main ]
+  # Deliberately no branches filter: on pull_request the filter matches the PR's BASE
+  # branch, which silently skipped CI for stacked PRs (a PR opened against another
+  # feature branch got zero checks — see #45). Every PR runs the full suite regardless
+  # of its base; push stays main-only, so each PR still gets exactly one run per head
+  # update and the concurrency group below cancels superseded ones.
   pull_request:
-    branches: [ main ]
   release:
     types: [ published ]
   workflow_dispatch:
