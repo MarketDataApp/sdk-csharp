@@ -229,6 +229,24 @@ jobs:
             --results-directory TestResults \
             --logger "trx;LogFileName=integration-results.trx"
 
+      # Smoke-run the example mini-apps end to end (#58, maintainer-approved): one live
+      # pass each proves the full user experience — one-line client setup, startup token
+      # validation, a data request, and rendering/export — still works, which no unit test
+      # reproduces. A non-zero exit code fails the job. Cost: ~3 live requests plus one
+      # small chain. Skipped when the token secret is absent (fork PRs), mirroring the
+      # IntegrationFactAttribute guard above.
+      - name: Smoke-run Watchlist (--once)
+        if: env.MARKETDATA_TOKEN != ''
+        run: dotnet run --project examples/Watchlist -c Release --no-build -- AAPL MSFT --once
+
+      - name: Smoke-run Watchlist CSV export
+        if: env.MARKETDATA_TOKEN != ''
+        run: dotnet run --project examples/Watchlist -c Release --no-build -- --export AAPL TestResults/aapl-daily.csv
+
+      - name: Smoke-run OptionsChainMonitor (--once)
+        if: env.MARKETDATA_TOKEN != ''
+        run: dotnet run --project examples/OptionsChainMonitor -c Release --no-build -- AAPL --dte 30 --strikes 2 --once
+
       - name: Upload integration test results
         if: always()
         uses: actions/upload-artifact@v7
