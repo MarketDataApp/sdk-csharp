@@ -32,9 +32,10 @@ builder.Configuration.AddUserSecrets<Program>(optional: true);
 // ── MarketDataClient via dependency injection ────────────────────────────────────
 // AddMarketDataClient registers MarketDataClient as a singleton over an
 // IHttpClientFactory-managed HttpClient. The factory-created client is backed by the SDK's
-// default handler (2-second connect timeout, pooled-connection rotation), and the SDK never
-// creates or disposes the HttpClient itself. A single MarketDataClient is safe to share
-// across concurrent requests.
+// default handler (2-second connect timeout, pooled-connection rotation) with the
+// HttpClient-level timeout disabled (the SDK enforces its own fixed 99-second request
+// timeout); the factory manages the HttpClient lifetime. A single MarketDataClient is safe
+// to share across concurrent requests.
 //
 // This DI path uses the MarketDataClient constructor: registration itself performs no I/O,
 // and when MARKETDATA_TOKEN is configured the token is validated with a blocking GET /user/
@@ -45,7 +46,8 @@ builder.Configuration.AddUserSecrets<Program>(optional: true);
 // async factory (see examples/McpServer/Program.cs).
 //
 // The IConfiguration overload reads all MARKETDATA_* keys (MARKETDATA_TOKEN,
-// MARKETDATA_BASE_URL, retry/concurrency tuning, MARKETDATA_API_VERSION, MARKETDATA_USER_AGENT).
+// MARKETDATA_BASE_URL, MARKETDATA_MAX_RETRIES, MARKETDATA_MAX_CONCURRENT_REQUESTS,
+// MARKETDATA_API_VERSION, MARKETDATA_USER_AGENT, and the request-formatting defaults).
 builder.Services.AddMarketDataClient(builder.Configuration);
 
 var app = builder.Build();
