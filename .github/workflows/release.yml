@@ -88,6 +88,38 @@ jobs:
           dotnet test src/MarketDataApp.Tests/MarketDataApp.Tests.csproj \
             --no-build -c Release
 
+      # Release gate (#56): the live integration suite must pass before anything is packed
+      # or published. IntegrationFactAttribute silently SKIPS every test when the token is
+      # absent — a skipped suite would void the gate while looking green — so a missing
+      # secret fails the release outright instead.
+      - name: Require integration credentials
+        env:
+          MARKETDATA_TOKEN: ${{ secrets.MARKETDATA_TOKEN }}
+        shell: bash
+        run: |
+          if [ -z "${MARKETDATA_TOKEN}" ]; then
+            echo "::error::The MARKETDATA_TOKEN secret is required: releases gate on the live integration suite."
+            exit 1
+          fi
+
+      - name: Integration tests (live release gate)
+        env:
+          MARKETDATA_RUN_INTEGRATION_TESTS: "true"
+          MARKETDATA_TOKEN: ${{ secrets.MARKETDATA_TOKEN }}
+        run: |
+          dotnet test src/MarketDataApp.IntegrationTests/MarketDataApp.IntegrationTests.csproj \
+            --no-build -c Release \
+            --results-directory TestResults \
+            --logger "trx;LogFileName=release-integration-results.trx"
+
+      # Uploaded even on failure so a blocked release keeps its evidence.
+      - name: Upload integration results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-integration-results
+          path: TestResults/
+
       - name: Pack
         shell: bash
         run: |
