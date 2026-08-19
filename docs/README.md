@@ -1,34 +1,52 @@
-# Market Data C#/.NET SDK
+# C# / .NET SDK
 
-This directory contains detailed documentation for the official Market Data C#/.NET
-SDK, maintained by [Market Data](https://www.marketdata.app/). Originally created by
-Omid Rad (Exceptal) and donated to Market Data.
+Welcome to the Market Data C#/.NET SDK documentation. This SDK lets you integrate Market Data services into any .NET application. It ships typed, records-based responses, an async-first API where every endpoint returns a `Task` and accepts a `CancellationToken`, automatic retries and rate-limit tracking, and a focused exception hierarchy you can branch on.
 
-The SDK targets .NET 8 and .NET 10 (both LTS) with the latest stable C# language
-version. Public endpoint methods are asynchronous, accept `CancellationToken`, and
-return typed response records or CSV responses.
+The SDK multi-targets **.NET 8 and .NET 10** (both LTS), integrates with `Microsoft.Extensions.Configuration`, `Microsoft.Extensions.Logging`, and dependency injection out of the box, and works equally well from a console app, a background service, or ASP.NET Core.
 
-## Getting started
+> [!WARNING]
+> **Alpha**
+>
+> The C#/.NET SDK is in **alpha**: it has not had a stable release and its public API may change without notice. NuGet packages are pre-release until a stable `v1.0.0` is tagged.
 
-1. [Install the NuGet package](installation.md).
-2. [Configure credentials](authentication.md) with .NET configuration and user-secrets.
-3. [Create and register the client](client.md), including `HttpClient` ownership and DI.
-4. [Configure requests](settings.md) with `MarketDataClientOptions` and
-   `MarketDataRequestOptions`.
-5. Explore the endpoint APIs:
-   - [Stocks](stocks/README.md)
-   - [Options](options/README.md)
-   - [Funds](funds/README.md)
-   - [Markets](markets/README.md)
-   - [Utilities](utilities/README.md)
+## Quick Start
 
-The repository root [README](../README.md) contains the complete feature overview,
-retry and exception guidance, diagnostics, test instructions, and known limitations.
+```csharp
+using MarketDataApp;
 
-## API contract
+// With no HttpClient supplied, the SDK creates and owns one configured to its requirements.
+// It reads MARKETDATA_TOKEN from the environment (or a .env file), validates the token on
+// startup, and seeds the rate-limit snapshot before your first request.
+using var client = await MarketDataClient.CreateAsync();
 
-The live [OpenAPI schema](https://api.marketdata.app/schema/) is the primary source
-for versioned endpoint paths and wire parameters. Funds and Utilities are implemented
-SDK surfaces but are currently absent from that schema. Bulk stock candles remain
-deferred because the schema's path definition is inconsistent.
+// A single quote — GetQuoteAsync returns a list; a single symbol is row 0.
+var quote = (await client.Stocks.GetQuoteAsync("AAPL")).Values[0];
+Console.WriteLine($"{quote.Symbol} last={quote.Last}");
+```
 
+## Open Source
+
+The SDK is open source and available on GitHub. Feel free to contribute to the project, report bugs, or request new features.
+
+- [C#/.NET SDK on GitHub](https://github.com/MarketDataApp/sdk-csharp/)
+
+## Documentation
+
+The best source for documentation on the SDK is right here. This documentation is the most up-to-date and accurate source of information on the SDK.
+
+## Using the SDK
+
+This SDK is designed to help you get up and running with Market Data's APIs as quickly as possible, providing all the tools you need to access real-time stock and options prices, historical data, and much more.
+
+### Getting Started
+
+1. [Install the SDK](./installation.md) from NuGet.
+2. Set up your [authentication token](./authentication.md) to access the API.
+3. Learn about the [client](./client.md) and how to make your first API requests.
+4. Configure [Settings](./settings.md) to customize output format, date format, and other universal parameters.
+5. Explore the available endpoints for [stocks](./stocks/README.md), [options](./options/README.md), [funds](./funds/README.md), [markets](./markets/README.md), and [utilities](./utilities/README.md).
+
+### Support
+
+- If you have any questions or need further assistance, please don't hesitate to open a ticket at our [helpdesk](https://www.marketdata.app/dashboard/).
+- If you find a bug you may also [open an issue in our GitHub repository](https://github.com/MarketDataApp/sdk-csharp/issues). Please only open issues if you find a bug. Use our helpdesk for general questions or implementation assistance.
