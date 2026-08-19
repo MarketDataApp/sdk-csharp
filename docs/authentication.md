@@ -1,87 +1,133 @@
 # Authentication
 
-Most Market Data requests require an API token. Never commit a token, put it in a
-sample, or print it in logs. Use user-secrets for local development and an environment
-variable or managed secret provider in deployed applications.
+The Market Data API uses a **Bearer Token** for authentication. The token is required for almost every request. Your token should have been e-mailed to you when you first signed up for an account. If you do not have a token or have lost your sign-up email, request a new token from the [Market Data Dashboard](https://www.marketdata.app/dashboard/).
 
-## Configuring API token
+There are four ways to set your token when using the C#/.NET SDK, in increasing order of precedence:
 
-You can create a client without passing options:
+1. Store it in [.NET user secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets) _(recommended for local development)_
+2. Load it from a `.env` file in the working directory
+3. Set it from an environment variable _(recommended for production; highest precedence of the automatic sources)_
+4. Pass it directly through `MarketDataClientOptions` when creating the [client](./client.md)
+
+When you create a client without explicit options, the SDK loads `MARKETDATA_TOKEN` (and every other `MARKETDATA_*` setting) from user secrets, then the `.env` file, then environment variables — later sources override earlier ones. Explicit options bypass that cascade entirely.
+
+> [!TIP]
+> When your code is running in a production environment, we recommend using an environment variable or a managed secret store to ensure your token is not stored with your code. This is the most secure way to set your token.
+
+## How To Set Up The Environment Variable
+
+### Set The Environment Variable In The Console
+
+### Mac / Linux
+
+This command sets the environment variable for the current session only. If you open a new terminal or restart your computer, it will not persist.
+
+```bash
+export MARKETDATA_TOKEN="your_api_token"
+```
+
+#### Make The Variable Persistent
+
+Add the `export` line to your shell's profile script (`~/.zshrc`, `~/.bashrc`, `~/.bash_profile`, etc.), then restart your terminal or run `source ~/.zshrc` (adjusting for your shell).
+
+### Windows
+
+`setx` sets the variable permanently, but it is not available in the current terminal session — open a new one after running it.
+
+```powershell
+setx MARKETDATA_TOKEN "your_api_token"
+```
+
+### Using .NET User Secrets
+
+For local development, user secrets keep the token out of your project directory entirely. From your executable project's directory:
+
+```bash
+dotnet user-secrets init
+dotnet user-secrets set "MARKETDATA_TOKEN" "your_api_token"
+```
+
+The SDK reads user secrets automatically when you create a client without explicit options.
+
+### Using a .env File
+
+The SDK also loads a `.env` file from your working directory at startup. Create a file named `.env` in your project root:
+
+```env title=".env"
+MARKETDATA_TOKEN=your_api_token
+```
+
+> [!WARNING]
+> Add `.env` to your `.gitignore` so the token is not committed to source control.
+
+### Make A Test Request
+
+Verify your authentication is working by making a test request against `SPY` (or any symbol that requires authentication). Do **not** use `AAPL` to test authentication — `AAPL` is a free test symbol and returns data even when you are not authenticated.
+
+```csharp
+using MarketDataApp;
+using MarketDataApp.Exceptions;
+
+try
+{
+    // No need to pass a token here — the SDK reads MARKETDATA_TOKEN automatically,
+    // and CreateAsync validates it against the API before returning the client.
+    using var client = await MarketDataClient.CreateAsync();
+    var quote = (await client.Stocks.GetQuoteAsync("SPY")).Values[0];
+    Console.WriteLine($"{quote.Symbol} last={quote.Last}");
+}
+catch (AuthenticationException e)
+{
+    Console.WriteLine($"Authentication failed: {e.Message}");
+}
+```
+
+## Passing the Token Directly
+
+If you prefer to pass the token explicitly (not recommended for production code), set `ApiToken` on `MarketDataClientOptions`. Explicit options replace the automatic cascade, so nothing is read from the environment:
 
 ```csharp
 using MarketDataApp;
 
-// The SDK creates and owns its HttpClient when none is supplied.
-using var client = new MarketDataClient();
-```
-
-When no options are supplied, the SDK loads `MARKETDATA_*` values from these sources:
-
-1. Environment variables (highest priority)
-2. `.env` file in the assembly's working directory
-3. .NET user secrets
-
-For example, a local `.env` file can contain:
-
-```dotenv
-MARKETDATA_TOKEN=your-api-token
-```
-
-Environment variables override values from both `.env` and user secrets. The `.env`
-file is intended for local development and should not be committed.
-
-### User secrets
-
-From an executable project:
-
-```powershell
-dotnet user-secrets init
-dotnet user-secrets set "MARKETDATA_TOKEN" "your-api-token"
-```
-
-## Explicit options
-
-Explicit options are useful in tests or short-lived tools. Keep the token outside
-source control:
-
-```csharp
 var options = new MarketDataClientOptions
 {
-    ApiToken = Environment.GetEnvironmentVariable("MARKETDATA_TOKEN")
+    ApiToken = Environment.GetEnvironmentVariable("MY_APP_MARKETDATA_TOKEN")
 };
+
+using var client = await MarketDataClient.CreateAsync(options);
 ```
 
-`ApiToken` may be `null` for unauthenticated/free requests, but authenticated endpoints
-can then throw `AuthenticationException`.
+## Startup Token Validation
 
-## Startup token validation
-
-When an API token is configured, the client validates it at startup by default — on both
-construction paths. The startup `GET /user/`:
+When a token is configured, the client validates it at startup by default — on **both** construction paths. The startup `GET /user/`:
 
 1. fails fast on an invalid token by throwing `AuthenticationException`, and
-2. seeds the client-wide rate-limit snapshot (`client.LatestRateLimit`) from the
-   `x-api-ratelimit-*` response headers — the canonical rate-limit source — before the
-   first data request. The headers are guaranteed for existing users, so a successful
-   validation that yields no snapshot logs a warning.
+2. seeds the client-wide rate-limit snapshot (`client.LatestRateLimit`) from the `x-api-ratelimit-*` response headers before your first data request.
 
-In asynchronous applications, prefer the async factory, which runs the validation without
-blocking the calling thread:
+In asynchronous applications, prefer the async factory, which runs the validation without blocking the calling thread:
 
 ```csharp
-using var client = await MarketDataClient.CreateAsync(
-    new MarketDataClientOptions { ApiToken = "your-api-token" });
+using var client = await MarketDataClient.CreateAsync(options);
 ```
 
-The plain constructor runs the same validation as a blocking request, which makes it the
-fail-fast path for synchronous hosts and dependency-injection factories, which cannot
-`await`:
+The plain constructor runs the same validation as a blocking request, which makes it the fail-fast choice for synchronous hosts and dependency-injection factories that cannot `await`:
 
 ```csharp
 // Validates the token with a blocking GET /user/ when a token is configured.
-var client = new MarketDataClient(httpClient, options);
+using var client = new MarketDataClient(options);
 ```
 
-Startup validation is governed by `MarketDataClientOptions.ValidateTokenOnStartup`. Set
-it to `false` for first-request (lazy) validation with no startup network I/O. When no
-token is configured (demo mode), neither path makes a startup request.
+Startup validation is governed by `MarketDataClientOptions.ValidateTokenOnStartup`. Set it to `false` for first-request (lazy) validation with no startup network I/O:
+
+```csharp
+var options = new MarketDataClientOptions { ValidateTokenOnStartup = false };
+```
+
+> [!NOTE]
+> **Demo mode**
+>
+> If no token is found anywhere in the cascade, the SDK runs in **demo mode** — startup validation is skipped and you can call the free, public endpoints (such as `AAPL` quotes and `client.Utilities.GetStatusAsync()`). Authenticated endpoints throw `AuthenticationException` on first use.
+
+## Next Steps
+
+After successful authentication, read the overview of how the [client](./client.md) works, then configure [Settings](./settings.md) to customize output format, date format, and other universal parameters.
