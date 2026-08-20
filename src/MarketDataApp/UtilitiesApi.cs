@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MarketDataApp.Exceptions;
 using MarketDataApp.Utilities;
 
 namespace MarketDataApp;
@@ -10,7 +11,21 @@ public sealed class UtilitiesApi
 
     internal UtilitiesApi(ApiClient apiClient) => _apiClient = apiClient;
 
-    /// <summary>Gets the operational status of API services.</summary>
+    /// <summary>Gets the operational status of every Market Data API service.</summary>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>One <c>ServiceStatus</c> per service (name, online flag, 30/90-day uptime); the reading also feeds the SDK's retry gate.</returns>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <exception cref="ParseException">The success response did not match the documented shape.</exception>
+    /// <example><code>
+    /// var response = await client.Utilities.GetStatusAsync();
+    /// foreach (var service in response.Values)
+    ///     Console.WriteLine($"{service.Service}: {service.Status}");
+    /// </code></example>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/utilities/status/"/>
     public async Task<UtilitiesStatusResponse> GetStatusAsync(CancellationToken cancellationToken = default)
     {
         var response = await _apiClient.GetAsync(
@@ -46,7 +61,21 @@ public sealed class UtilitiesApi
             Array.Empty<ServiceStatus>(),
             requireStatus: true);
 
-    /// <summary>Gets the request headers observed by the API.</summary>
+    /// <summary>Gets the request headers exactly as the API observed them, for debugging proxies and middleware.</summary>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The observed headers as a case-insensitive name/value dictionary.</returns>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <exception cref="ParseException">The success response did not match the documented shape.</exception>
+    /// <example><code>
+    /// var response = await client.Utilities.GetHeadersAsync();
+    /// foreach (var (name, value) in response.Values)
+    ///     Console.WriteLine($"{name}: {value}");
+    /// </code></example>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/utilities/headers/"/>
     public async Task<UtilitiesHeadersResponse> GetHeadersAsync(CancellationToken cancellationToken = default)
     {
         var response = await _apiClient.GetAsync(
@@ -66,6 +95,19 @@ public sealed class UtilitiesApi
     }
 
     /// <summary>Gets the authenticated user's quota and entitlement information.</summary>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The user's quota counters and options-data permission; the canonical live values come from the <c>x-api-ratelimit-*</c> headers surfaced on <see cref="MarketDataClient.LatestRateLimit"/>.</returns>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <exception cref="ParseException">The success response did not match the documented shape.</exception>
+    /// <example><code>
+    /// var response = await client.Utilities.GetUserAsync();
+    /// Console.WriteLine($"{response.Values.RequestsRemaining}/{response.Values.RequestsLimit} requests left");
+    /// </code></example>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/utilities/user/"/>
     public async Task<UtilitiesUserResponse> GetUserAsync(CancellationToken cancellationToken = default)
     {
         var response = await _apiClient.GetAsync(
