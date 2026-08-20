@@ -1,3 +1,4 @@
+using MarketDataApp.Exceptions;
 using MarketDataApp.Stocks;
 using System.Text;
 using System.Text.Json;
@@ -11,11 +12,42 @@ public sealed class StocksApi
 
     internal StocksApi(ApiClient apiClient) => _apiClient = apiClient;
 
-    /// <summary>Gets a real-time or historical quote for one stock symbol.</summary>
+    /// <summary>Gets a real-time or delayed quote for one stock symbol.</summary>
+    /// <param name="symbol">The ticker symbol.</param>
+    /// <param name="extended">Include extended-hours (pre/post market) data.</param>
+    /// <param name="candle">Include the current session's OHLC fields on the quote.</param>
+    /// <param name="week52">Include the 52-week high and low on the quote.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The parsed quote; when the API reports no data, <see cref="MarketDataResponse{T}.IsNoData"/> is <c>true</c> and <c>Values</c> is empty.</returns>
+    /// <exception cref="ArgumentException"><paramref name="symbol"/> is null or blank.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <exception cref="ParseException">The success response did not match the documented shape.</exception>
+    /// <example><code>
+    /// var response = await client.Stocks.GetQuoteAsync("AAPL");
+    /// Console.WriteLine(response.Values[0].Mid);
+    /// </code></example>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/quotes/"/>
     public Task<StockQuotesResponse> GetQuoteAsync(string symbol, bool? extended = null, bool? candle = null, bool? week52 = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
         GetQuoteAsync(new StockQuoteRequest(symbol) { Extended = extended, Candle = candle, Week52 = week52 }, options, cancellationToken);
 
-    /// <summary>Executes the endpoint request.</summary>
+    /// <summary>Gets a real-time or delayed quote for one stock symbol.</summary>
+    /// <param name="request">The endpoint parameters.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The parsed quote; when the API reports no data, <see cref="MarketDataResponse{T}.IsNoData"/> is <c>true</c> and <c>Values</c> is empty.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <exception cref="ParseException">The success response did not match the documented shape.</exception>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/quotes/"/>
     public async Task<StockQuotesResponse> GetQuoteAsync(
         StockQuoteRequest request,
         MarketDataRequestOptions? options = null,
@@ -63,10 +95,40 @@ public sealed class StocksApi
     }
 
     /// <summary>Gets last prices for multiple stock symbols in one request.</summary>
+    /// <param name="symbols">The ticker symbols to price.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>One price row per symbol; when the API reports no data, <see cref="MarketDataResponse{T}.IsNoData"/> is <c>true</c> and <c>Values</c> is empty.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="symbols"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="symbols"/> is empty or contains a blank symbol.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <exception cref="ParseException">The success response did not match the documented shape.</exception>
+    /// <example><code>
+    /// var response = await client.Stocks.GetPricesAsync(["AAPL", "MSFT"]);
+    /// foreach (var price in response.Values)
+    ///     Console.WriteLine($"{price.Symbol}: {price.Mid}");
+    /// </code></example>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/prices/"/>
     public Task<StockPricesResponse> GetPricesAsync(string[] symbols, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
         GetPricesAsync(new StockPricesRequest(symbols), options, cancellationToken);
 
-    /// <summary>Executes the endpoint request.</summary>
+    /// <summary>Gets last prices for multiple stock symbols in one request.</summary>
+    /// <param name="request">The endpoint parameters.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>One price row per symbol; when the API reports no data, <see cref="MarketDataResponse{T}.IsNoData"/> is <c>true</c> and <c>Values</c> is empty.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <exception cref="ParseException">The success response did not match the documented shape.</exception>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/prices/"/>
     public async Task<StockPricesResponse> GetPricesAsync(
         StockPricesRequest request,
         MarketDataRequestOptions? options = null,
@@ -95,10 +157,38 @@ public sealed class StocksApi
     }
 
     /// <summary>Gets the latest price for one stock symbol using the path-based endpoint.</summary>
+    /// <param name="symbol">The ticker symbol.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The single price row; when the API reports no data, <see cref="MarketDataResponse{T}.IsNoData"/> is <c>true</c> and <c>Values</c> is empty.</returns>
+    /// <exception cref="ArgumentException"><paramref name="symbol"/> is null or blank.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <exception cref="ParseException">The success response did not match the documented shape.</exception>
+    /// <example><code>
+    /// var response = await client.Stocks.GetPriceAsync("AAPL");
+    /// Console.WriteLine(response.Values[0].Mid);
+    /// </code></example>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/prices/"/>
     public Task<StockPricesResponse> GetPriceAsync(string symbol, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
         GetPriceAsync(new StockPriceRequest(symbol), options, cancellationToken);
 
-    /// <summary>Executes the endpoint request.</summary>
+    /// <summary>Gets the latest price for one stock symbol using the path-based endpoint.</summary>
+    /// <param name="request">The endpoint parameters.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The single price row; when the API reports no data, <see cref="MarketDataResponse{T}.IsNoData"/> is <c>true</c> and <c>Values</c> is empty.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <exception cref="ParseException">The success response did not match the documented shape.</exception>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/prices/"/>
     public async Task<StockPricesResponse> GetPriceAsync(
         StockPriceRequest request,
         MarketDataRequestOptions? options = null,
@@ -120,10 +210,43 @@ public sealed class StocksApi
     }
 
     /// <summary>Gets quotes for multiple stock symbols in one request.</summary>
+    /// <param name="symbols">The ticker symbols to quote.</param>
+    /// <param name="extended">Include extended-hours (pre/post market) data.</param>
+    /// <param name="candle">Include the current session's OHLC fields on each quote.</param>
+    /// <param name="week52">Include the 52-week high and low on each quote.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>One quote row per symbol; when the API reports no data, <see cref="MarketDataResponse{T}.IsNoData"/> is <c>true</c> and <c>Values</c> is empty.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="symbols"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="symbols"/> is empty or contains a blank symbol.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <exception cref="ParseException">The success response did not match the documented shape.</exception>
+    /// <example><code>
+    /// var response = await client.Stocks.GetQuotesAsync(["AAPL", "MSFT", "NVDA"]);
+    /// foreach (var quote in response.Values)
+    ///     Console.WriteLine($"{quote.Symbol}: {quote.Mid}");
+    /// </code></example>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/quotes/"/>
     public Task<StockQuotesResponse> GetQuotesAsync(string[] symbols, bool? extended = null, bool? candle = null, bool? week52 = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
         GetQuotesAsync(new StockQuotesRequest(symbols) { Extended = extended, Candle = candle, Week52 = week52 }, options, cancellationToken);
 
-    /// <summary>Executes the endpoint request.</summary>
+    /// <summary>Gets quotes for multiple stock symbols in one request.</summary>
+    /// <param name="request">The endpoint parameters.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>One quote row per symbol; when the API reports no data, <see cref="MarketDataResponse{T}.IsNoData"/> is <c>true</c> and <c>Values</c> is empty.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <exception cref="ParseException">The success response did not match the documented shape.</exception>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/quotes/"/>
     public async Task<StockQuotesResponse> GetQuotesAsync(
         StockQuotesRequest request,
         MarketDataRequestOptions? options = null,
@@ -146,11 +269,52 @@ public sealed class StocksApi
         return JsonResponseParser.CreateResponse<StockQuotesResponse, IReadOnlyList<StockQuote>>(response, values);
     }
 
-    /// <summary>Gets OHLCV candles for a stock symbol.</summary>
+    /// <summary>Gets OHLCV candles for a stock symbol. Intraday windows longer than one year are fetched in one-year chunks and merged; <c>Parts</c> exposes the constituent requests.</summary>
+    /// <param name="resolution">Candle duration, e.g. <c>StockResolution.Daily</c> or <c>StockResolution.Minutes(5)</c>.</param>
+    /// <param name="symbol">The ticker symbol.</param>
+    /// <param name="date">Single trading day to fetch; mutually exclusive with the other window fields.</param>
+    /// <param name="from">Start of the date window (inclusive).</param>
+    /// <param name="to">End of the date window (inclusive).</param>
+    /// <param name="countback">Number of candles counting back from <paramref name="to"/> (or today); cannot be combined with <paramref name="from"/>.</param>
+    /// <param name="exchange">Exchange to pull candles from.</param>
+    /// <param name="extended">Include extended-hours candles (intraday resolutions).</param>
+    /// <param name="country">Two-letter country code for non-US listings.</param>
+    /// <param name="adjustSplits">Adjust prices for splits.</param>
+    /// <param name="adjustDividends">Adjust prices for dividends.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The parsed candles; when the API reports no data, <see cref="MarketDataResponse{T}.IsNoData"/> is <c>true</c> and <c>Values</c> is empty.</returns>
+    /// <exception cref="ArgumentException"><paramref name="symbol"/> is null or blank, or the date window is invalid (<paramref name="date"/> combined with <paramref name="from"/>/<paramref name="to"/>, <paramref name="countback"/> combined with <paramref name="from"/>, or <paramref name="from"/> after <paramref name="to"/>).</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="countback"/> is zero or negative.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <exception cref="ParseException">The success response did not match the documented shape.</exception>
+    /// <example><code>
+    /// var response = await client.Stocks.GetCandlesAsync(StockResolution.Daily, "AAPL", countback: 30);
+    /// Console.WriteLine(response.Values[0].Close);
+    /// </code></example>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/candles/"/>
     public Task<StockCandlesResponse> GetCandlesAsync(StockResolution resolution, string symbol, DateOnly? date = null, DateOnly? from = null, DateOnly? to = null, int? countback = null, string? exchange = null, bool? extended = null, string? country = null, bool? adjustSplits = null, bool? adjustDividends = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
         GetCandlesAsync(new StockCandlesRequest(resolution, symbol) { Date = date, From = from, To = to, Countback = countback, Exchange = exchange, Extended = extended, Country = country, AdjustSplits = adjustSplits, AdjustDividends = adjustDividends }, options, cancellationToken);
 
-    /// <summary>Executes the endpoint request.</summary>
+    /// <summary>Gets OHLCV candles for a stock symbol. Intraday windows longer than one year are fetched in one-year chunks and merged; <c>Parts</c> exposes the constituent requests.</summary>
+    /// <param name="request">The endpoint parameters.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The parsed candles; when the API reports no data, <see cref="MarketDataResponse{T}.IsNoData"/> is <c>true</c> and <c>Values</c> is empty.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException">The request's date window is invalid (<c>Date</c> combined with <c>From</c>/<c>To</c>, <c>Countback</c> combined with <c>From</c>, or <c>From</c> after <c>To</c>).</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The request's <c>Countback</c> is zero or negative.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <exception cref="ParseException">The success response did not match the documented shape.</exception>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/candles/"/>
     public async Task<StockCandlesResponse> GetCandlesAsync(
         StockCandlesRequest request,
         MarketDataRequestOptions? options = null,
@@ -191,10 +355,46 @@ public sealed class StocksApi
     }
 
     /// <summary>Gets news articles for a stock symbol.</summary>
+    /// <param name="symbol">The ticker symbol.</param>
+    /// <param name="date">Single day of news to fetch; mutually exclusive with the other window fields.</param>
+    /// <param name="from">Start of the date window (inclusive).</param>
+    /// <param name="to">End of the date window (inclusive).</param>
+    /// <param name="countback">Number of articles counting back from <paramref name="to"/> (or today); cannot be combined with <paramref name="from"/>.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The articles plus the <c>Updated</c> timestamp; when the API reports no data, <see cref="MarketDataResponse{T}.IsNoData"/> is <c>true</c> and <c>Values</c> is empty.</returns>
+    /// <exception cref="ArgumentException"><paramref name="symbol"/> is null or blank, or the date window is invalid (<paramref name="date"/> combined with <paramref name="from"/>/<paramref name="to"/>, <paramref name="countback"/> combined with <paramref name="from"/>, or <paramref name="from"/> after <paramref name="to"/>).</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="countback"/> is zero or negative.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <exception cref="ParseException">The success response did not match the documented shape.</exception>
+    /// <example><code>
+    /// var response = await client.Stocks.GetNewsAsync("AAPL", countback: 3);
+    /// foreach (var article in response.Values)
+    ///     Console.WriteLine($"{article.PublicationDate:d}  {article.Headline}");
+    /// </code></example>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/news/"/>
     public Task<StockNewsResponse> GetNewsAsync(string symbol, DateOnly? date = null, DateOnly? from = null, DateOnly? to = null, int? countback = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
         GetNewsAsync(new StockNewsRequest(symbol) { Date = date, From = from, To = to, Countback = countback }, options, cancellationToken);
 
-    /// <summary>Executes the endpoint request.</summary>
+    /// <summary>Gets news articles for a stock symbol.</summary>
+    /// <param name="request">The endpoint parameters.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The articles plus the <c>Updated</c> timestamp; when the API reports no data, <see cref="MarketDataResponse{T}.IsNoData"/> is <c>true</c> and <c>Values</c> is empty.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException">The request's date window is invalid (<c>Date</c> combined with <c>From</c>/<c>To</c>, <c>Countback</c> combined with <c>From</c>, or <c>From</c> after <c>To</c>).</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The request's <c>Countback</c> is zero or negative.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <exception cref="ParseException">The success response did not match the documented shape.</exception>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/news/"/>
     public async Task<StockNewsResponse> GetNewsAsync(
         StockNewsRequest request,
         MarketDataRequestOptions? options = null,
@@ -239,10 +439,46 @@ public sealed class StocksApi
     }
 
     /// <summary>Gets historical and forward earnings data for a stock symbol.</summary>
+    /// <param name="symbol">The ticker symbol.</param>
+    /// <param name="date">Single day to fetch; mutually exclusive with the other window fields.</param>
+    /// <param name="from">Start of the date window (inclusive).</param>
+    /// <param name="to">End of the date window (inclusive).</param>
+    /// <param name="countback">Number of reports counting back from <paramref name="to"/> (or today); cannot be combined with <paramref name="from"/>.</param>
+    /// <param name="report">Fetch one specific report period (e.g. <c>2023-Q4</c>); cannot be combined with any date-window field.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>One row per earnings report; when the API reports no data, <see cref="MarketDataResponse{T}.IsNoData"/> is <c>true</c> and <c>Values</c> is empty.</returns>
+    /// <exception cref="ArgumentException"><paramref name="symbol"/> is null or blank, <paramref name="report"/> is combined with a date-window field, or the date window is invalid (<paramref name="date"/> combined with <paramref name="from"/>/<paramref name="to"/>, <paramref name="countback"/> combined with <paramref name="from"/>, or <paramref name="from"/> after <paramref name="to"/>).</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="countback"/> is zero or negative.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <exception cref="ParseException">The success response did not match the documented shape.</exception>
+    /// <example><code>
+    /// var response = await client.Stocks.GetEarningsAsync("AAPL", from: new DateOnly(2023, 1, 1), to: new DateOnly(2023, 12, 31));
+    /// Console.WriteLine(response.Values[0].ReportedEps);
+    /// </code></example>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/earnings/"/>
     public Task<StockEarningsResponse> GetEarningsAsync(string symbol, DateOnly? date = null, DateOnly? from = null, DateOnly? to = null, int? countback = null, string? report = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
         GetEarningsAsync(new StockEarningsRequest(symbol) { Date = date, From = from, To = to, Countback = countback, Report = report }, options, cancellationToken);
 
-    /// <summary>Executes the endpoint request.</summary>
+    /// <summary>Gets historical and forward earnings data for a stock symbol.</summary>
+    /// <param name="request">The endpoint parameters.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>One row per earnings report; when the API reports no data, <see cref="MarketDataResponse{T}.IsNoData"/> is <c>true</c> and <c>Values</c> is empty.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException">The request combines <c>Report</c> with a date-window field, or its date window is invalid (<c>Date</c> combined with <c>From</c>/<c>To</c>, <c>Countback</c> combined with <c>From</c>, or <c>From</c> after <c>To</c>).</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The request's <c>Countback</c> is zero or negative.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <exception cref="ParseException">The success response did not match the documented shape.</exception>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/earnings/"/>
     public async Task<StockEarningsResponse> GetEarningsAsync(
         StockEarningsRequest request,
         MarketDataRequestOptions? options = null,
@@ -283,11 +519,40 @@ public sealed class StocksApi
         return JsonResponseParser.CreateResponse<StockEarningsResponse, IReadOnlyList<StockEarning>>(response, values);
     }
 
-    /// <summary>Gets a CSV quote for one stock symbol.</summary>
+    /// <summary>Gets a real-time or delayed quote for one stock symbol as CSV.</summary>
+    /// <param name="symbol">The ticker symbol.</param>
+    /// <param name="extended">Include extended-hours (pre/post market) data.</param>
+    /// <param name="candle">Include the current session's OHLC fields on the quote.</param>
+    /// <param name="week52">Include the 52-week high and low on the quote.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The raw CSV payload plus response metadata (request id, status, rate limit).</returns>
+    /// <exception cref="ArgumentException"><paramref name="symbol"/> is null or blank.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <example><code>
+    /// var response = await client.Stocks.GetQuoteCsvAsync("AAPL");
+    /// Console.WriteLine(response.Csv);
+    /// </code></example>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/quotes/"/>
     public Task<CsvResponse> GetQuoteCsvAsync(string symbol, bool? extended = null, bool? candle = null, bool? week52 = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
         GetQuoteCsvAsync(new StockQuoteRequest(symbol) { Extended = extended, Candle = candle, Week52 = week52 }, options, cancellationToken);
 
-    /// <summary>Executes the endpoint request.</summary>
+    /// <summary>Gets a real-time or delayed quote for one stock symbol as CSV.</summary>
+    /// <param name="request">The endpoint parameters.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The raw CSV payload plus response metadata (request id, status, rate limit).</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/quotes/"/>
     public async Task<CsvResponse> GetQuoteCsvAsync(
         StockQuoteRequest request,
         MarketDataRequestOptions? options = null,
@@ -303,11 +568,38 @@ public sealed class StocksApi
             .ConfigureAwait(false);
     }
 
-    /// <summary>Gets CSV prices for multiple stock symbols.</summary>
+    /// <summary>Gets last prices for multiple stock symbols in one request as CSV.</summary>
+    /// <param name="symbols">The ticker symbols to price.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The raw CSV payload plus response metadata (request id, status, rate limit).</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="symbols"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="symbols"/> is empty or contains a blank symbol.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <example><code>
+    /// var response = await client.Stocks.GetPricesCsvAsync(["AAPL", "MSFT"]);
+    /// Console.WriteLine(response.Csv);
+    /// </code></example>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/prices/"/>
     public Task<CsvResponse> GetPricesCsvAsync(string[] symbols, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
         GetPricesCsvAsync(new StockPricesRequest(symbols), options, cancellationToken);
 
-    /// <summary>Executes the endpoint request.</summary>
+    /// <summary>Gets last prices for multiple stock symbols in one request as CSV.</summary>
+    /// <param name="request">The endpoint parameters.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The raw CSV payload plus response metadata (request id, status, rate limit).</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/prices/"/>
     public async Task<CsvResponse> GetPricesCsvAsync(
         StockPricesRequest request,
         MarketDataRequestOptions? options = null,
@@ -319,11 +611,37 @@ public sealed class StocksApi
         return await GetCsvAsync("stocks/prices", query, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Gets a CSV price for one stock symbol using the path-based endpoint.</summary>
+    /// <summary>Gets the latest price for one stock symbol as CSV using the path-based endpoint.</summary>
+    /// <param name="symbol">The ticker symbol.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The raw CSV payload plus response metadata (request id, status, rate limit).</returns>
+    /// <exception cref="ArgumentException"><paramref name="symbol"/> is null or blank.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <example><code>
+    /// var response = await client.Stocks.GetPriceCsvAsync("AAPL");
+    /// Console.WriteLine(response.Csv);
+    /// </code></example>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/prices/"/>
     public Task<CsvResponse> GetPriceCsvAsync(string symbol, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
         GetPriceCsvAsync(new StockPriceRequest(symbol), options, cancellationToken);
 
-    /// <summary>Executes the endpoint request.</summary>
+    /// <summary>Gets the latest price for one stock symbol as CSV using the path-based endpoint.</summary>
+    /// <param name="request">The endpoint parameters.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The raw CSV payload plus response metadata (request id, status, rate limit).</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/prices/"/>
     public async Task<CsvResponse> GetPriceCsvAsync(
         StockPriceRequest request,
         MarketDataRequestOptions? options = null,
@@ -336,11 +654,41 @@ public sealed class StocksApi
             cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Gets CSV quotes for multiple stock symbols.</summary>
+    /// <summary>Gets quotes for multiple stock symbols in one request as CSV.</summary>
+    /// <param name="symbols">The ticker symbols to quote.</param>
+    /// <param name="extended">Include extended-hours (pre/post market) data.</param>
+    /// <param name="candle">Include the current session's OHLC fields on each quote.</param>
+    /// <param name="week52">Include the 52-week high and low on each quote.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The raw CSV payload plus response metadata (request id, status, rate limit).</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="symbols"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="symbols"/> is empty or contains a blank symbol.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <example><code>
+    /// var response = await client.Stocks.GetQuotesCsvAsync(["AAPL", "MSFT"]);
+    /// Console.WriteLine(response.Csv);
+    /// </code></example>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/quotes/"/>
     public Task<CsvResponse> GetQuotesCsvAsync(string[] symbols, bool? extended = null, bool? candle = null, bool? week52 = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
         GetQuotesCsvAsync(new StockQuotesRequest(symbols) { Extended = extended, Candle = candle, Week52 = week52 }, options, cancellationToken);
 
-    /// <summary>Executes the endpoint request.</summary>
+    /// <summary>Gets quotes for multiple stock symbols in one request as CSV.</summary>
+    /// <param name="request">The endpoint parameters.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The raw CSV payload plus response metadata (request id, status, rate limit).</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/quotes/"/>
     public async Task<CsvResponse> GetQuotesCsvAsync(
         StockQuotesRequest request,
         MarketDataRequestOptions? options = null,
@@ -355,11 +703,50 @@ public sealed class StocksApi
         return await GetCsvAsync("stocks/quotes", query, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Gets CSV OHLCV candles for a stock symbol.</summary>
+    /// <summary>Gets OHLCV candles for a stock symbol as CSV. Intraday windows longer than one year are fetched in one-year chunks and merged; <c>Parts</c> exposes the constituent requests.</summary>
+    /// <param name="resolution">Candle duration, e.g. <c>StockResolution.Daily</c> or <c>StockResolution.Minutes(5)</c>.</param>
+    /// <param name="symbol">The ticker symbol.</param>
+    /// <param name="date">Single trading day to fetch; mutually exclusive with the other window fields.</param>
+    /// <param name="from">Start of the date window (inclusive).</param>
+    /// <param name="to">End of the date window (inclusive).</param>
+    /// <param name="countback">Number of candles counting back from <paramref name="to"/> (or today); cannot be combined with <paramref name="from"/>.</param>
+    /// <param name="exchange">Exchange to pull candles from.</param>
+    /// <param name="extended">Include extended-hours candles (intraday resolutions).</param>
+    /// <param name="country">Two-letter country code for non-US listings.</param>
+    /// <param name="adjustSplits">Adjust prices for splits.</param>
+    /// <param name="adjustDividends">Adjust prices for dividends.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The raw CSV payload plus response metadata (request id, status, rate limit).</returns>
+    /// <exception cref="ArgumentException"><paramref name="symbol"/> is null or blank, or the date window is invalid (<paramref name="date"/> combined with <paramref name="from"/>/<paramref name="to"/>, <paramref name="countback"/> combined with <paramref name="from"/>, or <paramref name="from"/> after <paramref name="to"/>).</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="countback"/> is zero or negative.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <example><code>
+    /// var response = await client.Stocks.GetCandlesCsvAsync(StockResolution.Daily, "AAPL", countback: 30);
+    /// Console.WriteLine(response.Csv);
+    /// </code></example>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/candles/"/>
     public Task<CsvResponse> GetCandlesCsvAsync(StockResolution resolution, string symbol, DateOnly? date = null, DateOnly? from = null, DateOnly? to = null, int? countback = null, string? exchange = null, bool? extended = null, string? country = null, bool? adjustSplits = null, bool? adjustDividends = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
         GetCandlesCsvAsync(new StockCandlesRequest(resolution, symbol) { Date = date, From = from, To = to, Countback = countback, Exchange = exchange, Extended = extended, Country = country, AdjustSplits = adjustSplits, AdjustDividends = adjustDividends }, options, cancellationToken);
 
-    /// <summary>Executes the endpoint request.</summary>
+    /// <summary>Gets OHLCV candles for a stock symbol as CSV. Intraday windows longer than one year are fetched in one-year chunks and merged; <c>Parts</c> exposes the constituent requests.</summary>
+    /// <param name="request">The endpoint parameters.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The raw CSV payload plus response metadata (request id, status, rate limit).</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException">The request's date window is invalid (<c>Date</c> combined with <c>From</c>/<c>To</c>, <c>Countback</c> combined with <c>From</c>, or <c>From</c> after <c>To</c>).</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The request's <c>Countback</c> is zero or negative.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/candles/"/>
     public async Task<CsvResponse> GetCandlesCsvAsync(
         StockCandlesRequest request,
         MarketDataRequestOptions? options = null,
@@ -395,11 +782,44 @@ public sealed class StocksApi
             responses.SelectMany(response => response.Parts).ToArray());
     }
 
-    /// <summary>Gets CSV news articles for a stock symbol.</summary>
+    /// <summary>Gets news articles for a stock symbol as CSV.</summary>
+    /// <param name="symbol">The ticker symbol.</param>
+    /// <param name="date">Single day of news to fetch; mutually exclusive with the other window fields.</param>
+    /// <param name="from">Start of the date window (inclusive).</param>
+    /// <param name="to">End of the date window (inclusive).</param>
+    /// <param name="countback">Number of articles counting back from <paramref name="to"/> (or today); cannot be combined with <paramref name="from"/>.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The raw CSV payload plus response metadata (request id, status, rate limit).</returns>
+    /// <exception cref="ArgumentException"><paramref name="symbol"/> is null or blank, or the date window is invalid (<paramref name="date"/> combined with <paramref name="from"/>/<paramref name="to"/>, <paramref name="countback"/> combined with <paramref name="from"/>, or <paramref name="from"/> after <paramref name="to"/>).</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="countback"/> is zero or negative.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <example><code>
+    /// var response = await client.Stocks.GetNewsCsvAsync("AAPL", countback: 3);
+    /// Console.WriteLine(response.Csv);
+    /// </code></example>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/news/"/>
     public Task<CsvResponse> GetNewsCsvAsync(string symbol, DateOnly? date = null, DateOnly? from = null, DateOnly? to = null, int? countback = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
         GetNewsCsvAsync(new StockNewsRequest(symbol) { Date = date, From = from, To = to, Countback = countback }, options, cancellationToken);
 
-    /// <summary>Executes the endpoint request.</summary>
+    /// <summary>Gets news articles for a stock symbol as CSV.</summary>
+    /// <param name="request">The endpoint parameters.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The raw CSV payload plus response metadata (request id, status, rate limit).</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException">The request's date window is invalid (<c>Date</c> combined with <c>From</c>/<c>To</c>, <c>Countback</c> combined with <c>From</c>, or <c>From</c> after <c>To</c>).</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The request's <c>Countback</c> is zero or negative.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/news/"/>
     public async Task<CsvResponse> GetNewsCsvAsync(
         StockNewsRequest request,
         MarketDataRequestOptions? options = null,
@@ -415,11 +835,45 @@ public sealed class StocksApi
             .ConfigureAwait(false);
     }
 
-    /// <summary>Gets CSV earnings data for a stock symbol.</summary>
+    /// <summary>Gets historical and forward earnings data for a stock symbol as CSV.</summary>
+    /// <param name="symbol">The ticker symbol.</param>
+    /// <param name="date">Single day to fetch; mutually exclusive with the other window fields.</param>
+    /// <param name="from">Start of the date window (inclusive).</param>
+    /// <param name="to">End of the date window (inclusive).</param>
+    /// <param name="countback">Number of reports counting back from <paramref name="to"/> (or today); cannot be combined with <paramref name="from"/>.</param>
+    /// <param name="report">Fetch one specific report period (e.g. <c>2023-Q4</c>); cannot be combined with any date-window field.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The raw CSV payload plus response metadata (request id, status, rate limit).</returns>
+    /// <exception cref="ArgumentException"><paramref name="symbol"/> is null or blank, <paramref name="report"/> is combined with a date-window field, or the date window is invalid (<paramref name="date"/> combined with <paramref name="from"/>/<paramref name="to"/>, <paramref name="countback"/> combined with <paramref name="from"/>, or <paramref name="from"/> after <paramref name="to"/>).</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="countback"/> is zero or negative.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <example><code>
+    /// var response = await client.Stocks.GetEarningsCsvAsync("AAPL", report: "2023-Q4");
+    /// Console.WriteLine(response.Csv);
+    /// </code></example>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/earnings/"/>
     public Task<CsvResponse> GetEarningsCsvAsync(string symbol, DateOnly? date = null, DateOnly? from = null, DateOnly? to = null, int? countback = null, string? report = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
         GetEarningsCsvAsync(new StockEarningsRequest(symbol) { Date = date, From = from, To = to, Countback = countback, Report = report }, options, cancellationToken);
 
-    /// <summary>Executes the endpoint request.</summary>
+    /// <summary>Gets historical and forward earnings data for a stock symbol as CSV.</summary>
+    /// <param name="request">The endpoint parameters.</param>
+    /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns>The raw CSV payload plus response metadata (request id, status, rate limit).</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException">The request combines <c>Report</c> with a date-window field, or its date window is invalid (<c>Date</c> combined with <c>From</c>/<c>To</c>, <c>Countback</c> combined with <c>From</c>, or <c>From</c> after <c>To</c>).</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The request's <c>Countback</c> is zero or negative.</exception>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/stocks/earnings/"/>
     public async Task<CsvResponse> GetEarningsCsvAsync(
         StockEarningsRequest request,
         MarketDataRequestOptions? options = null,

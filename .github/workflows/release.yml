@@ -106,6 +106,9 @@ jobs:
         env:
           MARKETDATA_RUN_INTEGRATION_TESTS: "true"
           MARKETDATA_TOKEN: ${{ secrets.MARKETDATA_TOKEN }}
+          # The C# docs pages live on staging until the docs site's staging -> main promotion;
+          # DocsLivenessTests rewrites the canonical hosts to this value. Remove after promotion.
+          MARKETDATA_DOCS_HOST: www-staging.marketdata.app
         run: |
           dotnet test src/MarketDataApp.IntegrationTests/MarketDataApp.IntegrationTests.csproj \
             --no-build -c Release \

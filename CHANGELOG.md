@@ -13,6 +13,12 @@ MarketData.app SDK requirements sections they satisfy.
 
 ### Added
 
+- Real XML documentation across the entire endpoint surface (59 public methods on the
+  five API classes): summaries, per-parameter docs, returns, the exceptions each method
+  can actually throw, a usage example per endpoint, and the canonical docs-site URL as
+  `<seealso href>`. Enforced in CI by a reflection test over the generated
+  `MarketDataApp.xml` (guarding content, where CS1591 only guarantees presence) plus a
+  live check that every canonical URL responds. (#21)
 - `AddMarketDataClient` service-collection extensions
   (`Microsoft.Extensions.DependencyInjection`) registering `MarketDataClient` as a
   singleton over an `IHttpClientFactory`-managed HttpClient.
