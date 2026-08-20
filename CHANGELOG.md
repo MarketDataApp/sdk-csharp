@@ -103,6 +103,10 @@ MarketData.app SDK requirements sections they satisfy.
   (`GetBulkQuotesAsync`/`GetBulkQuotesCsvAsync`) and `StockBulkQuotesRequest`; use
   `GetQuotesAsync` with multiple symbols (the `stocks/quotes` endpoint now serves
   bulk retrieval). (§3)
+- Removed the deprecated `options/strikes` surface
+  (`GetStrikesAsync`/`GetStrikesCsvAsync`, `OptionsStrikesRequest`, `OptionStrikes`,
+  `OptionsStrikesResponse`); the `/v1/options/strikes/` endpoint is deprecated and
+  no longer documented. Use the options chain to discover available strikes.
 
 ### Fixed
 

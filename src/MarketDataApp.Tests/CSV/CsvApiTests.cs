@@ -158,11 +158,8 @@ public sealed class CsvApiTests
         var handler = CreateHandler("value\r\n1\r\n");
         var client = MarketDataTestClient.Create(handler);
 
-        await client.Options.GetStrikesCsvAsync(new OptionsStrikesRequest("AAPL"));
-        Assert.Equal("/v1/options/strikes/AAPL/", handler.LastRequest!.RequestUri!.AbsolutePath);
-
         await client.Stocks.GetPriceCsvAsync(new StockPriceRequest("AAPL"));
-        Assert.Equal("/v1/stocks/prices/AAPL/", handler.LastRequest.RequestUri!.AbsolutePath);
+        Assert.Equal("/v1/stocks/prices/AAPL/", handler.LastRequest!.RequestUri!.AbsolutePath);
     }
 
     private static StubHttpMessageHandler CreateHandler(string body)
