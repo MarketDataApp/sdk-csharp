@@ -33,11 +33,75 @@ on:
           Leave blank to let MinVer derive the version from git tags.
         required: false
         type: string
+      ref:
+        description: Commit SHA to build and publish from (defaults to the launch commit).
+        required: false
+        default: ''
+        type: string
+  # Chained entry point: tag-and-release.yml calls this after it cuts the tag and the
+  # GitHub Release, so publishing has exactly one implementation.
+  #
+  # The chain is not optional plumbing. A tag or release created by a workflow using the
+  # default GITHUB_TOKEN does NOT start another workflow run — GitHub suppresses it to
+  # stop recursive triggering. So the `push: tags` trigger above never fires for an
+  # automated release, and this workflow_call is the only path that reaches NuGet.
+  workflow_call:
+    inputs:
+      version:
+        description: Package version to publish (e.g. 0.2.0).
+        required: true
+        type: string
+      ref:
+        description: Commit SHA to build and publish from.
+        required: false
+        default: ''
+        type: string
 
 jobs:
+  # Refuses to publish a commit whose CI is not green. Only meaningful on the
+  # tag-push path: a tag pushed by hand has had no gate of its own, whereas the
+  # workflow_call path has just run the full OS matrix in tag-and-release.yml's
+  # `gate` job, and a workflow_dispatch is an explicit manual override.
+  guard:
+    name: Require green CI for this commit
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Check latest CI conclusion for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          conclusion=$(gh api \
+            "repos/${REPO}/actions/workflows/ci.yml/runs?head_sha=${SHA}&status=completed" \
+            --jq '.workflow_runs[0].conclusion // "missing"')
+          echo "CI conclusion for ${SHA}: ${conclusion}"
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::CI is not green for ${SHA} (got: ${conclusion}). Tag a commit on main whose CI passed, or use the Tag and Release workflow."
+            exit 1
+          fi
+
   publish:
     name: Pack and publish to NuGet.org
+    needs: guard
+    # `guard` is skipped on the workflow_call and workflow_dispatch paths. A skipped
+    # dependency would normally skip this job too, so accept anything except an actual
+    # failure or cancellation.
+    if: always() && needs.guard.result != 'failure' && needs.guard.result != 'cancelled'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Scopes the NuGet publish to a named environment so required reviewers, wait
+    # timers, and environment-scoped secrets can gate it in repository settings.
+    # GitHub creates the environment on first use; it carries NO protection rules
+    # until someone configures them under Settings > Environments.
+    environment:
+      name: nuget
+      url: https://www.nuget.org/packages/marketdata.sdk
     permissions:
       id-token: write       # mint the OIDC token for NuGet Trusted Publishing + attestation
       contents: read        # checkout only
@@ -47,6 +111,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0   # Source Link needs full history
+          # Build the exact commit that was tagged when chained, so the published bytes
+          # match the release. Falls back to the triggering ref (the tag on a tag push).
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
@@ -57,14 +124,19 @@ jobs:
       - name: Restore
         run: dotnet restore MarketDataApp.slnx
 
+      # `inputs.version` is populated on BOTH the workflow_dispatch and workflow_call
+      # paths, so one lookup covers them; only the tag push has to read the ref. When
+      # neither supplies a value, VER stays empty and MinVer derives the version from
+      # the git tags on its own.
       - name: Determine version
         id: ver
         shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
+          VER="${INPUT_VERSION}"
+          if [ -z "$VER" ] && [ "${{ github.event_name }}" = "push" ]; then
             VER="${GITHUB_REF_NAME#v}"
-          else
-            VER="${{ github.event.inputs.version }}"
           fi
           echo "version=${VER}" >> "$GITHUB_OUTPUT"
 
@@ -154,9 +226,17 @@ jobs:
         id: nuget-login
         uses: NuGet/login@v1
         with:
-          # PLACEHOLDER: set the `NUGET_USER` repository variable to the
-          # NuGet.org username registered in the Trusted Publisher policy.
-          user: ${{ vars.NUGET_USER }}
+          # This is the nuget.org ACCOUNT username (profile name, never an email
+          # address) that created the Trusted Publishing policy: `marketdata`.
+          #
+          # It is NOT the package owner. The packages are owned by the MarketDataApp
+          # organization, which is selected as the policy's *owner* in the nuget.org UI.
+          # Account and owner are separate fields; putting the org name here fails with
+          # "No matching trust policy owned by user was found".
+          #
+          # The repository variable wins when set, so the account can be changed without
+          # editing this file.
+          user: ${{ vars.NUGET_USER || 'marketdata' }}
 
       - name: Push .nupkg to NuGet.org
         # Legacy fallback (no OIDC): drop the NuGet/login step and use

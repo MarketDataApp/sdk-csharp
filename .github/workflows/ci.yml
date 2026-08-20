@@ -39,6 +39,7 @@ jobs:
   setup:
     name: Select OS matrix
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       os: ${{ steps.matrix.outputs.os }}
     steps:
@@ -56,6 +57,10 @@ jobs:
     name: Build / Test / Pack (${{ matrix.os }})
     needs: setup
     runs-on: ${{ matrix.os }}
+    # A full leg (restore + build + two test runs) finishes well inside this on every
+    # runner. The cap exists so a hung restore or a deadlocked test cannot hold a runner
+    # for the 6-hour GitHub default.
+    timeout-minutes: 30
     strategy:
       # Run every OS to completion even if one fails, so a single-platform
       # failure still yields results for the others.
@@ -83,6 +88,35 @@ jobs:
 
       - name: Restore
         run: dotnet restore MarketDataApp.slnx
+
+      # Supply-chain gate, mirroring the PHP SDK's `composer audit` step. Runs on the
+      # ubuntu leg only: the advisory database is platform-independent, so checking it
+      # three times per run would only repeat the same answer.
+      #
+      # `dotnet list package --vulnerable` reports findings on stdout and STILL exits 0,
+      # so grepping the exit code silently passes a vulnerable build. The JSON form is
+      # parsed instead. A project with no advisories has no "frameworks" key at all
+      # (not an empty array), so every lookup below is null-safe via `[]?` and `// []`.
+      - name: Audit dependencies for known vulnerabilities
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          dotnet list package --vulnerable --include-transitive --format json > vulnerable.json
+          count=$(jq '[.projects[]? | .frameworks[]? | ((.topLevelPackages // []) + (.transitivePackages // []))[]] | length' vulnerable.json)
+          if [ "$count" -gt 0 ]; then
+            echo "::error::${count} vulnerable package reference(s) in the restored dependency graph."
+            dotnet list package --vulnerable --include-transitive
+            exit 1
+          fi
+          echo "No known vulnerabilities in the restored dependency graph."
+
+      # Advisory only — deprecation is a maintenance signal, not a security finding.
+      # xunit 2.x is currently flagged "Legacy" in favour of xunit.v3, a migration this
+      # repo has not made, so failing on this would wedge every build today.
+      - name: Report deprecated dependencies (advisory)
+        if: matrix.os == 'ubuntu-latest'
+        continue-on-error: true
+        run: dotnet list package --deprecated --include-transitive
 
       # Source Link and ContinuousIntegrationBuild switch on automatically in CI:
       # MarketDataApp.csproj gates them on GITHUB_ACTIONS, which is always set here.
@@ -202,6 +236,9 @@ jobs:
       github.event_name == 'release' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.run_integration_tests == 'true')
     runs-on: ubuntu-latest
+    # Every step here talks to the live API. Without a cap, one hung request would hold
+    # the runner until the 6-hour default expires.
+    timeout-minutes: 20
     env:
       MARKETDATA_RUN_INTEGRATION_TESTS: "true"
       MARKETDATA_TOKEN: ${{ secrets.MARKETDATA_TOKEN }}

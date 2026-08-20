@@ -1,8 +1,35 @@
-# Keeps CHANGELOG.md in sync with published GitHub Releases.
+# Keeps CHANGELOG.md in sync with GitHub Releases created BY HAND.
 #
 # On a *released* (non-draft, non-prerelease) GitHub Release, this folds the
 # release name/body into CHANGELOG.md and commits the result back to main.
 # Mirrors the PHP SDK's update-changelog workflow.
+#
+# THIS IS THE FALLBACK PATH, NOT THE NORMAL ONE. It writes release body -> CHANGELOG,
+# which is the opposite direction from tag-and-release.yml (CHANGELOG -> release body).
+# The two never both run, and never duplicate a section, because:
+#
+#   - Normal path: tag-and-release.yml creates the Release with the default
+#     GITHUB_TOKEN. GitHub does not start a new workflow run from an event raised by
+#     that token (recursion guard), so this workflow stays silent. CHANGELOG.md was
+#     already correct before the release was cut — that is where the notes came from.
+#
+#   - Fallback path: a maintainer creates a Release by hand in the GitHub UI. That is a
+#     real user event, so this workflow DOES run and back-fills the CHANGELOG entry
+#     nobody wrote.
+#
+# Prefer the normal path. See .github/RELEASE_PROCESS.md.
+#
+# ⚠ BRANCH PROTECTION: `main` now requires status checks, and GitHub rejects direct
+# pushes to a protected branch that have not passed them. The commit step below pushes
+# straight to `main` with the default GITHUB_TOKEN, which is not an admin and therefore
+# cannot bypass. So on the fallback path this workflow will FAIL at the commit step
+# rather than silently corrupt the changelog.
+#
+# That is an acceptable failure: it is loud, it happens after the release is already
+# published (nothing is left half-done), and the fix is to promote the CHANGELOG section
+# by hand in a normal PR — which is what the normal path asks for anyway. Do not "fix"
+# this by loosening branch protection. If the fallback ever needs to work unattended,
+# give it a PAT with bypass rights, or drop this workflow entirely.
 name: "Update Changelog"
 
 on:

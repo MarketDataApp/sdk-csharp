@@ -1,0 +1,209 @@
+name: OS matrix (on demand)
+
+# Runs the Windows and macOS legs of the unit matrix against an open PR, on request.
+#
+# ci.yml deliberately trims pull requests to ubuntu-latest to keep per-PR cost down and
+# only runs the full matrix after merge. That leaves no way to check a cross-platform
+# change BEFORE merging it. This workflow closes that gap: comment one of these
+# slash-commands on the first line of a comment on an open PR.
+#
+#   /run-all-os
+#   /os-matrix
+#   /test-all
+#
+# ubuntu is omitted on purpose — ci.yml already ran it on every push to the PR.
+#
+# Security note: workflows triggered by `issue_comment` always run from the DEFAULT
+# BRANCH's copy of the workflow file, never the PR's. Editing this file on a feature
+# branch has no effect until it lands on main. The guard job below also refuses anyone
+# without write access, so an outside contributor cannot burn CI minutes here.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write   # react to the trigger comment and post the result
+
+# A second trigger comment on the same PR supersedes the first.
+concurrency:
+  group: pr-os-matrix-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    name: Guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Only PR comments, and only ones that START with a command. `startsWith` keeps
+    # quoted replies ("> /test-all"), prose that mentions the command, and pasted logs
+    # from firing. The exact-match `case` in the validate step rejects anything that
+    # merely shares the prefix, e.g. /test-all-the-things.
+    if: |
+      github.event.issue.pull_request != null && (
+        startsWith(github.event.comment.body, '/run-all-os') ||
+        startsWith(github.event.comment.body, '/os-matrix') ||
+        startsWith(github.event.comment.body, '/test-all')
+      )
+    outputs:
+      head_sha: ${{ steps.pr.outputs.head_sha }}
+    steps:
+      - name: Verify commenter has write permission
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { data: perm } = await github.rest.repos.getCollaboratorPermissionLevel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              username: context.payload.comment.user.login,
+            });
+            const allowed = ['write', 'maintain', 'admin'].includes(perm.permission);
+            if (!allowed) {
+              core.setFailed(
+                `@${context.payload.comment.user.login} (${perm.permission}) ` +
+                `cannot trigger CI; write access required.`
+              );
+            }
+
+      - name: Validate the command
+        env:
+          BODY: ${{ github.event.comment.body }}
+        run: |
+          # The `if:` filter above only proves the body STARTS with a command. Match the
+          # first line exactly so trailing prose in the comment is ignored and
+          # near-misses are rejected before any runner starts.
+          first_line=$(printf '%s' "$BODY" | head -n 1 | tr -d '[:space:]')
+          case "$first_line" in
+            /run-all-os|/os-matrix|/test-all)
+              echo "Trigger: ${first_line} -> {windows-latest, macos-latest}"
+              ;;
+            *)
+              echo "::error::Unrecognized command on the first line: '${first_line}'"
+              exit 1
+              ;;
+          esac
+
+      - name: React to the trigger comment
+        uses: actions/github-script@v9
+        with:
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'eyes',
+            });
+
+      # The issue_comment payload has no head SHA, so look it up. Also confirm the PR is
+      # still open — firing on a closed PR is almost always a mistake.
+      - name: Resolve PR head SHA
+        id: pr
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.issue.number,
+            });
+            if (pr.state !== 'open') {
+              core.setFailed(`PR #${pr.number} is ${pr.state}; refusing to run.`);
+              return;
+            }
+            core.setOutput('head_sha', pr.head.sha);
+
+  verify:
+    name: Verify (${{ matrix.os }})
+    needs: guard
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # ubuntu is already covered by ci.yml on every PR push.
+        os: [windows-latest, macos-latest]
+
+    steps:
+      # Check out the PR's HEAD commit, not the merge ref, so the result describes the
+      # proposed change itself.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.guard.outputs.head_sha }}
+          fetch-depth: 0   # full history required for Source Link and MinVer
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore MarketDataApp.slnx
+
+      - name: Build
+        run: dotnet build MarketDataApp.slnx --no-restore -c Release
+
+      # Mirrors ci.yml: one invocation per target framework, both gated at 100% line and
+      # branch coverage. The comma in ThresholdType is written as %2c so it parses the
+      # same under bash, pwsh and cmd.
+      - name: Test on .NET 8 with coverage (100% line+branch gate)
+        shell: bash
+        run: |
+          dotnet test src/MarketDataApp.Tests/MarketDataApp.Tests.csproj \
+            --no-build -c Release -f net8.0 \
+            -p:CollectCoverage=true \
+            -p:CoverletOutputFormat=opencover \
+            -p:CoverletOutput=TestResults/coverage \
+            -p:Threshold=100 \
+            -p:ThresholdType=line%2cbranch \
+            -p:ThresholdStat=total \
+            --results-directory TestResults \
+            --logger "trx;LogFileName=test-results-net8.0.trx"
+
+      - name: Test on .NET 10 with coverage (100% line+branch gate)
+        shell: bash
+        run: |
+          dotnet test src/MarketDataApp.Tests/MarketDataApp.Tests.csproj \
+            --no-build -c Release -f net10.0 \
+            -p:CollectCoverage=true \
+            -p:CoverletOutputFormat=opencover \
+            -p:CoverletOutput=TestResults/coverage \
+            -p:Threshold=100 \
+            -p:ThresholdType=line%2cbranch \
+            -p:ThresholdStat=total \
+            --results-directory TestResults \
+            --logger "trx;LogFileName=test-results-net10.0.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: on-demand-test-results-${{ matrix.os }}
+          path: TestResults/
+          if-no-files-found: warn
+
+  # One comment summarizing the outcome, so the result is visible on the PR without
+  # opening the Actions tab.
+  report:
+    name: Report
+    needs: [guard, verify]
+    if: always() && needs.guard.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Comment outcome
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const ok = '${{ needs.verify.result }}' === 'success';
+            const emoji = ok ? '✅' : '❌';
+            const status = ok ? 'passed' : 'failed';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: `${emoji} On-demand OS matrix \`{windows, macOS}\` ${status}. [View run](${runUrl}).`,
+            });
