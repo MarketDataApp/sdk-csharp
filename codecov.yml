@@ -1,0 +1,46 @@
+# Codecov configuration.
+# Docs: https://docs.codecov.com/docs/codecov-yaml
+#
+# This repo already enforces coverage in CI: coverlet fails the build below 100% TOTAL
+# line AND branch coverage (see the Threshold settings in .github/workflows/ci.yml).
+# Codecov is therefore NOT the gate here — it is the reporting surface: the PR comment,
+# the per-file diff view, and a second opinion if the two tools ever disagree.
+#
+# The thresholds below are set to match the coverlet gate rather than to relax it. If a
+# Codecov status ever fails while CI is green, treat it as a discrepancy to investigate
+# (usually a file included in one report and excluded from the other), not as a number
+# to negotiate downward.
+
+coverage:
+  status:
+    project:
+      default:
+        # The build cannot merge below 100%, so anything less is a genuine regression.
+        target: 100%
+        threshold: 0%
+        # Do not report a coverage verdict when the build itself failed — the report
+        # would be based on a partial or absent upload.
+        if_ci_failed: error
+    patch:
+      default:
+        # Patch coverage = the lines this PR added or changed. New code is held to the
+        # same 100% bar as the existing code.
+        target: 100%
+        threshold: 0%
+        if_ci_failed: error
+
+# Keep Codecov's view aligned with what coverlet actually instruments. The test projects
+# and the example apps are not part of the shipped package, so counting them would make
+# the two tools disagree.
+ignore:
+  - "src/MarketDataApp.Tests/**"
+  - "src/MarketDataApp.IntegrationTests/**"
+  - "examples/**"
+  - "docs/**"
+
+comment:
+  layout: "header, diff, files, footer"
+  behavior: default
+  # Still post on PRs that do not change coverage, so the check is visibly present
+  # rather than ambiguously absent.
+  require_changes: false

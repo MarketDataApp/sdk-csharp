@@ -1,0 +1,275 @@
+name: Tag and Release
+
+# Cuts the git tag and the GitHub Release for a version, then (by default) chains
+# straight into the NuGet.org publish. Mirrors the Java SDK's tag-and-release.yml and
+# the PHP SDK's prepare-release.yml.
+#
+# Nothing here fires on its own: the only trigger is a manual workflow_dispatch that
+# also requires `confirm: RELEASE`. Pushing commits, merging PRs and pushing branches
+# never reach this workflow.
+#
+# Each stage gates the next:
+#   gate    -> full cross-OS unit matrix + 100% coverage gate + format check
+#   release -> tag must not exist, CHANGELOG section must exist, then tag + Release
+#   publish -> reusable call into release.yml (pack, attest, push to NuGet.org)
+#
+# WHY THE PUBLISH IS CHAINED RATHER THAN LEFT TO release.yml's TAG TRIGGER:
+# a tag or release created by a workflow using the default GITHUB_TOKEN does not start
+# another workflow run — GitHub suppresses that to prevent recursive triggering. So
+# release.yml's `push: tags` trigger and ci.yml's `release: published` trigger stay
+# silent for an automated release. The explicit `uses:` call below is what actually
+# reaches NuGet.org.
+#
+# CHANGELOG.md is the single source of truth for release notes. The `release` job
+# extracts the `## [X.Y.Z]` section from it and fails when that section is absent, so
+# promote `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` in a normal PR BEFORE running
+# this. See .github/RELEASE_PROCESS.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without the v prefix (example: 1.0.0)"
+        required: true
+        type: string
+      ref:
+        description: "Git ref to release (branch, tag, or commit SHA)"
+        required: false
+        default: "main"
+        type: string
+      prerelease:
+        description: "Mark the GitHub Release as a prerelease"
+        required: false
+        default: false
+        type: boolean
+      publish_to_nuget:
+        description: "Publish to NuGet.org after the release is cut"
+        required: false
+        default: true
+        type: boolean
+      confirm:
+        description: "Type RELEASE to confirm"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# Never cancel a release mid-flight: a half-finished run could leave a tag without a
+# published package.
+concurrency:
+  group: release-${{ github.event.inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Gate (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      # One platform failing should not hide the result on the other two.
+      fail-fast: false
+      matrix:
+        # The release gate always runs the FULL matrix, unlike ci.yml which trims to
+        # ubuntu on pull requests. A release is the one moment the cost is justified.
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      # Validate before anything expensive runs, and only once — repeating identical
+      # input validation on three runners adds noise, not safety.
+      - name: Validate release request
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          test "$CONFIRM" = "RELEASE" || {
+            echo "::error::confirm input must be exactly RELEASE"
+            exit 1
+          }
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || {
+            echo "::error::version must be semver-like without a v prefix (example: 1.0.0)"
+            exit 1
+          }
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0   # full history required for Source Link and MinVer
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          # Mirrors ci.yml: the 10.0.x band builds, the 8.0.x entry supplies the .NET 8
+          # runtime that the net8.0 test leg executes on.
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore MarketDataApp.slnx
+
+      - name: Audit dependencies for known vulnerabilities
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          dotnet list package --vulnerable --include-transitive --format json > vulnerable.json
+          count=$(jq '[.projects[]? | .frameworks[]? | ((.topLevelPackages // []) + (.transitivePackages // []))[]] | length' vulnerable.json)
+          if [ "$count" -gt 0 ]; then
+            echo "::error::${count} vulnerable package reference(s); refusing to release."
+            dotnet list package --vulnerable --include-transitive
+            exit 1
+          fi
+          echo "No known vulnerabilities in the restored dependency graph."
+
+      # Build at the release version so the gate exercises exactly what will ship.
+      - name: Build
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: dotnet build MarketDataApp.slnx --no-restore -c Release -p:MinVerVersionOverride="$VERSION"
+
+      # Same 100% line+branch gate as ci.yml, one invocation per target framework so the
+      # legs stay deterministic and each runtime is gated independently. The comma in
+      # ThresholdType is written as %2c so it parses identically under bash, pwsh and cmd.
+      - name: Test on .NET 8 with coverage (100% line+branch gate)
+        shell: bash
+        run: |
+          dotnet test src/MarketDataApp.Tests/MarketDataApp.Tests.csproj \
+            --no-build -c Release -f net8.0 \
+            -p:CollectCoverage=true \
+            -p:CoverletOutputFormat=opencover \
+            -p:CoverletOutput=TestResults/coverage \
+            -p:Threshold=100 \
+            -p:ThresholdType=line%2cbranch \
+            -p:ThresholdStat=total \
+            --results-directory TestResults \
+            --logger "trx;LogFileName=release-gate-net8.0.trx"
+
+      - name: Test on .NET 10 with coverage (100% line+branch gate)
+        shell: bash
+        run: |
+          dotnet test src/MarketDataApp.Tests/MarketDataApp.Tests.csproj \
+            --no-build -c Release -f net10.0 \
+            -p:CollectCoverage=true \
+            -p:CoverletOutputFormat=opencover \
+            -p:CoverletOutput=TestResults/coverage \
+            -p:Threshold=100 \
+            -p:ThresholdType=line%2cbranch \
+            -p:ThresholdStat=total \
+            --results-directory TestResults \
+            --logger "trx;LogFileName=release-gate-net10.0.trx"
+
+      - name: Check formatting
+        if: matrix.os == 'ubuntu-latest'
+        run: dotnet format MarketDataApp.slnx --verify-no-changes --no-restore
+
+      - name: Upload gate test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-gate-results-${{ matrix.os }}
+          path: TestResults/
+          if-no-files-found: warn
+
+  release:
+    name: Tag and GitHub Release
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write   # create the tag and the GitHub Release
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref }}
+
+      # Resolve the ref to a concrete SHA so the tag, the GitHub Release and the chained
+      # NuGet build all describe the SAME commit, even if `main` moves during the run.
+      - name: Resolve commit SHA
+        id: resolve
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify tag does not already exist
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          TAG="v${VERSION}"
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "::error::Tag ${TAG} already exists on origin"
+            exit 1
+          fi
+
+      # CHANGELOG.md follows Keep a Changelog, so the heading is `## [X.Y.Z] - DATE`.
+      # Stop at the next `## [` heading or at the trailing `[x]: url` link-reference
+      # block, whichever comes first.
+      - name: Extract release notes from CHANGELOG
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { found=1; next }
+            found && /^## \[/ { exit }
+            found && /^\[[^]]+\]: / { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+
+          if [ ! -s release-notes.md ]; then
+            echo "::error::No '## [${VERSION}]' section in CHANGELOG.md. Promote '## [Unreleased]' to '## [${VERSION}] - YYYY-MM-DD' first (see .github/RELEASE_PROCESS.md)."
+            exit 1
+          fi
+
+          echo "=== Extracted release notes ==="
+          cat release-notes.md
+
+      - name: Create tag and publish release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+          TARGET_REF: ${{ steps.resolve.outputs.sha }}
+          IS_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          TAG="v${VERSION}"
+          FLAGS=""
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            FLAGS="${FLAGS} --prerelease"
+          fi
+
+          gh release create "${TAG}" \
+            --target "${TARGET_REF}" \
+            --title "Version ${VERSION}" \
+            --notes-file release-notes.md \
+            ${FLAGS}
+
+      - name: Note next step (chaining disabled)
+        if: ${{ ! inputs.publish_to_nuget }}
+        env:
+          VERSION: ${{ inputs.version }}
+        run: echo "::notice::Release v${VERSION} created. Chaining is off, so nothing was pushed to NuGet.org. Run the Release workflow (release.yml) manually for this commit when ready."
+
+  # Chained NuGet publish. Reuses release.yml so packing, provenance attestation and the
+  # push have exactly one implementation. Passing the resolved SHA (not github.sha) means
+  # the published package is built from the tagged commit — NuGet.org versions are
+  # immutable, so this must be exact.
+  publish-nuget:
+    name: Publish to NuGet.org
+    needs: release
+    if: ${{ inputs.publish_to_nuget }}
+    permissions:
+      contents: read
+      id-token: write       # NuGet Trusted Publishing + provenance attestation
+      attestations: write
+      actions: read
+    uses: ./.github/workflows/release.yml
+    with:
+      version: ${{ inputs.version }}
+      ref: ${{ needs.release.outputs.sha }}
+    secrets: inherit

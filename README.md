@@ -14,14 +14,15 @@
 
 [![CI](https://github.com/MarketDataApp/sdk-csharp/actions/workflows/ci.yml/badge.svg)](https://github.com/MarketDataApp/sdk-csharp/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/MarketDataApp/sdk-csharp/graph/badge.svg)](https://codecov.io/gh/MarketDataApp/sdk-csharp)
-[![Status: Alpha](https://img.shields.io/badge/status-alpha%20(in%20development)-orange)](https://github.com/MarketDataApp/sdk-csharp)
+[![Status: Release candidate](https://img.shields.io/badge/status-release%20candidate-yellow)](https://github.com/MarketDataApp/sdk-csharp)
 
 </div>
 
-> [!WARNING]
-> **Alpha — in active development. Not ready for public or production use.**
-> This SDK has not had a stable release and its public API may change without notice.
-> NuGet packages are pre-release (`0.0.0-alpha.*`) until a stable `v1.0.0` is tagged.
+> [!IMPORTANT]
+> **Release candidate.** The public API is feature-complete and no breaking changes are
+> planned before `v1.0.0`. NuGet packages stay pre-release (`1.0.0-rc.N`) until `v1.0.0`
+> is tagged, so installing needs `--prerelease`. Please report anything you hit against
+> the candidate.
 
 ## Features
 
@@ -72,14 +73,19 @@
 - [Diagnostics and tracing](#diagnostics-and-tracing)
 - [Integration tests](#integration-tests)
 - [SDK design contracts](#sdk-design-contracts)
+- [Acknowledgements](#acknowledgements)
+- [License](#license)
 
 ---
 
 ## Installation
 
 ```shell
-dotnet add package MarketDataApp
+dotnet add package marketdata.sdk
 ```
+
+The package id is `marketdata.sdk`; the namespace you import is `MarketDataApp`
+(`using MarketDataApp;`).
 
 **Requirements**: .NET 8.0 or newer. The package multi-targets `net8.0` and `net10.0`
 (both LTS), so projects on either runtime get a native build.
@@ -1064,3 +1070,21 @@ those endpoints are currently absent from that schema.
 Bulk stock quotes and the single-symbol stock-price route are implemented.
 The bulk-candles definition declares a required `symbol` path parameter that is absent from its
 path template, so that endpoint remains deferred until its production contract is confirmed.
+
+---
+
+## Acknowledgements
+
+This SDK was originally created by [Omid Rad](https://github.com/omidkrad) (Exceptal) and
+generously donated to Market Data for use as the official MarketData.app C#/.NET SDK.
+The original repository is
+[Exceptal/MarketDataApp-CSharp-SDK](https://github.com/Exceptal/MarketDataApp-CSharp-SDK).
+
+Market Data maintains the SDK today. See
+[NOTICE](https://github.com/MarketDataApp/sdk-csharp/blob/main/NOTICE) for the full donation
+statement.
+
+## License
+
+MIT — see [LICENSE](https://github.com/MarketDataApp/sdk-csharp/blob/main/LICENSE).
+The copyright notice credits the original author.
