@@ -2,8 +2,8 @@
 
 Thank you for your interest in contributing!
 
-> **Note:** This SDK is **alpha / in active development**. The public API may change
-> without notice until a stable `1.0.0` is tagged.
+> **Note:** This SDK is a **release candidate** for `1.0.0`. The public API is
+> feature-complete and no breaking changes are planned before the stable release.
 
 ## Reporting Bugs
 

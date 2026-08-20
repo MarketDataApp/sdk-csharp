@@ -8,7 +8,7 @@ body:
       value: |
         Thanks for reporting a bug. Please fill out all required fields so we can reproduce and fix it quickly.
 
-        **Note:** This SDK is currently **alpha / in active development**, and it returns data exactly as the API provides it. Before reporting, please confirm the behavior differs from what the [API documentation](https://www.marketdata.app/docs/api) describes (not just something unexpected to you).
+        **Note:** This SDK is a **release candidate** for 1.0.0, and it returns data exactly as the API provides it. Before reporting, please confirm the behavior differs from what the [API documentation](https://www.marketdata.app/docs/api) describes (not just something unexpected to you).
 
   - type: checkboxes
     id: api-docs-verified
@@ -117,8 +117,8 @@ body:
     id: sdk-version
     attributes:
       label: SDK version
-      description: The `MarketDataApp` NuGet package version from your `<PackageReference>`. Pre-release builds look like `0.0.0-alpha.*`.
-      placeholder: "0.0.0-alpha.0.52"
+      description: The `marketdata.sdk` NuGet package version from your `<PackageReference>`. Release candidates look like `1.0.0-rc.N`.
+      placeholder: "1.0.0-rc.1"
     validations:
       required: true
 
