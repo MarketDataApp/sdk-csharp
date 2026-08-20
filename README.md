@@ -29,7 +29,7 @@
 - **Application-owned HTTP**: Inject an existing `HttpClient`, including clients created by `IHttpClientFactory`; the SDK never disposes it
 - **Configuration Integration**: Bind options from `IConfiguration`, user-secrets, or environment variables, with explicit programmatic configuration also supported
 - **Real-time Stock Data**: Prices, quotes, candles (OHLCV), earnings, and news
-- **Options Trading Data**: Options chains, expirations, strikes, quotes, and lookup
+- **Options Trading Data**: Options chains, expirations, quotes, and lookup
 - **Mutual Funds**: Historical candles and pricing data
 - **Market Status**: Real-time market open/closed status for multiple countries
 - **Utilities**: Service status, request-header inspection, and authenticated-user information
@@ -558,23 +558,6 @@ var resp = await client.Options.GetExpirationsAsync(
 Optional fields: `Strike` (filter to expirations that have a contract at this strike),
 `Date` (historical as-of date). CSV variant: `GetExpirationsCsvAsync`.
 
-#### Strikes
-
-Returns available strike prices grouped by expiration date.
-
-```csharp
-var resp = await client.Options.GetStrikesAsync(
-    new OptionsStrikesRequest("AAPL")
-    {
-        Expiration = new DateOnly(2025, 1, 17)
-    });
-// resp.Values.Updated — DateTimeOffset? last-updated timestamp
-// resp.Values.ByExpiration — IReadOnlyDictionary<DateOnly, IReadOnlyList<double>>
-```
-
-Optional fields: `Date` (historical as-of date), `Expiration` (filter to one expiry).
-CSV variant: `GetStrikesCsvAsync`.
-
 #### Option quote (single symbol)
 
 ```csharp
@@ -1078,6 +1061,6 @@ The live [OpenAPI schema](https://api.marketdata.app/schema/) is the primary sou
 endpoint paths and wire parameters. Existing Funds and Utilities behavior is retained even though
 those endpoints are currently absent from that schema.
 
-Options strikes, bulk stock quotes, and the single-symbol stock-price route are implemented.
+Bulk stock quotes and the single-symbol stock-price route are implemented.
 The bulk-candles definition declares a required `symbol` path parameter that is absent from its
 path template, so that endpoint remains deferred until its production contract is confirmed.

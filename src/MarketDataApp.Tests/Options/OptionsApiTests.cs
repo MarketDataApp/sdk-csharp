@@ -176,32 +176,6 @@ public sealed class OptionsApiTests
     }
 
     [Fact]
-    public async Task GetStrikesAsync_ParsesExpirationMapAndParameters()
-    {
-        var handler = new StubHttpMessageHandler(_ => MarketDataTestClient.JsonResponse("""
-        {
-          "s": "ok",
-          "updated": 1736985600,
-          "2025-01-17": [145, 150, 155]
-        }
-        """));
-        var client = MarketDataTestClient.Create(handler);
-
-        var response = await client.Options.GetStrikesAsync(
-            new OptionsStrikesRequest("AAPL")
-            {
-                Date = new DateOnly(2025, 1, 10),
-                Expiration = new DateOnly(2025, 1, 17)
-            });
-
-        Assert.Equal([145m, 150m, 155m], response.Values.ByExpiration[new DateOnly(2025, 1, 17)]);
-        Assert.NotNull(response.Values.Updated);
-        Assert.Equal("/v1/options/strikes/AAPL/", handler.LastRequest!.RequestUri!.AbsolutePath);
-        Assert.Contains("date=2025-01-10", handler.LastRequest.RequestUri.Query);
-        Assert.Contains("expiration=2025-01-17", handler.LastRequest.RequestUri.Query);
-    }
-
-    [Fact]
     public async Task GetQuoteAsync_ScalarOverloadBuildsRequest()
     {
         var handler = new StubHttpMessageHandler(_ => MarketDataTestClient.JsonResponse("""{"s":"ok","optionSymbol":["AAPL250117C00150000"]}"""));

@@ -82,36 +82,6 @@ public sealed class OptionsApi
             });
     }
 
-    /// <summary>Gets available strike prices grouped by expiration date.</summary>
-    public Task<OptionsStrikesResponse> GetStrikesAsync(string underlying, DateOnly? date = null, DateOnly? expiration = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
-        GetStrikesAsync(new OptionsStrikesRequest(underlying) { Date = date, Expiration = expiration }, options, cancellationToken);
-
-    /// <summary>Executes the endpoint request.</summary>
-    public async Task<OptionsStrikesResponse> GetStrikesAsync(
-        OptionsStrikesRequest request,
-        MarketDataRequestOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        var effective = _apiClient.ApplyDefaults(options);
-        var query = RequestQuery.From(effective);
-        AddDate(query, "date", request.Date);
-        AddDate(query, "expiration", request.Expiration);
-        var response = await _apiClient.GetAsync(
-            $"options/strikes/{Uri.EscapeDataString(request.Underlying)}",
-            true,
-            query,
-            cancellationToken).ConfigureAwait(false);
-        var values = JsonResponseParser.DecodeOrDefault(
-            response,
-            ParseOptionStrikes,
-            new OptionStrikes(
-                null,
-                new Dictionary<DateOnly, IReadOnlyList<decimal>>()),
-            requestedColumns: effective.Columns);
-        return JsonResponseParser.CreateResponse<OptionsStrikesResponse, OptionStrikes>(response, values);
-    }
-
     /// <summary>Gets historical or current quotes for one OCC option symbol.</summary>
     public Task<OptionsQuotesResponse> GetQuoteAsync(string optionSymbol, DateOnly? date = null, DateOnly? from = null, DateOnly? to = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
         GetQuoteAsync(new OptionsQuoteRequest(optionSymbol) { Date = date, From = from, To = to }, options, cancellationToken);
@@ -249,26 +219,6 @@ public sealed class OptionsApi
         return await GetCsvAsync(
             $"options/expirations/{Uri.EscapeDataString(request.Symbol)}", query, cancellationToken)
             .ConfigureAwait(false);
-    }
-
-    /// <summary>Gets available strike prices grouped by expiration date as CSV.</summary>
-    public Task<CsvResponse> GetStrikesCsvAsync(string underlying, DateOnly? date = null, DateOnly? expiration = null, MarketDataRequestOptions? options = null, CancellationToken cancellationToken = default) =>
-        GetStrikesCsvAsync(new OptionsStrikesRequest(underlying) { Date = date, Expiration = expiration }, options, cancellationToken);
-
-    /// <summary>Executes the endpoint request.</summary>
-    public async Task<CsvResponse> GetStrikesCsvAsync(
-        OptionsStrikesRequest request,
-        MarketDataRequestOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        var query = RequestQuery.Csv(_apiClient.ApplyDefaults(options));
-        AddDate(query, "date", request.Date);
-        AddDate(query, "expiration", request.Expiration);
-        return await GetCsvAsync(
-            $"options/strikes/{Uri.EscapeDataString(request.Underlying)}",
-            query,
-            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Gets historical or current quotes for one OCC option symbol as CSV.</summary>
@@ -424,43 +374,6 @@ public sealed class OptionsApi
             "updated", "bid", "bidSize", "mid", "ask", "askSize", "last", "openInterest",
             "volume", "inTheMoney", "intrinsicValue", "extrinsicValue", "underlyingPrice",
             "iv", "delta", "gamma", "theta", "vega", "rho");
-
-    private static OptionStrikes ParseOptionStrikes(JsonElement root)
-    {
-        var strikes = new Dictionary<DateOnly, IReadOnlyList<decimal>>();
-        foreach (var property in root.EnumerateObject())
-        {
-            if (!DateOnly.TryParseExact(
-                    property.Name,
-                    "yyyy-MM-dd",
-                    CultureInfo.InvariantCulture,
-                    DateTimeStyles.None,
-                    out var expiration))
-            {
-                continue;
-            }
-
-            if (property.Value.ValueKind != JsonValueKind.Array)
-            {
-                throw new JsonException($"Strike field '{property.Name}' must be an array.");
-            }
-
-            var values = new List<decimal>(property.Value.GetArrayLength());
-            foreach (var value in property.Value.EnumerateArray())
-            {
-                if (!value.TryGetDecimal(out var strike))
-                {
-                    throw new JsonException($"Strike field '{property.Name}' contains a non-numeric value.");
-                }
-
-                values.Add(strike);
-            }
-
-            strikes.Add(expiration, values);
-        }
-
-        return new OptionStrikes(JsonResponseParser.Timestamp(root, "updated"), strikes);
-    }
 
     private static void AddExpirationFilter(
         ICollection<KeyValuePair<string, string?>> query,
