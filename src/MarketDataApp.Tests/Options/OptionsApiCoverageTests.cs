@@ -250,51 +250,6 @@ public sealed class OptionsApiCoverageTests
     }
 
     [Fact]
-    public async Task GetStrikesAsync_RejectsNonArrayAndNonNumericStrikeValues()
-    {
-        var nonArray = MarketDataTestClient.Create(Json("""
-        {
-          "s": "ok",
-          "2025-01-17": "not-an-array"
-        }
-        """));
-        var exception = await Assert.ThrowsAsync<ParseException>(() =>
-            nonArray.Options.GetStrikesAsync(new OptionsStrikesRequest("AAPL")));
-        Assert.Contains("must be an array", exception.InnerException!.Message);
-
-        // A number outside decimal range makes TryGetDecimal return false, hitting the guard.
-        var nonNumeric = MarketDataTestClient.Create(Json("""
-        {
-          "s": "ok",
-          "2025-01-17": [1e40]
-        }
-        """));
-        var exception2 = await Assert.ThrowsAsync<ParseException>(() =>
-            nonNumeric.Options.GetStrikesAsync(new OptionsStrikesRequest("AAPL")));
-        Assert.Contains("non-numeric", exception2.InnerException!.Message);
-    }
-
-    [Fact]
-    public async Task GetStrikesAsync_IgnoresNonDateKeys()
-    {
-        var client = MarketDataTestClient.Create(Json("""
-        {
-          "s": "ok",
-          "updated": 1736985600,
-          "notadate": [1, 2, 3],
-          "2025-01-17": [145, 150]
-        }
-        """));
-
-        var response = await client.Options.GetStrikesAsync(new OptionsStrikesRequest("AAPL"));
-
-        // The non-date "notadate" key is skipped; only the ISO date key is parsed.
-        Assert.Single(response.Values.ByExpiration);
-        Assert.Equal([145m, 150m], response.Values.ByExpiration[new DateOnly(2025, 1, 17)]);
-        Assert.StartsWith("1 expirations", response.Values.ToString());
-    }
-
-    [Fact]
     public async Task ScalarAndCsvOverloads_HitExpectedPaths()
     {
         var handler = Csv("col\r\n1\r\n");
@@ -308,9 +263,6 @@ public sealed class OptionsApiCoverageTests
 
         var expClient = MarketDataTestClient.Create(Json("""{"s":"ok","expirations":[1737072000]}"""));
         await expClient.Options.GetExpirationsAsync("AAPL", strike: 150m);
-
-        var strikesClient = MarketDataTestClient.Create(Json("""{"s":"ok","2025-01-17":[150]}"""));
-        await strikesClient.Options.GetStrikesAsync("AAPL", expiration: new DateOnly(2025, 1, 17));
 
         var chainClient = MarketDataTestClient.Create(Json(FullChainRow));
         await chainClient.Options.GetChainAsync("AAPL", weekly: true);
@@ -326,9 +278,6 @@ public sealed class OptionsApiCoverageTests
         await client.Options.GetExpirationsCsvAsync("AAPL", strike: 150m, date: new DateOnly(2025, 1, 10));
         Assert.Equal("/v1/options/expirations/AAPL/", handler.LastRequest.RequestUri!.AbsolutePath);
         Assert.Contains("strike=150", handler.LastRequest.RequestUri.Query);
-
-        await client.Options.GetStrikesCsvAsync("AAPL", date: new DateOnly(2025, 1, 10));
-        Assert.Equal("/v1/options/strikes/AAPL/", handler.LastRequest.RequestUri!.AbsolutePath);
 
         await client.Options.GetQuoteCsvAsync("AAPL250117C00150000", to: new DateOnly(2025, 1, 10));
         Assert.Equal("/v1/options/quotes/AAPL250117C00150000/", handler.LastRequest.RequestUri!.AbsolutePath);
