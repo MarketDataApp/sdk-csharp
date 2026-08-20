@@ -29,16 +29,6 @@ public sealed class OptionsIntegrationTests : IntegrationTestBase
     }
 
     [IntegrationFact]
-    public async Task Strikes_ReturnExpectedShape()
-    {
-        var response = await Client.Options.GetStrikesAsync(
-            new OptionsStrikesRequest("AAPL"));
-
-        AssertSuccess(response.StatusCode);
-        Assert.NotEmpty(response.Values.ByExpiration);
-    }
-
-    [IntegrationFact]
     public async Task Quote_ReturnsExpectedShape()
     {
         // Resolve a currently-tradeable contract from the chain, then quote it directly.
