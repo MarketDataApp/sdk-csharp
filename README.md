@@ -95,20 +95,34 @@ The package id is `marketdata.sdk`; the namespace you import is `MarketDataApp`
 ## Quick start
 
 ```csharp
-// The SDK creates and owns its HttpClient here, pre-configured with the SDK requirements:
-// the default handler (2-second connection timeout, §10) plus the fixed 99-second request
-// timeout enforced internally. CreateAsync also validates the token with /user/ and seeds
-// the rate-limit snapshot at startup; set ValidateTokenOnStartup = false to skip that.
 using var client = await MarketDataClient.CreateAsync();
+
 var quote = await client.Stocks.GetQuoteAsync("AAPL");
 foreach (var q in quote.Values)
 {
-    Console.WriteLine($"{q.Symbol}: mid={q.Mid:F2}  last={q.Last:F2}  volume={q.Volume:N0}");
+    Console.WriteLine(q);   // AAPL mid=311.94 last=311.92
 }
 ```
 
-Managing your own `HttpClient`? Every entry point also accepts one, and the SDK never
-reconfigures a supplied client — see
+Every quote, candle, price, and article record has a concise `ToString()`, so printing
+one needs no format string. Missing values render as `n/a` rather than throwing — every
+field is nullable, because the `columns` parameter can project a field away and the
+backend maps NaN to null for closed or illiquid markets.
+
+Reach for the individual fields (`q.Symbol`, `q.Mid`, `q.Volume`, …) when you need to
+format or compute; `ToString()` is for looking at data, not for parsing it.
+
+Response wrappers print a diagnostic summary instead of the data, which is what you want
+when a request behaves unexpectedly:
+
+```csharp
+Console.WriteLine(quote);   // StockQuotesResponse: 1 item, HTTP 200
+```
+
+`CreateAsync` creates and owns an `HttpClient` configured to the SDK's requirements, then
+validates the token against `/user/` and seeds the rate-limit snapshot before returning.
+Set `ValidateTokenOnStartup = false` to skip that call. Managing your own `HttpClient`?
+Every entry point also accepts one, and the SDK never reconfigures a supplied client — see
 [Client lifetime and HttpClient injection](#client-lifetime-and-httpclient-injection).
 
 See [`examples/`](examples/) for the full index of runnable samples.
