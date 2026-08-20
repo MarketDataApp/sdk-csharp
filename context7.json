@@ -1,0 +1,25 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "Market Data C#/.NET SDK",
+  "description": "Official C#/.NET SDK for the Market Data API. Async access to real-time and historical stock, option, fund, and market-status data. Multi-targets .NET 8 and .NET 10.",
+  "branch": "main",
+  "excludeFolders": [
+    ".github",
+    "release-readiness",
+    "src/MarketDataApp.Tests",
+    "src/MarketDataApp.IntegrationTests"
+  ],
+  "rules": [
+    "Install the package as `marketdata.sdk`, but import the namespace `MarketDataApp`. The two names differ on purpose: `dotnet add package marketdata.sdk`, then `using MarketDataApp;`. There is no package called `MarketDataApp`.",
+    "Until 1.0.0 is published, every release is a pre-release, so installing needs `dotnet add package marketdata.sdk --prerelease`.",
+    "Prefer `await MarketDataClient.CreateAsync(...)` to construct a client. It validates the token against `/user/` and seeds the rate-limit snapshot without blocking. The plain constructor runs the same validation synchronously. Set `ValidateTokenOnStartup = false` to skip it. In ASP.NET Core use `services.AddMarketDataClient(...)`, which registers the client as a singleton over an `IHttpClientFactory`-managed HttpClient.",
+    "`MarketDataClient` is `IDisposable`. It disposes an `HttpClient` it created itself, and never disposes one the caller supplied — a supplied client keeps its own handler and `Timeout`.",
+    "Every endpoint method is asynchronous, ends in `Async`, and accepts an optional `CancellationToken`. CSV variants end in `CsvAsync` and return a `CsvResponse` whose text is on `.Csv`.",
+    "Endpoint methods return a response wrapper, not the rows. Read the data from `.Values` — for example `foreach (var q in response.Values)` or `response.Values[0]`. Check `.IsNoData` before indexing, because a valid request can return zero rows.",
+    "Every field on a data record is nullable. The `columns` parameter can project a field away, and the backend maps NaN to null for closed or illiquid markets. Always null-check before formatting or arithmetic.",
+    "Data records (`StockQuote`, `StockCandle`, `StockPrice`, `StockNewsArticle`, `FundCandle`, `OptionQuote`, `MarketStatus`, `StockEarning`, `ServiceStatus`, `User`) override `ToString()` to render their data concisely — `Console.WriteLine(quote)` prints `AAPL mid=311.94 last=311.92`, with missing values shown as `n/a`. Use it to display a row instead of hand-writing a format string.",
+    "Response wrappers render a diagnostic summary instead of data — `Console.WriteLine(response)` prints `StockQuotesResponse: 1 item, HTTP 200`. That is intentional and cannot be overridden. Never parse either `ToString()`; read the typed properties.",
+    "Errors surface as a typed hierarchy deriving from `MarketDataException`: `AuthenticationException`, `BadRequestException`, `NotFoundException`, `RateLimitException`, `ServerException`, `NetworkException`, `ParseException`. Catch the specific type you can act on. Every exception carries `.SupportInfo`, a formatted block with the request id, URL, status code and timestamp — ask users for it when diagnosing, and note it never contains the API token.",
+    "Supply the API token through the `MARKETDATA_TOKEN` environment variable, `IConfiguration`, or user-secrets, not as a literal in source. The SDK sends it as an `Authorization: Bearer` header and never as a query parameter, and redacts it to at most four trailing characters in any log output."
+  ]
+}
