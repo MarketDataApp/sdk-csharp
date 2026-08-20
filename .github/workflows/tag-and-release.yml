@@ -173,6 +173,20 @@ jobs:
           path: TestResults/
           if-no-files-found: warn
 
+      # Separate from the .trx upload above because coverlet writes CoverletOutput
+      # RELATIVE TO THE TEST PROJECT, not to --results-directory. Uploading only
+      # TestResults/ therefore captures the test log but NOT the coverage report, which
+      # is exactly the evidence needed when the 100% gate fails. See #74: a flaky
+      # Windows/net10.0 branch-coverage failure blocked the 1.0.0-rc.1 release and could
+      # not be diagnosed afterwards because this report was never captured.
+      - name: Upload gate coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-gate-coverage-${{ matrix.os }}
+          path: src/MarketDataApp.Tests/TestResults/coverage.*.opencover.xml
+          if-no-files-found: warn
+
   release:
     name: Tag and GitHub Release
     needs: gate
