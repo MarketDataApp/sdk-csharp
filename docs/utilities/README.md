@@ -1,24 +1,11 @@
 # Utilities
 
-Use `client.Utilities` for service health, request-header diagnostics, and
-authenticated account information.
+The C#/.NET SDK from Market Data provides methods for the Utilities endpoints: API service status, request-header inspection, and authenticated-user information. These are diagnostic endpoints, so they take no request parameters beyond a `CancellationToken` and have no CSV variants.
 
-| Operation | Method | Authentication |
-|---|---|---|
-| Service status | `GetStatusAsync` | Not required |
-| Request headers | `GetHeadersAsync` | Not required |
-| User quota and entitlements | `GetUserAsync` | Required |
+Reach the resource through `client.Utilities`.
 
-```csharp
-var status = await client.Utilities.GetStatusAsync(cancellationToken);
-foreach (var service in status.Values)
-{
-    Console.WriteLine($"{service.Service}: {service.Status}");
-}
+## Utilities Endpoints
 
-var headers = await client.Utilities.GetHeadersAsync(cancellationToken);
-Console.WriteLine($"Request ID: {headers.RequestId}");
-```
-
-Utilities are implemented by the SDK but are currently not listed in the live schema.
-
+- [Status](./status.md)
+- [Headers](./headers.md)
+- [User](./user.md)

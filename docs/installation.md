@@ -1,49 +1,47 @@
 # Installation
 
-## Requirements
+This guide will help you install the Market Data C#/.NET SDK and configure it for your project.
 
-- .NET 10.0 or newer
-- C# latest stable language version
+## Prerequisites
 
-The SDK uses the platform `HttpClient` abstraction and `System.Text.Json`. Applications
-provide the `HttpClient`; the SDK does not create or dispose one.
+- **.NET 8.0 or newer.** The package multi-targets `net8.0` and `net10.0` (both LTS releases), so projects on either runtime get a native build.
+- The [.NET SDK](https://dotnet.microsoft.com/download) command line, or an IDE such as Visual Studio, Rider, or VS Code with the C# Dev Kit.
 
-## NuGet
+## Basic Installation
 
-```powershell
-dotnet add package MarketDataApp
+Add the SDK as a NuGet package reference. From your project directory:
+
+```bash
+dotnet add package MarketDataApp --prerelease
 ```
 
-Or add the package reference to a project file:
+`dotnet add package` resolves the newest version for you and writes it into your project file. While the SDK is in alpha every published version is a pre-release, so the `--prerelease` flag is required (in an IDE, tick "Include prerelease" in the package manager).
+
+If you maintain the reference by hand, take the version number from the package's [NuGet page](https://www.nuget.org/packages/MarketDataApp) or the [releases list](https://github.com/MarketDataApp/sdk-csharp/releases) — versions are derived from git tags, so there is no fixed number to copy from the docs:
 
 ```xml
-<PackageReference Include="MarketDataApp" Version="1.0.0" />
+<ItemGroup>
+  <!-- Replace with the version shown on NuGet or the releases page. -->
+  <PackageReference Include="MarketDataApp" Version="X.Y.Z-alpha.N" />
+</ItemGroup>
 ```
 
-Check the [NuGet package](https://www.nuget.org/packages/MarketDataApp) for the current
-published version.
+> [!NOTE]
+> The NuGet **package id** is `MarketDataApp` and the root **namespace** you import is also `MarketDataApp` — for example `using MarketDataApp;`. Endpoint-specific types live under `MarketDataApp.Stocks`, `MarketDataApp.Options`, `MarketDataApp.Funds`, `MarketDataApp.Markets`, and `MarketDataApp.Utilities`.
 
-## First request
+## Requirements & Dependencies
 
-```csharp
-using MarketDataApp;
+The SDK stays on the standard Microsoft stack, with one small helper:
 
-// The SDK creates and owns the HttpClient (default handler, SDK-managed timeouts).
-// CreateAsync validates the token and seeds the rate-limit snapshot at startup; the plain
-// constructor runs the same validation as a blocking call. Set ValidateTokenOnStartup = false
-// to skip startup validation.
-using var client = await MarketDataClient.CreateAsync(
-    new MarketDataClientOptions { ApiToken = "your-api-token" });
+- **No third-party HTTP client.** It uses the built-in `System.Net.Http.HttpClient`, and can either create its own or use one your application manages (including clients from `IHttpClientFactory`, via `Microsoft.Extensions.Http`).
+- **`System.Text.Json`** for JSON decoding — no Newtonsoft dependency.
+- **`Microsoft.Extensions.Configuration`** (with the environment-variables and user-secrets providers), **`Microsoft.Extensions.Logging`**, and **`Microsoft.Extensions.DependencyInjection`** for configuration binding, structured logging, and the `AddMarketDataClient` service-collection extension.
+- **`DotNetEnv`** to load an optional `.env` file from the working directory.
 
-var response = await client.Stocks.GetQuoteAsync(
-    "AAPL",
-    cancellationToken: CancellationToken.None);
+## Next Steps
 
-foreach (var quote in response.Values)
-{
-    Console.WriteLine($"{quote.Symbol}: {quote.Last}");
-}
-```
+After installation, you'll need to:
 
-Do not replace `await` with `.Result` or `.Wait()`. See [client lifetime and DI](client.md)
-for ASP.NET Core registration.
+1. Set up your [authentication token](./authentication.md).
+2. Learn about the [client](./client.md) and how to make your first API requests.
+3. Configure [Settings](./settings.md) to customize output format, date format, and other universal parameters.
