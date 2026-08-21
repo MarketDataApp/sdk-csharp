@@ -1,10 +1,10 @@
-# Security Gate - v1.0.0-rc.2
+# Security Gate - v1.0.0
 
 ## Gate Owner
 Release automation
 
 ## Date
-2026-08-20
+2026-08-21
 
 ## Dependency Audit
 
@@ -13,7 +13,7 @@ dotnet list package --vulnerable --include-transitive --format json
 No known vulnerabilities in the restored dependency graph.
 ```
 
-Run in CI on every build (run 32432713289). Note that `dotnet list package --vulnerable`
+Run in CI on every build (run 32515931454). Note that `dotnet list package --vulnerable`
 exits 0 even when it reports advisories, so the gate parses the JSON output and fails on a
 non-zero finding count rather than trusting the exit code. The failure path was verified
 against a synthetic vulnerable input before this release.
@@ -32,7 +32,7 @@ xunit.v3 migration.
 
 ## Third-party Scanning
 
-Socket Security ran on PR #81: Project Report **pass**, Pull Request Alerts **pass**.
+Socket Security ran on PR #88: Project Report **pass**, Pull Request Alerts **pass**.
 
 ## Token Handling Review
 

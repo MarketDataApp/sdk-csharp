@@ -1,17 +1,17 @@
-# Quality and Tests Gate - v1.0.0-rc.2
+# Quality and Tests Gate - v1.0.0
 
 ## Gate Owner
 Release automation
 
 ## Date
-2026-08-20
+2026-08-21
 
 ## Evidence Source
 
 | Run | Purpose |
 |-----|---------|
-| [32432713289](https://github.com/MarketDataApp/sdk-csharp/actions/runs/32432713289) | PR #81 — unit, coverage, live integration |
-| [32432865152](https://github.com/MarketDataApp/sdk-csharp/actions/runs/32432865152) | `main` @ `ac93d51` — full OS matrix |
+| [32515931454](https://github.com/MarketDataApp/sdk-csharp/actions/runs/32515931454) | PR #88 — unit, coverage, live integration |
+| [32516092418](https://github.com/MarketDataApp/sdk-csharp/actions/runs/32516092418) | `main` @ `31e11d7` — full OS matrix |
 
 ## Build
 

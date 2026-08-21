@@ -1,10 +1,10 @@
-# API Contract Gate - v1.0.0-rc.2
+# API Contract Gate - v1.0.0
 
 ## Gate Owner
 Release automation
 
 ## Date
-2026-08-20
+2026-08-21
 
 ## Scope
 
@@ -38,18 +38,20 @@ been published, these are **not** breaking changes for any consumer:
 | `options/strikes` (`GetStrikesAsync`, `OptionsStrikesRequest`, `OptionStrikes`, `OptionsStrikesResponse`) | Use the options chain to discover strikes; the upstream endpoint is deprecated |
 | `stocks/bulkquotes` (`GetBulkQuotesAsync`, `StockBulkQuotesRequest`) | `GetQuotesAsync` with multiple symbols |
 
-Both are documented in the CHANGELOG under `[1.0.0-rc.2]`.
+Both are documented in the CHANGELOG under `[1.0.0]`.
 
-## Release-Candidate Rationale
+## Stability Commitment
 
-Published as `1.0.0-rc.2` rather than `1.0.0`. The public API is feature-complete and no
-breaking changes are planned before the stable release, but a candidate lets real
-consumers exercise the surface before the API is frozen by a stable tag.
+Published as a stable `1.0.0`. From this version the public API is covered by semantic
+versioning: a breaking change requires a major bump and a migration note in the CHANGELOG.
 
-The dotted `rc.N` form is required: SemVer compares all-digit dot-separated pre-release
-identifiers numerically, so `rc.2` correctly precedes `rc.10`. Written `rc1`/`rc2` the
-identifier is compared as text and `rc10` would sort before `rc2`. NuGet implements
-SemVer 2.0.0 ordering.
+Two release candidates preceded it, exercised against the live API on all three operating
+systems and both target frameworks. No API change was made between the last candidate and
+this release — only messaging, so the surface consumers tested is the surface that ships.
+
+Removing a public member, renaming one, changing a signature, tightening a return type, or
+altering documented behaviour all count as breaking, including for members that are public
+but undocumented.
 
 ## Gate Result
 
@@ -57,7 +59,7 @@ SemVer 2.0.0 ordering.
 |-------|--------|
 | Breaking changes documented | PASS (none applicable — first publication) |
 | Migration guide provided | PASS (not applicable) |
-| CHANGELOG updated | PASS (`## [1.0.0-rc.2] - 2026-08-20`) |
+| CHANGELOG updated | PASS (`## [1.0.0] - 2026-08-21`) |
 | Package ID final before publication | PASS |
 
 **GATE STATUS: PASS**
