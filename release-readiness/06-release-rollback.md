@@ -16,6 +16,12 @@ Status:    Open, non-blocking. The C# docs pages currently live on staging;
            so DocsLivenessTests resolve. Cleanup is tracked for after the docs
            site promotes.
 
+Issue #74: Flaky 100% branch-coverage gate
+Status:    CLOSED by this release cycle. Root-caused to parallel xUnit classes
+           sharing a process-global ActivityListener, not a product defect, and
+           fixed by serializing those classes. Verified over 8 local runs and the
+           full cross-OS matrix.
+
 P0 blockers: None
 ```
 

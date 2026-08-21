@@ -9,7 +9,7 @@
 | Title | Version 1.0.0-rc.2 |
 | Package | `MarketDataApp` |
 | Prerelease | Yes |
-| Commit | b00d3d7 |
+| Commit | ac93d51 |
 | Date | 2026-08-20 |
 
 ## Gate Summary
@@ -28,11 +28,12 @@
 - Unit suite 307/307 on **both** `net8.0` and `net10.0`
 - Coverage 100% line, 100% branch, 100% method on both target frameworks
 - Live integration suite 21/21, **zero skipped** (a skipped suite would void the gate)
-- Full `{ubuntu, windows, macOS}` matrix green on `main` @ `b00d3d7`
+- Full `{ubuntu, windows, macOS}` matrix green on `main` @ `ac93d51`
 - Zero known dependency vulnerabilities; Socket Security clean
 - Token is header-only and redacted to at most 4 trailing characters, with tests
 - Three example apps smoke-run green against the live API
 - Publish is keyless via OIDC Trusted Publishing, with build provenance attested before push
+- The previously flaky 100% branch-coverage gate (#74) is root-caused and fixed, so this gate result is reproducible rather than a lucky run
 
 ## P0 Blockers
 
