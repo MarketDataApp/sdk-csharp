@@ -1,4 +1,4 @@
-# Compatibility Gate - v1.0.0-rc.1
+# Compatibility Gate - v1.0.0-rc.2
 
 ## Gate Owner
 Release automation

@@ -101,7 +101,7 @@ jobs:
     # until someone configures them under Settings > Environments.
     environment:
       name: nuget
-      url: https://www.nuget.org/packages/marketdata.sdk
+      url: https://www.nuget.org/packages/MarketDataApp
     permissions:
       id-token: write       # mint the OIDC token for NuGet Trusted Publishing + attestation
       contents: read        # checkout only

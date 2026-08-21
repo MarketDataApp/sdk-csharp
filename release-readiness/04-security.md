@@ -1,4 +1,4 @@
-# Security Gate - v1.0.0-rc.1
+# Security Gate - v1.0.0-rc.2
 
 ## Gate Owner
 Release automation
@@ -51,7 +51,7 @@ Socket Security ran on PR #71: Project Report **pass**, Pull Request Alerts **pa
 - Publishing uses **OIDC Trusted Publishing**; no long-lived NuGet API key exists as a
   repository secret.
 - The Trusted Publishing policy is scoped to owner `MarketDataApp`, repo `sdk-csharp`,
-  workflow `release.yml`, environment `nuget`, and glob `marketdata.sdk` — it cannot
+  workflow `release.yml`, environment `nuget`, and glob `MarketDataApp` — it cannot
   publish any other package.
 - `actions/attest-build-provenance` signs the exact `.nupkg`/`.snupkg` bytes **before**
   they are pushed.

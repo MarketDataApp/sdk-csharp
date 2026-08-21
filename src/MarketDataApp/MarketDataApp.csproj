@@ -14,14 +14,12 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 
     <!-- Package metadata -->
-    <!-- The NuGet package ID is deliberately NOT the assembly name. The assembly and
-         root namespace stay MarketDataApp (that is what `using MarketDataApp;` binds to
-         and what already ships in the XML docs); the package published to nuget.org is
-         marketdata.sdk, which matches the sibling SDKs' marketdata-sdk-* naming and
-         avoids colliding with the MarketDataApp organization name on nuget.org.
-         Package IDs are immutable once published — changing this after the first
-         release means abandoning an ID, not renaming it. -->
-    <PackageId>marketdata.sdk</PackageId>
+    <!-- No <PackageId> on purpose: it defaults to AssemblyName, so the package id, the
+         assembly and the root namespace are all MarketDataApp. That is the .NET
+         convention (Serilog, Dapper, Polly, Newtonsoft.Json, Microsoft.Extensions.*),
+         and it means `dotnet add package MarketDataApp` and `using MarketDataApp;` use
+         the same name — there is no second identifier for a caller to get wrong.
+         Do not add a PackageId that differs from AssemblyName. -->
     <Authors>MarketData.app, Exceptal</Authors>
     <Copyright>© 2026 Market Data — originally created by Omid Rad (Exceptal)</Copyright>
     <Description>RELEASE CANDIDATE. C#/.NET SDK for the marketdata.app API. Provides asynchronous access to real-time and historical financial data including stocks, options, funds, and market status.</Description>

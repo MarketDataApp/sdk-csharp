@@ -1,12 +1,11 @@
 # C# SDK Release Process
 
 This document defines the release process for `MarketDataApp/sdk-csharp`. The package is
-[`marketdata.sdk`](https://www.nuget.org/packages/marketdata.sdk) on NuGet.org.
+[`MarketDataApp`](https://www.nuget.org/packages/MarketDataApp) on NuGet.org.
 
-> The package ID (`marketdata.sdk`) is deliberately different from the assembly and root
-> namespace (`MarketDataApp`). Callers install `marketdata.sdk` and then write
-> `using MarketDataApp;`. Set in `src/MarketDataApp/MarketDataApp.csproj` via
-> `<PackageId>`.
+> The package id, the assembly and the root namespace are all `MarketDataApp`, which is
+> the .NET convention. There is deliberately **no** `<PackageId>` in the csproj — it
+> defaults to `AssemblyName`, so the two can never drift apart. Do not add one.
 
 ## 1. Scope
 
@@ -20,10 +19,10 @@ Use this process for:
 ### The first published version is a release candidate
 
 The SDK has never been published. The first version pushed to NuGet.org is
-**`1.0.0-rc.1`**, not `1.0.0`. Everything below supports pre-releases already; the
+**`1.0.0-rc.2`**, not `1.0.0`. Everything below supports pre-releases already; the
 notes here cover what differs.
 
-**Use the dotted form `1.0.0-rc.1`, not `1.0.0-rc1`.** SemVer compares dot-separated
+**Use the dotted form `1.0.0-rc.2`, not `1.0.0-rc1`.** SemVer compares dot-separated
 pre-release identifiers *numerically* when they are all digits, so `rc.2` correctly
 precedes `rc.10`. Without the dot the whole identifier is compared as text, and
 `rc10` sorts *before* `rc2`. NuGet implements SemVer 2.0.0 ordering, so the wrong form
@@ -31,14 +30,14 @@ silently mis-orders your candidates from the tenth onward.
 
 | | Value |
 |---|---|
-| Tag | `v1.0.0-rc.1` |
-| `version` input | `1.0.0-rc.1` |
+| Tag | `v1.0.0-rc.2` |
+| `version` input | `1.0.0-rc.2` |
 | `prerelease` input | **`true`** |
-| CHANGELOG heading | `## [1.0.0-rc.1] - YYYY-MM-DD` |
+| CHANGELOG heading | `## [1.0.0-rc.2] - YYYY-MM-DD` |
 
 **NuGet needs nothing extra.** Unlike npm, NuGet has no dist-tags — a package is a
-pre-release purely because its version carries a pre-release suffix. `1.0.0-rc.1` is
-hidden from default installs automatically, and `dotnet add package marketdata.sdk`
+pre-release purely because its version carries a pre-release suffix. `1.0.0-rc.2` is
+hidden from default installs automatically, and `dotnet add package MarketDataApp`
 keeps resolving the newest stable version. Users opt in with `--prerelease`.
 
 **Set `prerelease: true`.** It only marks the GitHub Release; it does not change what
@@ -187,7 +186,7 @@ the policy covers organization-owned packages.
 | Environment | `nuget` |
 | Scopes | ☑ **Push** → *Push new packages and package versions* |
 | | ☐ Unlist or relist package versions — leave unchecked |
-| Glob Patterns and Packages | `marketdata.sdk` |
+| Glob Patterns and Packages | `MarketDataApp` |
 
 > **Why `release.yml` and not `tag-and-release.yml`.** `NuGet/login` runs inside
 > `release.yml` on both paths — a direct tag push, and the `workflow_call` from
@@ -208,13 +207,18 @@ the policy covers organization-owned packages.
 > **Enter the workflow file name only** — `release.yml`, not
 > `.github/workflows/release.yml`.
 
-> **Keep "Push new packages and package versions" until 1.0.0 ships.** `marketdata.sdk`
-> does not exist on NuGet yet, so the first publish has to *create* the package ID. The
-> narrower "Push only new package versions" option cannot do that and fails on the first
-> push. Tighten the policy to it once `1.0.0` is published — nothing legitimate creates
-> new package IDs after that.
+> **⚠ The glob must exactly match the package id.** If the two ever disagree, the
+> `NuGet/login` step fails with `No matching trust policy owned by user was found` —
+> loudly, and before anything is pushed, but it blocks the release until the policy is
+> corrected.
 
-> **Use the exact glob `marketdata.sdk`, not `*`.** A `*` pattern would let this workflow
+> **Keep "Push new packages and package versions" until 1.0.0 ships.** `MarketDataApp`
+> does not exist on NuGet yet, so the next publish has to *create* the package id. The
+> narrower "Push only new package versions" option cannot do that and would fail.
+> Tighten the policy to it once `1.0.0` is published — nothing legitimate creates new
+> package ids after that.
+
+> **Use the exact glob `MarketDataApp`, not `*`.** A `*` pattern would let this workflow
 > publish any package owned by the MarketDataApp organization.
 
 > **The Environment field must stay in sync.** It is set to `nuget` because the publish
@@ -265,7 +269,7 @@ Current state of this repository, all verified:
 ## 7. Post-release checks
 
 1. Verify the GitHub Release exists with the notes taken from `CHANGELOG.md`.
-2. Confirm the package appears at <https://www.nuget.org/packages/marketdata.sdk>. NuGet
+2. Confirm the package appears at <https://www.nuget.org/packages/MarketDataApp>. NuGet
    indexing can lag several minutes after the push.
 3. Confirm the build-provenance attestation is listed on the repository's Attestations
    page.
@@ -273,7 +277,7 @@ Current state of this repository, all verified:
 
    ```bash
    dotnet new console -o /tmp/md-smoke && cd /tmp/md-smoke
-   dotnet add package marketdata.sdk --version X.Y.Z
+   dotnet add package MarketDataApp --version X.Y.Z
    dotnet build
    ```
 
