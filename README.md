@@ -121,17 +121,17 @@ Set `ValidateTokenOnStartup = false` to skip that call. Managing your own `HttpC
 Every entry point also accepts one, and the SDK never reconfigures a supplied client — see
 [Client lifetime and HttpClient injection](#client-lifetime-and-httpclient-injection).
 
-See [`examples/`](examples/) for the full index of runnable samples.
-See [`examples/QuickStart/`](examples/QuickStart/) for a full runnable example covering
+See [`examples/`](https://github.com/MarketDataApp/sdk-csharp/tree/main/examples) for the full index of runnable samples.
+See [`examples/QuickStart/`](https://github.com/MarketDataApp/sdk-csharp/tree/main/examples/QuickStart) for a full runnable example covering
 cancellation, CSV export, exception handling, and bulk quotes.
-See [`examples/Watchlist/`](examples/Watchlist/) for a console watchlist mini-app: batched
+See [`examples/Watchlist/`](https://github.com/MarketDataApp/sdk-csharp/tree/main/examples/Watchlist) for a console watchlist mini-app: batched
 quotes on a refresh loop, a rate-limit footer, taxonomy-aware error recovery, and CSV export.
-See [`examples/OptionsChainMonitor/`](examples/OptionsChainMonitor/) for a live filtered
+See [`examples/OptionsChainMonitor/`](https://github.com/MarketDataApp/sdk-csharp/tree/main/examples/OptionsChainMonitor) for a live filtered
 options chain: typed chain filters, IV/delta/open-interest rendering, and chain quota habits.
-See [`examples/McpServer/`](examples/McpServer/) for a runnable
+See [`examples/McpServer/`](https://github.com/MarketDataApp/sdk-csharp/tree/main/examples/McpServer) for a runnable
 [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes quote,
 candle, and market-status tools over stdio.
-See [`examples/WebApiSample/`](examples/WebApiSample/) for ASP.NET Core DI and
+See [`examples/WebApiSample/`](https://github.com/MarketDataApp/sdk-csharp/tree/main/examples/WebApiSample) for ASP.NET Core DI and
 `IHttpClientFactory` patterns. Its Development launch profile opens the AAPL stock,
 AAPL options, VFINX fund, US market-status, and rate-limit sample URLs in the browser.
 Set `WebApiSample:OpenBrowserOnStart` to `false` to disable this behavior.
@@ -442,17 +442,17 @@ date fields render as `n/a`.
 
 ## Documentation
 
-Full documentation lives in the [`docs/`](docs/) folder, with a narrative guide per area:
+Full documentation lives in the [`docs/`](https://github.com/MarketDataApp/sdk-csharp/tree/main/docs) folder, with a narrative guide per area:
 
-- [Stocks](docs/stocks/README.md)
-- [Options](docs/options/README.md)
-- [Funds](docs/funds/README.md)
-- [Markets](docs/markets/README.md)
-- [Utilities](docs/utilities/README.md)
+- [Stocks](https://github.com/MarketDataApp/sdk-csharp/blob/main/docs/stocks/README.md)
+- [Options](https://github.com/MarketDataApp/sdk-csharp/blob/main/docs/options/README.md)
+- [Funds](https://github.com/MarketDataApp/sdk-csharp/blob/main/docs/funds/README.md)
+- [Markets](https://github.com/MarketDataApp/sdk-csharp/blob/main/docs/markets/README.md)
+- [Utilities](https://github.com/MarketDataApp/sdk-csharp/blob/main/docs/utilities/README.md)
 
-Supporting topics: [installation](docs/installation.md),
-[authentication](docs/authentication.md), [client and DI](docs/client.md), and
-[settings](docs/settings.md). The [endpoint inventory](#endpoint-inventory) below
+Supporting topics: [installation](https://github.com/MarketDataApp/sdk-csharp/blob/main/docs/installation.md),
+[authentication](https://github.com/MarketDataApp/sdk-csharp/blob/main/docs/authentication.md), [client and DI](https://github.com/MarketDataApp/sdk-csharp/blob/main/docs/client.md), and
+[settings](https://github.com/MarketDataApp/sdk-csharp/blob/main/docs/settings.md). The [endpoint inventory](#endpoint-inventory) below
 summarizes every method, request type, and field.
 
 ---
