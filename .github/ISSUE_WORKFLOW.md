@@ -52,7 +52,7 @@ Run this checklist against every new report. The fields map directly to
 | 2 | **Has reproduction code** | "Reproduction code" field | Contains a real C#/F#/VB code block | Empty, pseudocode, or prose only |
 | 3 | **Code is complete** | Look for client construction | Has `MarketDataClient.CreateAsync`, `new MarketDataClient`, or `AddMarketDataClient`, plus the `using` directives | Missing client setup or usings |
 | 4 | **Names the resource and method** | "SDK resource" + "Method" | Both present, e.g. `stocks` / `GetCandlesAsync` | Empty or vague |
-| 5 | **Specifies SDK version** | "SDK version" | A concrete version, e.g. `1.0.0-rc.2` | Empty or "latest" |
+| 5 | **Specifies SDK version** | "SDK version" | A concrete version, e.g. `1.0.0` | Empty or "latest" |
 | 6 | **Specifies .NET version** | ".NET SDK / runtime version" | A concrete version, e.g. `10.0.100` | Empty or vague, e.g. "10.x" |
 | 7 | **Describes expected behavior** | "Expected behavior" | A clear statement | Empty or unclear |
 | 8 | **Describes actual behavior** | "Actual behavior" | A clear statement, ideally with the exception message and stack trace | Empty or unclear |
@@ -342,7 +342,7 @@ gh issue list --label "needs-info"
 
 **Issue #42** — resource `stocks`, method `GetCandlesAsync`, complete reproduction code
 with `using` directives and `CreateAsync`, expected "returns candle data", actual
-`NullReferenceException`, SDK `1.0.0-rc.2`, .NET `10.0.100`, TFM `net10.0`.
+`NullReferenceException`, SDK `1.0.0`, .NET `10.0.100`, TFM `net10.0`.
 
 **Action:** passes all criteria → reproduce → accept and fix.
 

@@ -11,7 +11,7 @@
   ],
   "rules": [
     "The package id, the assembly and the root namespace are all `MarketDataApp`: `dotnet add package MarketDataApp`, then `using MarketDataApp;`. There is one name, not two.",
-    "Until 1.0.0 is published, every release is a pre-release, so installing needs `dotnet add package MarketDataApp --prerelease`.",
+    "Install with `dotnet add package MarketDataApp`. The package is stable from 1.0.0, so no `--prerelease` flag is needed.",
     "Prefer `await MarketDataClient.CreateAsync(...)` over the constructor. It validates the token against `/user/` and seeds the rate-limit snapshot without blocking. Set `ValidateTokenOnStartup = false` to skip that call.",
     "In ASP.NET Core, register with `services.AddMarketDataClient(...)`. It adds `MarketDataClient` as a singleton over an `IHttpClientFactory`-managed HttpClient.",
     "`MarketDataClient` is `IDisposable`. It disposes an `HttpClient` it created itself, and never disposes one the caller supplied — a supplied client keeps its own handler and `Timeout`.",

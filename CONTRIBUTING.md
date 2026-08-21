@@ -2,8 +2,8 @@
 
 Thank you for your interest in contributing!
 
-> **Note:** This SDK is a **release candidate** for `1.0.0`. The public API is
-> feature-complete and no breaking changes are planned before the stable release.
+> **Note:** This SDK follows [semantic versioning](https://semver.org/). The public API
+> is stable from `1.0.0`: no breaking change ships without a major version bump.
 
 ## Reporting Bugs
 

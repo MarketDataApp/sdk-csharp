@@ -12,13 +12,8 @@
 
 [![CI](https://github.com/MarketDataApp/sdk-csharp/actions/workflows/ci.yml/badge.svg)](https://github.com/MarketDataApp/sdk-csharp/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/MarketDataApp/sdk-csharp/graph/badge.svg)](https://codecov.io/gh/MarketDataApp/sdk-csharp)
-[![Status: Release candidate](https://img.shields.io/badge/status-release%20candidate-yellow)](https://github.com/MarketDataApp/sdk-csharp)
-
-> [!IMPORTANT]
-> **Release candidate.** The public API is feature-complete and no breaking changes are
-> planned before `v1.0.0`. NuGet packages stay pre-release (`1.0.0-rc.N`) until `v1.0.0`
-> is tagged, so installing needs `--prerelease`. Please report anything you hit against
-> the candidate.
+[![NuGet](https://img.shields.io/nuget/v/MarketDataApp?logo=nuget&label=NuGet)](https://www.nuget.org/packages/MarketDataApp)
+[![Downloads](https://img.shields.io/nuget/dt/MarketDataApp?logo=nuget&label=downloads)](https://www.nuget.org/packages/MarketDataApp)
 
 ## Features
 

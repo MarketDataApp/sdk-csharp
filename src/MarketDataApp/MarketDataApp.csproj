@@ -22,8 +22,8 @@
          Do not add a PackageId that differs from AssemblyName. -->
     <Authors>MarketData.app, Exceptal</Authors>
     <Copyright>© 2026 Market Data — originally created by Omid Rad (Exceptal)</Copyright>
-    <Description>RELEASE CANDIDATE. C#/.NET SDK for the marketdata.app API. Provides asynchronous access to real-time and historical financial data including stocks, options, funds, and market status.</Description>
-    <PackageReleaseNotes>Release candidate for 1.0.0. The public API is feature-complete and no breaking changes are planned before the stable release; report any problems against this candidate. Install with --prerelease until 1.0.0 is published.</PackageReleaseNotes>
+    <Description>C#/.NET SDK for the marketdata.app API. Provides asynchronous access to real-time and historical financial data including stocks, options, funds, and market status.</Description>
+    <PackageReleaseNotes>First stable release. The public API is covered by semantic versioning from this version on: no breaking change ships without a major version bump.</PackageReleaseNotes>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/MarketDataApp/sdk-csharp</PackageProjectUrl>
     <RepositoryUrl>https://github.com/MarketDataApp/sdk-csharp</RepositoryUrl>
