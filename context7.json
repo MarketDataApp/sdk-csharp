@@ -3,8 +3,6 @@
   "projectTitle": "Market Data C#/.NET SDK",
   "description": "Official C#/.NET SDK for the Market Data API. Async access to real-time and historical stock, option, fund, and market-status data. Multi-targets .NET 8 and .NET 10.",
   "branch": "main",
-  "url": "https://context7.com/marketdataapp/sdk-csharp",
-  "public_key": "pk_cKA5YsYjooQGa5qVTm3LD",
   "excludeFolders": [
     ".github",
     "release-readiness",
