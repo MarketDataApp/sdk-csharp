@@ -191,6 +191,52 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: dotnet format MarketDataApp.slnx --verify-no-changes --no-restore
 
+      # Context7 silently drops a config that fails its schema, so an over-long rule costs a
+      # whole indexing cycle with no error surfaced in the repo. The limits below are copied
+      # from https://context7.com/schema/context7.json rather than fetched, so this step stays
+      # offline and deterministic; re-check them if that schema changes.
+      - name: Validate context7.json
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, sys
+
+          LIMITS = {"projectTitle": 100, "description": 200}
+          RULE_MAX, RULE_ITEMS, FOLDER_MAX = 255, 50, 255
+          KNOWN = {"$schema", "projectTitle", "description", "branch", "folders",
+                   "excludeFolders", "excludeFiles", "rules", "disallow", "redirect",
+                   "previousVersions", "url", "public_key"}
+
+          cfg = json.load(open("context7.json"))
+          errs = []
+
+          for k in sorted(set(cfg) - KNOWN):
+              errs.append(f"unknown property '{k}' (additionalProperties is false)")
+          for k, cap in LIMITS.items():
+              if k in cfg and len(cfg[k]) > cap:
+                  errs.append(f"{k} is {len(cfg[k])} chars, limit {cap}")
+          rules = cfg.get("rules", [])
+          if len(rules) > RULE_ITEMS:
+              errs.append(f"{len(rules)} rules, limit {RULE_ITEMS}")
+          for i, r in enumerate(rules, 1):
+              if len(r) > RULE_MAX:
+                  errs.append(f"rule {i} is {len(r)} chars, limit {RULE_MAX}: {r[:60]}...")
+          for key in ("folders", "excludeFolders", "excludeFiles"):
+              for p in cfg.get(key, []):
+                  if len(p) > FOLDER_MAX:
+                      errs.append(f"{key} entry is {len(p)} chars, limit {FOLDER_MAX}")
+          if ("url" in cfg) != ("public_key" in cfg):
+              errs.append("url and public_key must be provided together")
+
+          if errs:
+              for e in errs:
+                  print(f"::error file=context7.json::{e}")
+              sys.exit(1)
+          print(f"context7.json valid: {len(rules)} rules, "
+                f"longest {max((len(r) for r in rules), default=0)} chars.")
+          PY
+
       - name: Pack
         if: matrix.os == 'ubuntu-latest'
         run: |
