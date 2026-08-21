@@ -13,14 +13,14 @@ Every OS leg runs the unit suite on **both** target frameworks, so the matrix be
 
 | OS | net8.0 | net10.0 | Source |
 |----|--------|---------|--------|
-| ubuntu-latest | PASS | PASS | run 32419842329 |
-| windows-latest | PASS | PASS | run 32419842329 |
-| macos-latest | PASS | PASS | run 32419842329 |
+| ubuntu-latest | PASS | PASS | run 32432865152 |
+| windows-latest | PASS | PASS | run 32432865152 |
+| macos-latest | PASS | PASS | run 32432865152 |
 
 ## GitHub Actions Status
 
 ```
-CI on main @ b00d3d7 — completed/success
+CI on main @ ac93d51 — completed/success
 
   success  Select OS matrix
   success  Build / Test / Pack (ubuntu-latest)
@@ -31,7 +31,7 @@ CI on main @ b00d3d7 — completed/success
 
 `Integration Tests (live)` is skipped on push-to-main by design — the job runs on pull
 requests, releases and manual dispatch, so the live quota is not spent twice per merge.
-Its evidence for this release comes from PR #71 (run 32419602393, 21/21 passed) and it
+Its evidence for this release comes from PR #81 (run 32432713289, 21/21 passed) and it
 will run again as the release gate inside `release.yml`.
 
 ## Local Parity

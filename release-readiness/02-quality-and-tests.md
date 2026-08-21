@@ -10,8 +10,8 @@ Release automation
 
 | Run | Purpose |
 |-----|---------|
-| [32419602393](https://github.com/MarketDataApp/sdk-csharp/actions/runs/32419602393) | PR #71 — unit, coverage, live integration |
-| [32419842329](https://github.com/MarketDataApp/sdk-csharp/actions/runs/32419842329) | `main` @ `b00d3d7` — full OS matrix |
+| [32432713289](https://github.com/MarketDataApp/sdk-csharp/actions/runs/32432713289) | PR #81 — unit, coverage, live integration |
+| [32432865152](https://github.com/MarketDataApp/sdk-csharp/actions/runs/32432865152) | `main` @ `ac93d51` — full OS matrix |
 
 ## Build
 
@@ -57,6 +57,26 @@ proving nothing. All 21 executed against the live API.
 ## Formatting
 
 `dotnet format MarketDataApp.slnx --verify-no-changes` — clean, both locally and in CI.
+
+## Coverage Gate Determinism
+
+The 100% branch gate previously failed intermittently on an unchanged tree (#74), blocking
+releases on `windows-latest` and later on `ubuntu-latest`, both on `net10.0`.
+
+Root cause: `ActivitySource.AddActivityListener` is process-global while xUnit runs test
+classes in parallel, so a listener owned by one class was live inside another class's test.
+That decided whether `StartActivity(...)` returned an activity or null, which moved the
+`activity?.` branches in `ApiClient`'s catch arms. Assertions never noticed — all 307 tests
+passed either way — but one branch side went unvisited.
+
+Diagnosed from the coverage report the release gate now uploads: exactly two uncovered
+branch points, `ApiClient.cs:293` and `:294`, inside
+`<SendOnceWithinGateAsync>d__20::MoveNext()`. Line coverage stayed at 100%, so the block
+ran; only one activity state was ever observed.
+
+Fixed by placing the three listener-registering classes in a shared xUnit collection, which
+runs them sequentially. Verified by running the `net10.0` coverage gate 8 consecutive times
+locally — 100% branch every run — plus the full cross-OS matrix on `main`.
 
 ## Workflow Lint
 
