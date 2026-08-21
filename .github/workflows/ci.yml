@@ -191,6 +191,14 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: dotnet format MarketDataApp.slnx --verify-no-changes --no-restore
 
+      # Context7 silently drops a config that fails its schema, so an over-long rule costs a
+      # whole indexing cycle with no error surfaced here. Shared with the other SDK repos —
+      # see MarketDataApp/actions for the constraints and why they are transcribed rather
+      # than fetched.
+      - name: Validate context7.json
+        if: matrix.os == 'ubuntu-latest'
+        uses: MarketDataApp/actions/validate-context7@v1
+
       - name: Pack
         if: matrix.os == 'ubuntu-latest'
         run: |
