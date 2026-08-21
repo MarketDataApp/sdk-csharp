@@ -1,10 +1,10 @@
-# Release/Rollback Gate - v1.0.0-rc.2
+# Release/Rollback Gate - v1.0.0
 
 ## Gate Owner
 Release automation
 
 ## Date
-2026-08-20
+2026-08-21
 
 ## Open Blockers
 
@@ -30,7 +30,7 @@ P0 blockers: None
 | Stage | Gate |
 |-------|------|
 | `gate` | Full `{ubuntu, windows, macOS}` matrix, both TFMs, 100% coverage, vulnerability audit, format check |
-| `release` | Tag must not exist; CHANGELOG `## [1.0.0-rc.2]` section must be non-empty |
+| `release` | Tag must not exist; CHANGELOG `## [1.0.0]` section must be non-empty |
 | `publish-nuget` | Live integration suite as a release gate; provenance attestation before push |
 
 A missing `MARKETDATA_TOKEN` fails the release outright rather than letting a silently
@@ -41,9 +41,9 @@ skipped integration suite look green.
 **NuGet.org versions are immutable — a published version cannot be replaced or deleted.**
 
 1. Stop any promotion messaging.
-2. If the package is harmful, unlist `1.0.0-rc.2` on NuGet.org. Unlisting hides it from
+2. If the package is harmful, unlist `1.0.0` on NuGet.org. Unlisting hides it from
    search and from new resolutions; existing lockfiles still resolve it.
-3. Ship `1.0.0-rc.2` from `main` with the targeted fix.
+3. Ship `1.0.0` from `main` with the targeted fix.
 4. Record root cause and remediation in the next CHANGELOG entry.
 
 Unlisting is a manual action in the NuGet.org web UI under the `marketdata` account. The
@@ -52,17 +52,24 @@ workflow can do it.
 
 ## Hotfix Path
 
-- Branch from: the `v1.0.0-rc.2` tag
+- Branch from: the `v1.0.0` tag
 - Target: `main`
-- Next version: `1.0.0-rc.2`
+- Next version: `1.0.0`
 
-## Candidate-specific Risk Posture
+## Risk Posture
 
-Publishing a release candidate rather than `1.0.0` is itself the primary risk control.
-`1.0.0-rc.2` is hidden from default installs — `dotnet add package MarketDataApp`
-resolves only stable versions, so consumers must opt in with `--prerelease`. A defect
-therefore has a limited blast radius, and the stable `1.0.0` tag can wait for the
-candidate to hold up.
+This release is visible by default: `dotnet add package MarketDataApp` now resolves it
+without `--prerelease`, so a defect reaches users directly rather than only those who
+opted in. The controls are therefore the gates themselves rather than the version suffix.
+
+What limits the risk:
+
+- Two release candidates preceded it, and no API change was made between the last
+  candidate and this release — only messaging.
+- The live integration suite is a hard release gate, and a missing token fails the
+  release rather than silently skipping it.
+- Semantic versioning means a corrective `1.0.1` can ship immediately without asking
+  anyone to change code.
 
 ## Gate Result
 

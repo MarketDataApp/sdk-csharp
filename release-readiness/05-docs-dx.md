@@ -1,20 +1,20 @@
-# Docs/DX Gate - v1.0.0-rc.2
+# Docs/DX Gate - v1.0.0
 
 ## Gate Owner
 Release automation
 
 ## Date
-2026-08-20
+2026-08-21
 
 ## Documentation Alignment
 
 | Document | Messaging | Status |
 |----------|-----------|--------|
-| `README.md` | `status-release candidate` badge; RC note explaining `--prerelease`; install shows `MarketDataApp` | PASS |
-| `CHANGELOG.md` | `## [1.0.0-rc.2] - 2026-08-20` present with link references rewritten | PASS |
+| `README.md` | live NuGet version and download badges; no candidate wording; install shows `dotnet add package MarketDataApp` with no `--prerelease` | PASS |
+| `CHANGELOG.md` | `## [1.0.0] - 2026-08-21` present with link references rewritten | PASS |
 | `MarketDataApp.csproj` | `Description` and `PackageReleaseNotes` carry RC wording; both ship to the NuGet listing page | PASS |
 | `CONTRIBUTING.md` | RC wording | PASS |
-| `.github/ISSUE_TEMPLATE/bug.yml` | RC wording; version placeholder `1.0.0-rc.2` | PASS |
+| `.github/ISSUE_TEMPLATE/bug.yml` | RC wording; version placeholder `1.0.0` | PASS |
 | `docs/` (synced) | Package ID and RC wording updated at source in `MarketDataApp/documentation` PR #168 | PASS (pending docs-sync) |
 | `.github/RELEASE_PROCESS.md` | Documents this exact release path, one-time setup, and rollback | PASS |
 
@@ -27,13 +27,13 @@ git tag (`MinVerTagPrefix=v`), and the release workflow additionally passes
 `MinVerVersionOverride`. Verified:
 
 ```
-dotnet pack -p:MinVerVersionOverride=1.0.0-rc.2
-  → MarketDataApp.1.0.0-rc.2.nupkg
-  → MarketDataApp.1.0.0-rc.2.snupkg
+dotnet pack -p:MinVerVersionOverride=1.0.0
+  → MarketDataApp.1.0.0.nupkg
+  → MarketDataApp.1.0.0.snupkg
 
 nuspec: id = MarketDataApp
-        version = 1.0.0-rc.2
-        description = RELEASE CANDIDATE. C#/.NET SDK for the marketdata.app API...
+        version = 1.0.0
+        description = C#/.NET SDK for the marketdata.app API...
 lib/net8.0/MarketDataApp.dll  + .xml
 lib/net10.0/MarketDataApp.dll + .xml
 ```
@@ -42,7 +42,7 @@ XML documentation ships for both target frameworks.
 
 ## Executable Examples — live smoke runs
 
-From run 32432713289, against the live API:
+From run 32515931454, against the live API:
 
 ### Watchlist (`--once`)
 ```
