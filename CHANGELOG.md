@@ -7,10 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0-rc.2] - 2026-08-20
+## [1.0.0] - 2026-08-21
 
-First published release of the C#/.NET SDK, offered as a release candidate. The public
-API is feature-complete and no breaking changes are planned before `1.0.0`.
+First stable release of the C#/.NET SDK. The public API is covered by semantic
+versioning from this version on: no breaking change ships without a major version bump.
 
 Compliance work performed on the C#/.NET SDK after its donation by Omid Rad
 (Exceptal) to Market Data. Changes are grouped by type and reference the
@@ -129,5 +129,5 @@ MarketData.app SDK requirements sections they satisfy.
   empty" warning: Source Link and `ContinuousIntegrationBuild` are gated to CI,
   where the repository resolves normally.
 
-[Unreleased]: https://github.com/MarketDataApp/sdk-csharp/compare/v1.0.0-rc.2...HEAD
-[1.0.0-rc.2]: https://github.com/MarketDataApp/sdk-csharp/releases/tag/v1.0.0-rc.2
+[Unreleased]: https://github.com/MarketDataApp/sdk-csharp/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/MarketDataApp/sdk-csharp/releases/tag/v1.0.0

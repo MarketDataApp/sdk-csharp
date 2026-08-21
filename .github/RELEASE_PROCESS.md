@@ -16,60 +16,38 @@ Use this process for:
 - minor releases (`vX.Y.0`)
 - major releases (`vX.0.0`)
 
-### The first published version is a release candidate
+### Stable from 1.0.0
 
-The SDK has never been published. The first version pushed to NuGet.org is
-**`1.0.0-rc.2`**, not `1.0.0`. Everything below supports pre-releases already; the
-notes here cover what differs.
+`1.0.0` is published. The public API is covered by semantic versioning from that version
+on, so the version number is a promise:
 
-**Use the dotted form `1.0.0-rc.2`, not `1.0.0-rc1`.** SemVer compares dot-separated
-pre-release identifiers *numerically* when they are all digits, so `rc.2` correctly
-precedes `rc.10`. Without the dot the whole identifier is compared as text, and
-`rc10` sorts *before* `rc2`. NuGet implements SemVer 2.0.0 ordering, so the wrong form
-silently mis-orders your candidates from the tenth onward.
-
-| | Value |
+| Change | Version |
 |---|---|
-| Tag | `v1.0.0-rc.2` |
-| `version` input | `1.0.0-rc.2` |
-| `prerelease` input | **`true`** |
-| CHANGELOG heading | `## [1.0.0-rc.2] - YYYY-MM-DD` |
+| Bug fix, no API change | `1.0.Z` |
+| New API, nothing removed or altered | `1.Y.0` |
+| Anything a caller must react to | `2.0.0` |
 
-**NuGet needs nothing extra.** Unlike npm, NuGet has no dist-tags — a package is a
-pre-release purely because its version carries a pre-release suffix. `1.0.0-rc.2` is
-hidden from default installs automatically, and `dotnet add package MarketDataApp`
-keeps resolving the newest stable version. Users opt in with `--prerelease`.
+A breaking change needs a major bump and a migration note in the CHANGELOG. Removing a
+public member, renaming one, changing a signature, tightening a return type, or altering
+documented behaviour all count — including for members that were technically public but
+undocumented.
 
-**Set `prerelease: true`.** It only marks the GitHub Release; it does not change what
-is pushed to NuGet. Getting it wrong makes an RC look like a stable release on the
-releases page.
+**`prerelease` stays `false`** for ordinary releases. It only marks the GitHub Release;
+it never changes what is pushed to NuGet, where a package is a pre-release purely because
+its version carries a suffix.
 
-**One caveat on the changelog fallback.** GitHub fires the `released` activity type
-only for non-prerelease releases, so `update-changelog.yml` will not run for an RC at
-all — not even on the manual-UI path it normally covers. This is harmless when you
-follow §4 and promote the CHANGELOG section yourself before releasing, which is the
-required path anyway.
+### Pre-releases, when you want one
 
-**Before the RC, update the alpha messaging.** `MarketDataApp.csproj` carries
-`<Description>` and `<PackageReleaseNotes>` that both begin with "ALPHA (in active
-development — not for production use)", and `README.md` shows a `status-alpha` badge.
-These ship in the package and on the NuGet listing page. Change them to release-candidate
-wording as part of the release PR — not before, or every dev build in the meantime
-claims to be an RC.
+Set `prerelease: true` and give the version a suffix — `1.1.0-rc.1`. NuGet then hides it
+from default installs automatically, so `dotnet add package MarketDataApp` keeps
+resolving the newest stable version and users opt in with `--prerelease`. Nothing else
+differs; the same workflow handles both.
 
-Promote to `1.0.0` by running the same workflow again with `version: 1.0.0` and
-`prerelease: false`, once the candidate has held up.
-
-## 2. Release inputs
-
-Before you start, confirm:
-
-- the target version `X.Y.Z`
-- the tag format: `vX.Y.Z`
-- the release title format: `Version X.Y.Z`
-- the release owner
-- the included PRs and issues
-- the intended release date
+**Use the dotted form `rc.1`, not `rc1`.** SemVer compares dot-separated pre-release
+identifiers *numerically* when they are all digits, so `rc.2` correctly precedes `rc.10`.
+Without the dot the whole identifier is compared as text and `rc10` sorts *before* `rc2`.
+NuGet implements SemVer 2.0.0 ordering, so the wrong form silently mis-orders candidates
+from the tenth onward.
 
 ## 3. How versioning works here
 
@@ -145,9 +123,16 @@ automated release**. GitHub does not start a new workflow run from an event rais
 default `GITHUB_TOKEN`, which is a deliberate guard against recursive triggering. The
 `uses:` call at the end of `tag-and-release.yml` is what actually reaches NuGet.org.
 
-The same rule explains why `update-changelog.yml` stays quiet on this path: it exists for
-releases created **by hand in the GitHub UI**, where nobody promoted the CHANGELOG
-section first. See the comment block at the top of that file.
+### The CHANGELOG is written by hand, never by a workflow
+
+There is deliberately no workflow that writes back to `CHANGELOG.md`. One existed
+(`update-changelog.yml`, mirroring the PHP SDK) and was removed: it wrote the release
+body *into* the changelog, the opposite direction from this process, so on a stable
+release it would have appended a duplicate section — and then failed anyway, because
+branch protection rejects a push to `main` from the default `GITHUB_TOKEN`.
+
+Promote `## [Unreleased]` yourself in the release PR, as §4 describes. That is the only
+supported path.
 
 ## 6. One-time setup
 
