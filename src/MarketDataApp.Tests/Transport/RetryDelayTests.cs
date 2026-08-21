@@ -17,6 +17,7 @@ namespace MarketDataApp.Tests.Transport;
 /// <see cref="MarketDataClientOptions.RetryJitterSource"/> so the jitter branches are exact and the
 /// tests never depend on <see cref="Random.Shared"/>.
 /// </summary>
+[Collection(ActivityListenerCollection.Name)]
 public sealed class RetryDelayTests
 {
     public RetryDelayTests()

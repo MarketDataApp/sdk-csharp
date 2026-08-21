@@ -10,6 +10,7 @@ using MarketDataApp.Tests.TestSupport;
 
 namespace MarketDataApp.Tests.Transport;
 
+[Collection(ActivityListenerCollection.Name)]
 public sealed class ApiClientTests
 {
     [Fact]
