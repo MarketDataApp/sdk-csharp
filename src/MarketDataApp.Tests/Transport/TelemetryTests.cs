@@ -17,6 +17,7 @@ namespace MarketDataApp.Tests.Transport;
 /// other test class registers a listener, those runs deterministically see no activity. Captured
 /// activities are correlated to each test by a scoped root activity's trace id.
 /// </summary>
+[Collection(ActivityListenerCollection.Name)]
 public sealed class TelemetryTests
 {
     public TelemetryTests()
