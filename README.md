@@ -1,5 +1,3 @@
-<div align="center">
-
 # Market Data C#/.NET SDK
 ### Access Financial Data with Ease
 
@@ -15,8 +13,6 @@
 [![CI](https://github.com/MarketDataApp/sdk-csharp/actions/workflows/ci.yml/badge.svg)](https://github.com/MarketDataApp/sdk-csharp/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/MarketDataApp/sdk-csharp/graph/badge.svg)](https://codecov.io/gh/MarketDataApp/sdk-csharp)
 [![Status: Release candidate](https://img.shields.io/badge/status-release%20candidate-yellow)](https://github.com/MarketDataApp/sdk-csharp)
-
-</div>
 
 > [!IMPORTANT]
 > **Release candidate.** The public API is feature-complete and no breaking changes are
