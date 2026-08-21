@@ -81,11 +81,11 @@
 ## Installation
 
 ```shell
-dotnet add package marketdata.sdk
+dotnet add package MarketDataApp
 ```
 
-The package id is `marketdata.sdk`; the namespace you import is `MarketDataApp`
-(`using MarketDataApp;`).
+The package id, the assembly, and the namespace are all `MarketDataApp` — install it,
+then `using MarketDataApp;`.
 
 **Requirements**: .NET 8.0 or newer. The package multi-targets `net8.0` and `net10.0`
 (both LTS), so projects on either runtime get a native build.

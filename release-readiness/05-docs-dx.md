@@ -1,4 +1,4 @@
-# Docs/DX Gate - v1.0.0-rc.1
+# Docs/DX Gate - v1.0.0-rc.2
 
 ## Gate Owner
 Release automation
@@ -10,11 +10,11 @@ Release automation
 
 | Document | Messaging | Status |
 |----------|-----------|--------|
-| `README.md` | `status-release candidate` badge; RC note explaining `--prerelease`; install shows `marketdata.sdk` | PASS |
-| `CHANGELOG.md` | `## [1.0.0-rc.1] - 2026-08-20` present with link references rewritten | PASS |
+| `README.md` | `status-release candidate` badge; RC note explaining `--prerelease`; install shows `MarketDataApp` | PASS |
+| `CHANGELOG.md` | `## [1.0.0-rc.2] - 2026-08-20` present with link references rewritten | PASS |
 | `MarketDataApp.csproj` | `Description` and `PackageReleaseNotes` carry RC wording; both ship to the NuGet listing page | PASS |
 | `CONTRIBUTING.md` | RC wording | PASS |
-| `.github/ISSUE_TEMPLATE/bug.yml` | RC wording; version placeholder `1.0.0-rc.1` | PASS |
+| `.github/ISSUE_TEMPLATE/bug.yml` | RC wording; version placeholder `1.0.0-rc.2` | PASS |
 | `docs/` (synced) | Package ID and RC wording updated at source in `MarketDataApp/documentation` PR #168 | PASS (pending docs-sync) |
 | `.github/RELEASE_PROCESS.md` | Documents this exact release path, one-time setup, and rollback | PASS |
 
@@ -27,12 +27,12 @@ git tag (`MinVerTagPrefix=v`), and the release workflow additionally passes
 `MinVerVersionOverride`. Verified:
 
 ```
-dotnet pack -p:MinVerVersionOverride=1.0.0-rc.1
-  → marketdata.sdk.1.0.0-rc.1.nupkg
-  → marketdata.sdk.1.0.0-rc.1.snupkg
+dotnet pack -p:MinVerVersionOverride=1.0.0-rc.2
+  → MarketDataApp.1.0.0-rc.2.nupkg
+  → MarketDataApp.1.0.0-rc.2.snupkg
 
-nuspec: id = marketdata.sdk
-        version = 1.0.0-rc.1
+nuspec: id = MarketDataApp
+        version = 1.0.0-rc.2
         description = RELEASE CANDIDATE. C#/.NET SDK for the marketdata.app API...
 lib/net8.0/MarketDataApp.dll  + .xml
 lib/net10.0/MarketDataApp.dll + .xml

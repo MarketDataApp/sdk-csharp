@@ -117,8 +117,8 @@ body:
     id: sdk-version
     attributes:
       label: SDK version
-      description: The `marketdata.sdk` NuGet package version from your `<PackageReference>`. Release candidates look like `1.0.0-rc.N`.
-      placeholder: "1.0.0-rc.1"
+      description: The `MarketDataApp` NuGet package version from your `<PackageReference>`. Release candidates look like `1.0.0-rc.N`.
+      placeholder: "1.0.0-rc.2"
     validations:
       required: true
 

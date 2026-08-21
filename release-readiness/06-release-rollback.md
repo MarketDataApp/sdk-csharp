@@ -1,4 +1,4 @@
-# Release/Rollback Gate - v1.0.0-rc.1
+# Release/Rollback Gate - v1.0.0-rc.2
 
 ## Gate Owner
 Release automation
@@ -24,7 +24,7 @@ P0 blockers: None
 | Stage | Gate |
 |-------|------|
 | `gate` | Full `{ubuntu, windows, macOS}` matrix, both TFMs, 100% coverage, vulnerability audit, format check |
-| `release` | Tag must not exist; CHANGELOG `## [1.0.0-rc.1]` section must be non-empty |
+| `release` | Tag must not exist; CHANGELOG `## [1.0.0-rc.2]` section must be non-empty |
 | `publish-nuget` | Live integration suite as a release gate; provenance attestation before push |
 
 A missing `MARKETDATA_TOKEN` fails the release outright rather than letting a silently
@@ -35,7 +35,7 @@ skipped integration suite look green.
 **NuGet.org versions are immutable — a published version cannot be replaced or deleted.**
 
 1. Stop any promotion messaging.
-2. If the package is harmful, unlist `1.0.0-rc.1` on NuGet.org. Unlisting hides it from
+2. If the package is harmful, unlist `1.0.0-rc.2` on NuGet.org. Unlisting hides it from
    search and from new resolutions; existing lockfiles still resolve it.
 3. Ship `1.0.0-rc.2` from `main` with the targeted fix.
 4. Record root cause and remediation in the next CHANGELOG entry.
@@ -46,14 +46,14 @@ workflow can do it.
 
 ## Hotfix Path
 
-- Branch from: the `v1.0.0-rc.1` tag
+- Branch from: the `v1.0.0-rc.2` tag
 - Target: `main`
 - Next version: `1.0.0-rc.2`
 
 ## Candidate-specific Risk Posture
 
 Publishing a release candidate rather than `1.0.0` is itself the primary risk control.
-`1.0.0-rc.1` is hidden from default installs — `dotnet add package marketdata.sdk`
+`1.0.0-rc.2` is hidden from default installs — `dotnet add package MarketDataApp`
 resolves only stable versions, so consumers must opt in with `--prerelease`. A defect
 therefore has a limited blast radius, and the stable `1.0.0` tag can wait for the
 candidate to hold up.

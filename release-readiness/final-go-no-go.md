@@ -1,13 +1,13 @@
-# Final Go/No-Go Decision - v1.0.0-rc.1
+# Final Go/No-Go Decision - v1.0.0-rc.2
 
 ## Release Information
 
 | Field | Value |
 |-------|-------|
-| Version | 1.0.0-rc.1 |
-| Tag | v1.0.0-rc.1 |
-| Title | Version 1.0.0-rc.1 |
-| Package | `marketdata.sdk` |
+| Version | 1.0.0-rc.2 |
+| Tag | v1.0.0-rc.2 |
+| Title | Version 1.0.0-rc.2 |
+| Package | `MarketDataApp` |
 | Prerelease | Yes |
 | Commit | b00d3d7 |
 | Date | 2026-08-20 |
