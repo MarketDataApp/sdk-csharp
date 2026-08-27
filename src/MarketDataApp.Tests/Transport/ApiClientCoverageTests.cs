@@ -11,8 +11,8 @@ namespace MarketDataApp.Tests.Transport;
 /// Coverage-completing tests for <see cref="ApiClient"/> reached through the public
 /// <see cref="MarketDataClient"/> surface: constructor option validation, HTTP error-status
 /// mappings, resource disposal, and startup token-redaction logging.
-/// Member of <see cref="DotEnvCwdCollection"/>: two tests construct clients without options,
-/// which reads the CWD .env via FromEnvironment and must never overlap the .env fixtures.
+/// Member of <see cref="DotEnvCwdCollection"/>: tests construct clients without options, which
+/// reads the base-directory .env via FromEnvironment and must never overlap the .env fixtures.
 /// </summary>
 [Collection(DotEnvCwdCollection.Name)]
 public sealed class ApiClientCoverageTests
@@ -184,6 +184,7 @@ public sealed class ApiClientCoverageTests
     [Fact]
     public async Task Dispose_ReleasesResources_AndSupportsDefaultConstruction()
     {
+        using var demoMode = EnvironmentVariableOverride.For("MARKETDATA_TOKEN", " ");
         var handler = new StubHttpMessageHandler(_ =>
             MarketDataTestClient.JsonResponse("""{"s":"ok","symbol":["AAPL"],"mid":[1.0]}"""));
 
@@ -197,6 +198,7 @@ public sealed class ApiClientCoverageTests
     [Fact]
     public async Task CreateAsync_WithoutOptions_UsesEnvironmentAndSkipsValidationInDemoMode()
     {
+        using var demoMode = EnvironmentVariableOverride.For("MARKETDATA_TOKEN", " ");
         var requests = 0;
         var handler = new StubHttpMessageHandler(_ =>
         {
@@ -213,6 +215,7 @@ public sealed class ApiClientCoverageTests
     [Fact]
     public void OwnedHttpClient_Constructor_UsesEnvironmentAndConstructs()
     {
+        using var demoMode = EnvironmentVariableOverride.For("MARKETDATA_TOKEN", " ");
         // No HttpClient in sight: the SDK creates and owns the transport (default handler, no
         // HttpClient-level timeout) and falls back to FromEnvironment. The test environment has
         // no MARKETDATA_TOKEN, so demo mode skips startup validation and nothing touches the
@@ -225,6 +228,7 @@ public sealed class ApiClientCoverageTests
     [Fact]
     public async Task OwnedHttpClient_CreateAsync_UsesEnvironmentAndConstructs()
     {
+        using var demoMode = EnvironmentVariableOverride.For("MARKETDATA_TOKEN", " ");
         using var client = await MarketDataClient.CreateAsync();
 
         Assert.NotNull(client.Stocks);
@@ -252,6 +256,25 @@ public sealed class ApiClientCoverageTests
         });
 
         Assert.Null(client.LatestRateLimit);
+    }
+
+    private sealed class EnvironmentVariableOverride : IDisposable
+    {
+        private readonly string _name;
+        private readonly string? _originalValue;
+
+        private EnvironmentVariableOverride(string name, string? value)
+        {
+            _name = name;
+            _originalValue = Environment.GetEnvironmentVariable(name);
+            Environment.SetEnvironmentVariable(name, value);
+        }
+
+        public static EnvironmentVariableOverride For(string name, string? value) =>
+            new(name, value);
+
+        public void Dispose() =>
+            Environment.SetEnvironmentVariable(_name, _originalValue);
     }
 
     [Fact]
