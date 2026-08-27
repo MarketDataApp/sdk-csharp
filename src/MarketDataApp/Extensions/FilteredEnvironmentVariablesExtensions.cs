@@ -15,6 +15,7 @@ internal sealed class FilteredEnvironmentVariablesProvider(Func<string, bool> pr
 {
     public override void Load()
     {
+        Data.Clear();
         var values = Environment.GetEnvironmentVariables();
 
         foreach (DictionaryEntry entry in values)
