@@ -15,7 +15,7 @@ public sealed class ConfigurationCoverageTests
     {
         // Serialized via DotEnvCwdCollection, so no sibling test owns .env while this runs;
         // the delete only clears a leftover from an aborted earlier run (no-op otherwise).
-        File.Delete(Path.Combine(Directory.GetCurrentDirectory(), ".env"));
+        File.Delete(Path.Combine(AppContext.BaseDirectory, ".env"));
 
         var options = MarketDataClientOptions.FromEnvironment();
 
@@ -26,7 +26,7 @@ public sealed class ConfigurationCoverageTests
     [Fact]
     public void FromEnvironment_WithDotEnvFile_LoadsValues()
     {
-        var envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+        var envPath = Path.Combine(AppContext.BaseDirectory, ".env");
         var tempPath = envPath + ".tmp";
         try
         {
@@ -43,6 +43,31 @@ public sealed class ConfigurationCoverageTests
         {
             File.Delete(envPath);
             File.Delete(tempPath);
+        }
+    }
+
+    [Fact]
+    public void CreateEnvironmentConfiguration_LoadsOnlyMarketDataEnvironmentVariables()
+    {
+        const string includedName = "MARKETDATA_CONFIGURATION_FILTER_TEST";
+        const string excludedName = "CONFIGURATION_FILTER_TEST";
+        var originalIncluded = Environment.GetEnvironmentVariable(includedName);
+        var originalExcluded = Environment.GetEnvironmentVariable(excludedName);
+
+        try
+        {
+            Environment.SetEnvironmentVariable(includedName, "included");
+            Environment.SetEnvironmentVariable(excludedName, "excluded");
+
+            var configuration = MarketDataClientOptions.CreateEnvironmentConfiguration();
+
+            Assert.Equal("included", configuration[includedName]);
+            Assert.Null(configuration[excludedName]);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(includedName, originalIncluded);
+            Environment.SetEnvironmentVariable(excludedName, originalExcluded);
         }
     }
 }
