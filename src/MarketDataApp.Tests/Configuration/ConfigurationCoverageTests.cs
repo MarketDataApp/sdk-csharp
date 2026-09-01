@@ -15,7 +15,7 @@ public sealed class ConfigurationCoverageTests
     {
         // Serialized via DotEnvCwdCollection, so no sibling test owns .env while this runs;
         // the delete only clears a leftover from an aborted earlier run (no-op otherwise).
-        File.Delete(Path.Combine(AppContext.BaseDirectory, ".env"));
+        File.Delete(Path.Combine(Directory.GetCurrentDirectory(), ".env"));
 
         var options = MarketDataClientOptions.FromEnvironment();
 
@@ -26,7 +26,7 @@ public sealed class ConfigurationCoverageTests
     [Fact]
     public void FromEnvironment_WithDotEnvFile_LoadsValues()
     {
-        var envPath = Path.Combine(AppContext.BaseDirectory, ".env");
+        var envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
         var tempPath = envPath + ".tmp";
         try
         {

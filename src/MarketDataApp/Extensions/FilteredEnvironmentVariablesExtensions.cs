@@ -15,17 +15,15 @@ internal sealed class FilteredEnvironmentVariablesProvider(Func<string, bool> pr
 {
     public override void Load()
     {
+        // Cleared first so a reload drops keys whose variable is no longer in the environment.
         Data.Clear();
-        var values = Environment.GetEnvironmentVariables();
 
-        foreach (DictionaryEntry entry in values)
+        foreach (DictionaryEntry entry in Environment.GetEnvironmentVariables())
         {
             var key = (string)entry.Key;
-
             if (predicate(key))
             {
-                Data[key.Replace("__", ConfigurationPath.KeyDelimiter)] =
-                    entry.Value?.ToString();
+                Data[key.Replace("__", ConfigurationPath.KeyDelimiter)] = (string?)entry.Value;
             }
         }
     }
@@ -33,23 +31,24 @@ internal sealed class FilteredEnvironmentVariablesProvider(Func<string, bool> pr
 
 internal static class FilteredEnvironmentVariablesExtensions
 {
-    public static IConfigurationBuilder AddEnvironmentVariables(
+    /// <summary>
+    /// Adds only the process environment variables matching <paramref name="predicate"/>, so
+    /// the rest of the machine environment never reaches the configuration object.
+    /// </summary>
+    public static IConfigurationBuilder AddFilteredEnvironmentVariables(
         this IConfigurationBuilder builder,
-        Func<string, bool> predicate)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-        ArgumentNullException.ThrowIfNull(predicate);
+        Func<string, bool> predicate) =>
+        builder.Add(new FilteredEnvironmentVariablesSource(predicate));
 
-        return builder.Add(new FilteredEnvironmentVariablesSource(predicate));
-    }
-
-    public static IConfigurationBuilder AddEnvironmentVariables(
+    /// <summary>
+    /// Adds only the process environment variables whose name starts with
+    /// <paramref name="prefix"/>. Deliberately not named AddEnvironmentVariables: the
+    /// framework extension with that signature STRIPS the prefix from the resulting key,
+    /// while these keys keep it, which is what <see cref="MarketDataClientOptions"/> reads.
+    /// </summary>
+    public static IConfigurationBuilder AddPrefixedEnvironmentVariables(
         this IConfigurationBuilder builder,
-        string prefix)
-    {
-        ArgumentNullException.ThrowIfNull(prefix);
-
-        return AddEnvironmentVariables(builder, key =>
-            key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-    }
+        string prefix) =>
+        builder.AddFilteredEnvironmentVariables(
+            key => key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
 }

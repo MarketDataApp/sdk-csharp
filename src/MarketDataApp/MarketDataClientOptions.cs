@@ -140,23 +140,24 @@ public sealed record MarketDataClientOptions
     }
 
     /// <summary>
-    /// Creates configuration from user secrets, an optional .env file, and process
-    /// environment variables, in increasing precedence order.
+    /// Creates configuration from user secrets, an optional .env file in the working
+    /// directory, and the MARKETDATA_ process environment variables, in increasing
+    /// precedence order. The .env lookup stays relative to the working directory: that is
+    /// the documented location and the one the sibling SDKs use.
     /// </summary>
-    public static IConfiguration CreateEnvironmentConfiguration()
+    internal static IConfiguration CreateEnvironmentConfiguration()
     {
         var builder = new ConfigurationBuilder()
             .AddUserSecrets<MarketDataClientOptions>(optional: true);
 
-        var envFile = Path.Combine(AppContext.BaseDirectory, ".env");
+        var envFile = Path.Combine(Directory.GetCurrentDirectory(), ".env");
         if (File.Exists(envFile))
         {
-            // This will also add .env key/values in the process environment variables
             builder.AddDotNetEnv(envFile, new DotNetEnv.LoadOptions(clobberExistingVars: false));
         }
 
         return builder
-            .AddEnvironmentVariables("MARKETDATA_")
+            .AddPrefixedEnvironmentVariables("MARKETDATA_")
             .Build();
     }
 

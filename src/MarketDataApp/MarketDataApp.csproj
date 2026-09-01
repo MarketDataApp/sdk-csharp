@@ -76,6 +76,7 @@
        no runtime behavior. -->
   <ItemGroup>
     <InternalsVisibleTo Include="MarketDataApp.Tests" />
+    <InternalsVisibleTo Include="MarketDataApp.IntegrationTests" />
   </ItemGroup>
 
   <ItemGroup>
