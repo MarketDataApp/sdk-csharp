@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using MarketDataApp.Extensions;
 
 namespace MarketDataApp;
 
@@ -135,18 +136,29 @@ public sealed record MarketDataClientOptions
     /// </summary>
     public static MarketDataClientOptions FromEnvironment()
     {
+        return FromConfiguration(CreateEnvironmentConfiguration());
+    }
+
+    /// <summary>
+    /// Creates configuration from user secrets, an optional .env file in the working
+    /// directory, and the MARKETDATA_ process environment variables, in increasing
+    /// precedence order. The .env lookup stays relative to the working directory: that is
+    /// the documented location and the one the sibling SDKs use.
+    /// </summary>
+    internal static IConfiguration CreateEnvironmentConfiguration()
+    {
         var builder = new ConfigurationBuilder()
             .AddUserSecrets<MarketDataClientOptions>(optional: true);
 
-        if (File.Exists(".env"))
+        var envFile = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+        if (File.Exists(envFile))
         {
-            builder.AddDotNetEnv(".env", new DotNetEnv.LoadOptions(clobberExistingVars: false));
+            builder.AddDotNetEnv(envFile, new DotNetEnv.LoadOptions(clobberExistingVars: false));
         }
 
-        var configuration = builder
-            .AddEnvironmentVariables()
+        return builder
+            .AddPrefixedEnvironmentVariables("MARKETDATA_")
             .Build();
-        return FromConfiguration(configuration);
     }
 
     /// <summary>

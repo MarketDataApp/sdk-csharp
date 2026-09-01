@@ -45,4 +45,29 @@ public sealed class ConfigurationCoverageTests
             File.Delete(tempPath);
         }
     }
+
+    [Fact]
+    public void CreateEnvironmentConfiguration_LoadsOnlyMarketDataEnvironmentVariables()
+    {
+        const string includedName = "MARKETDATA_CONFIGURATION_FILTER_TEST";
+        const string excludedName = "CONFIGURATION_FILTER_TEST";
+        var originalIncluded = Environment.GetEnvironmentVariable(includedName);
+        var originalExcluded = Environment.GetEnvironmentVariable(excludedName);
+
+        try
+        {
+            Environment.SetEnvironmentVariable(includedName, "included");
+            Environment.SetEnvironmentVariable(excludedName, "excluded");
+
+            var configuration = MarketDataClientOptions.CreateEnvironmentConfiguration();
+
+            Assert.Equal("included", configuration[includedName]);
+            Assert.Null(configuration[excludedName]);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(includedName, originalIncluded);
+            Environment.SetEnvironmentVariable(excludedName, originalExcluded);
+        }
+    }
 }
