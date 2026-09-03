@@ -8,6 +8,13 @@ namespace MarketDataApp.IntegrationTests;
 /// </summary>
 public sealed class StartupValidationIntegrationTests
 {
+    public StartupValidationIntegrationTests()
+    {
+        // These tests build their own client, so they carry the same "no token, no
+        // silent skip" guard as IntegrationTestBase (SDK requirements section 13).
+        IntegrationTestConfiguration.RequireApiToken();
+    }
+
     [IntegrationFact]
     public void Constructor_WithLiveToken_ValidatesAndSeedsRateLimit()
     {

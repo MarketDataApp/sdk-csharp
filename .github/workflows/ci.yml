@@ -235,12 +235,14 @@ jobs:
     # Runs on pull requests and on published releases, plus manual dispatch with the
     # checkbox enabled — never on ordinary pushes/commits to a branch. Per §13 the
     # integration suite MUST keep running on PRs, so it is deliberately independent
-    # of the trimmed unit/build OS matrix above. The IntegrationFactAttribute guard
-    # inside the tests also skips individual tests when MARKETDATA_TOKEN or
-    # MARKETDATA_RUN_INTEGRATION_TESTS is absent (e.g. fork PRs that cannot see
-    # repository secrets).
+    # of the trimmed unit/build OS matrix above.
+    #
+    # A missing token FAILS this job (§13, §17.3); the guard step below and the
+    # RequireApiToken() call in every live test's constructor both enforce it. Dependabot
+    # runs cannot read repository secrets, so their PRs skip the JOB: that shows as
+    # "skipped" in the checks list, not as a green run that tested nothing.
     if: >-
-      github.event_name == 'pull_request' ||
+      (github.event_name == 'pull_request' && github.actor != 'dependabot[bot]') ||
       github.event_name == 'release' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.run_integration_tests == 'true')
     runs-on: ubuntu-latest
@@ -255,6 +257,14 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0   # full history required for Source Link and MinVer
+
+      - name: Refuse to run without the live API token
+        shell: bash
+        run: |
+          if [ -z "$MARKETDATA_TOKEN" ]; then
+            echo "::error::MARKETDATA_TOKEN secret is missing; the live integration suite fails rather than skips (SDK requirements 17.3)."
+            exit 1
+          fi
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
@@ -278,18 +288,15 @@ jobs:
       # pass each proves the full user experience — one-line client setup, startup token
       # validation, a data request, and rendering/export — still works, which no unit test
       # reproduces. A non-zero exit code fails the job. Cost: ~3 live requests plus one
-      # small chain. Skipped when the token secret is absent (fork PRs), mirroring the
-      # IntegrationFactAttribute guard above.
+      # small chain. The token guard above already failed the job if the secret is
+      # absent, so these run unconditionally.
       - name: Smoke-run Watchlist (--once)
-        if: env.MARKETDATA_TOKEN != ''
         run: dotnet run --project examples/Watchlist -c Release --no-build -- AAPL MSFT --once
 
       - name: Smoke-run Watchlist CSV export
-        if: env.MARKETDATA_TOKEN != ''
         run: dotnet run --project examples/Watchlist -c Release --no-build -- --export AAPL TestResults/aapl-daily.csv
 
       - name: Smoke-run OptionsChainMonitor (--once)
-        if: env.MARKETDATA_TOKEN != ''
         run: dotnet run --project examples/OptionsChainMonitor -c Release --no-build -- AAPL --dte 30 --strikes 2 --once
 
       - name: Upload integration test results

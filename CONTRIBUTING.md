@@ -59,8 +59,9 @@ dotnet test src/MarketDataApp.Tests/MarketDataApp.Tests.csproj -c Release \
   behavior tests; use `[ExcludeFromCodeCoverage]` only for genuinely unreachable code,
   with a justifying comment.
 - **Integration tests** (`src/MarketDataApp.IntegrationTests`) hit the live API and are
-  gated by `MARKETDATA_RUN_INTEGRATION_TESTS=true` + a `MARKETDATA_TOKEN`. They stay
-  skipped without a token, so the default test run and CI stay green.
+  gated by `MARKETDATA_RUN_INTEGRATION_TESTS=true`. Without that variable they are
+  skipped, so the default test run stays green. With it set and no `MARKETDATA_TOKEN`
+  they **fail** with an explanatory message, never skip (SDK requirements section 13).
 
 ### Pull requests
 

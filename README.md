@@ -1017,8 +1017,11 @@ on every pull request and on published releases, and can additionally be trigger
 demand via the **Run live integration tests** checkbox on manual workflow dispatch. It
 is never triggered by ordinary pushes. The job sets
 `MARKETDATA_RUN_INTEGRATION_TESTS=true` and maps the `MARKETDATA_TOKEN` repository
-secret into the environment; on fork PRs, which cannot read repository secrets, the
-`IntegrationFact` guard skips the individual tests instead of failing.
+secret into the environment. A missing token **fails** the job rather than skipping
+it (SDK requirements section 13): the job refuses to start without the secret, and
+every live test throws with the same message. Dependabot PRs cannot read repository
+secrets, so for them the whole job is skipped, which the checks list shows as skipped,
+never as passed.
 
 ---
 
