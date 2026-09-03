@@ -36,4 +36,25 @@ internal static class IntegrationTestConfiguration
     public static bool Enabled =>
         bool.TryParse(Instance["MARKETDATA_RUN_INTEGRATION_TESTS"], out var enabled)
         && enabled;
+
+    public const string MissingTokenMessage =
+        "MARKETDATA_TOKEN is not set. The live integration suite refuses to run without a "
+        + "token instead of skipping (SDK requirements, section 13): a green run that made "
+        + "no request would mean nothing. Set MARKETDATA_TOKEN and rerun.";
+
+    /// <summary>
+    /// Returns the live token, or throws when none is configured. Called from every live
+    /// test's constructor so that, once the suite is enabled, a missing token fails the
+    /// suite loudly instead of letting each test run in demo mode.
+    /// </summary>
+    public static string RequireApiToken()
+    {
+        var token = ApiToken;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new InvalidOperationException(MissingTokenMessage);
+        }
+
+        return token;
+    }
 }
