@@ -1,4 +1,4 @@
-# Funds
+# Funds (C# SDK)
 
 The C#/.NET SDK from Market Data provides methods to streamline your use of the Funds endpoints. These methods provide a typed interface over the underlying HTTP requests and responses; every method is asynchronous and accepts an optional `CancellationToken`.
 
@@ -6,4 +6,4 @@ Reach the resource through `client.Funds`. For CSV output, call the paired `*Csv
 
 ## Funds Endpoints
 
-- [Candles](./candles.md)
+- [Fund Candles (C# SDK)](./candles.md)

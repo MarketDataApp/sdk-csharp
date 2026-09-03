@@ -1,4 +1,4 @@
-# Candles
+# Fund Candles (C# SDK)
 
 Retrieve historical NAV candles (open/high/low/close) for a mutual fund symbol. Fund candles have no volume.
 

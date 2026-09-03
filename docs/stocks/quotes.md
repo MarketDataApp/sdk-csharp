@@ -1,4 +1,4 @@
-# Quotes
+# Stock Quotes (C# SDK)
 
 Retrieve real-time quotes (bid, ask, mid, last, volume, etc.) for one or more stock symbols.
 

@@ -1,4 +1,4 @@
-# Installation
+# Installation (C# SDK)
 
 This guide will help you install the Market Data C#/.NET SDK and configure it for your project.
 

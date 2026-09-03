@@ -1,8 +1,8 @@
-# Client
+# Client (C# SDK)
 
 The `MarketDataClient` is the entry point for the SDK. It groups the API into five resources — `Stocks`, `Options`, `Funds`, `Markets`, and `Utilities` — and owns the cross-cutting behavior: configuration loading, authentication, retries, timeouts, and rate-limit tracking.
 
-### Get Started Quickly
+## Get Started Quickly
 
 ```csharp
 using MarketDataApp;

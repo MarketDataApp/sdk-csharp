@@ -1,4 +1,4 @@
-# Earnings
+# Earnings (C# SDK)
 
 Retrieve historical and upcoming earnings reports for a stock symbol: fiscal period, report date and time, and reported vs. estimated EPS.
 

@@ -1,4 +1,4 @@
-# News
+# News (C# SDK)
 
 Retrieve news articles for a stock symbol.
 

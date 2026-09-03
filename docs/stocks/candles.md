@@ -1,4 +1,4 @@
-# Candles
+# Stock Candles (C# SDK)
 
 Retrieve historical OHLCV (open/high/low/close/volume) candles for a stock symbol.
 

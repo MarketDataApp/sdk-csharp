@@ -1,4 +1,4 @@
-# Chain
+# Option Chain (C# SDK)
 
 Retrieve a complete or filtered options chain for an underlying symbol. Every contract comes back as a full option quote — price, size, volume, open interest, greeks, and IV.
 
