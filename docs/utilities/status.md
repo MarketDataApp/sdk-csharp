@@ -1,4 +1,4 @@
-# Status
+# API Status (C# SDK)
 
 Retrieve the current operational status of the Market Data API services, with 30- and 90-day uptime. This is a public endpoint that works in demo mode.
 
@@ -10,7 +10,7 @@ Use `GetStatusAsync` on the `Utilities` resource.
 Task<UtilitiesStatusResponse> GetStatusAsync(CancellationToken cancellationToken = default)
 ```
 
-#### Returns
+### Returns
 
 `UtilitiesStatusResponse` wrapping `IReadOnlyList<ServiceStatus>` — one row per service:
 

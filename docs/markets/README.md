@@ -1,4 +1,4 @@
-# Markets
+# Markets (C# SDK)
 
 The C#/.NET SDK from Market Data provides methods to streamline your use of the Markets endpoints. These methods provide a typed interface over the underlying HTTP requests and responses; every method is asynchronous and accepts an optional `CancellationToken`.
 
@@ -6,4 +6,4 @@ Reach the resource through `client.Markets`. For CSV output, call the paired `*C
 
 ## Markets Endpoints
 
-- [Status](./status.md)
+- [Market Status (C# SDK)](./status.md)

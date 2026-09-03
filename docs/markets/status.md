@@ -1,4 +1,4 @@
-# Status
+# Market Status (C# SDK)
 
 Retrieve whether a country's stock market is open or closed on a given day, or over a range of days — the market calendar.
 

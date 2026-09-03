@@ -1,4 +1,4 @@
-# Authentication
+# Authentication (C# SDK)
 
 The Market Data API uses a **Bearer Token** for authentication. The token is required for almost every request. Your token should have been e-mailed to you when you first signed up for an account. If you do not have a token or have lost your sign-up email, request a new token from the [Market Data Dashboard](https://www.marketdata.app/dashboard/).
 
@@ -53,7 +53,7 @@ The SDK reads user secrets automatically when you create a client without explic
 
 The SDK also loads a `.env` file from your working directory at startup. Create a file named `.env` in your project root:
 
-```env title=".env"
+```ini title=".env"
 MARKETDATA_TOKEN=your_api_token
 ```
 

@@ -1,4 +1,4 @@
-# Quotes
+# Option Quotes (C# SDK)
 
 Retrieve a real-time or historical quote for a specific option contract, identified by its OCC option symbol.
 

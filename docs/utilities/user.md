@@ -1,4 +1,4 @@
-# User
+# User (C# SDK)
 
 Retrieve the authenticated account's details: request quota and options-data entitlement. Requires a token.
 
@@ -10,7 +10,7 @@ Use `GetUserAsync` on the `Utilities` resource.
 Task<UtilitiesUserResponse> GetUserAsync(CancellationToken cancellationToken = default)
 ```
 
-#### Returns
+### Returns
 
 `UtilitiesUserResponse` wrapping a single `User` record:
 

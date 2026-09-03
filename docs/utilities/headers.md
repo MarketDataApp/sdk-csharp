@@ -1,4 +1,4 @@
-# Headers
+# Headers (C# SDK)
 
 Echo back the HTTP request headers the API received. Useful for debugging what your application (or a proxy in between) is actually sending — user agent, authorization scheme, content negotiation.
 
@@ -10,7 +10,7 @@ Use `GetHeadersAsync` on the `Utilities` resource.
 Task<UtilitiesHeadersResponse> GetHeadersAsync(CancellationToken cancellationToken = default)
 ```
 
-#### Returns
+### Returns
 
 `UtilitiesHeadersResponse` wrapping `IReadOnlyDictionary<string, string>` — header name to value, as received by the API. The `Authorization` value is returned redacted by the API.
 

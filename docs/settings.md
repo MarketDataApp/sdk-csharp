@@ -1,4 +1,4 @@
-# Settings
+# Settings (C# SDK)
 
 The SDK is configured at two levels: **client options** (`MarketDataClientOptions`, applied once when the client is created) and **per-request options** (`MarketDataRequestOptions`, passed to any endpoint call). Client options can be set programmatically or bound from configuration; per-request options override the client-level defaults field by field.
 
