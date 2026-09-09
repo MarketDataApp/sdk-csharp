@@ -22,7 +22,7 @@ public record User(
 ```
 
 > [!NOTE]
-> **Rate-limit state**
+> **[Rate-limit state]**
 >
 > This endpoint is also what the client calls at startup to validate your token. The rate-limit numbers the SDK tracks — including the reset time and consumed count — come from the `x-api-ratelimit-*` response headers, not from this body, and surface through [`client.LatestRateLimit`](../client.md#rate-limits) and `response.RateLimit`. `User` is the typed view of the account body only.
 
