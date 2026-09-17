@@ -1,0 +1,43 @@
+# Code review bot, sdk-csharp. Overrides the bot's defaults; anything absent
+# keeps the default. See
+# MarketData-App/code-review-bot/reviewbot/defaults/policy.yml
+
+# Codex reviews this repository; Claude catches it when Codex cannot.
+#
+# `fallback`, NOT `first`. Under `first` the run is [ready[0].review(brief)]
+# and a BackendError goes straight to _fail -- Claude is never tried, because it
+# was dropped into `missing` the moment Codex probed live. Since
+# CodexBackend.probe() returns true as soon as $CODEX_HOME/auth.json EXISTS, a
+# stale borrowed credential is live-but-broken, and that would end the review
+# with a neutral "Bot error" and no comment.
+#
+# Codex must stay FIRST for a second reason: credential-checkout declines the
+# shared credential lease when codex is not the first backend, because a later
+# backend is reached rarely or never and holding one plan's lease for it starves
+# the repositories that use it on every run.
+backends: [codex, claude]
+mode: fallback
+
+# The check is advisory until someone adds it to a branch rule, so a blocked
+# review costs nothing yet and means something later.
+gate: true
+require_ci_green: true
+
+# The review rules are in REVIEW.md beside this file. Its two `@include` lines
+# pull in the bot's shared rule sets and section 9 describes what the public
+# surface is in C#, so there is nothing to add here.
+
+ignore_paths:
+  - "docs/**"
+  - "*.md"
+  - ".github/**/*.md"
+  - "**/*.lock"
+  - "**/dist/**"
+  # Build output. A restored or published tree puts compiled assemblies and
+  # generated files here, and they would spend the diff budget ahead of the
+  # source sitting beside them.
+  - "**/bin/**"
+  - "**/obj/**"
+
+check_name: "Code review"
+timeout_minutes: 15
