@@ -7,6 +7,6 @@ Reach the resource through `client.Options`. For CSV output, call the paired `*C
 ## Options Endpoints
 
 - [Option Chain (C# SDK)](./chain.md) — Retrieve a complete or filtered option chain with the C# SDK. Every contract returns a full quote with greeks, implied volatility and open interest.
-- [Expirations (C# SDK)](./expirations.md)
+- [Expirations (C# SDK)](./expirations.md) — Call GetExpirationsAsync on the C# SDK Options resource to list expiration dates for an underlying symbol, filtered by strike or historical date.
 - [Option Quotes (C# SDK)](./quotes.md)
 - [Lookup (C# SDK)](./lookup.md) — Turn a human-readable option description into a well-formed OCC option symbol with the C# SDK and its OptionsLookupRequest type.

@@ -124,7 +124,7 @@ var options = new MarketDataClientOptions { ValidateTokenOnStartup = false };
 ```
 
 > [!NOTE]
-> **Demo mode**
+> **[Demo mode]**
 >
 > If no token is found anywhere in the cascade, the SDK runs in **demo mode** — startup validation is skipped and you can call the free, public endpoints (such as `AAPL` quotes and `client.Utilities.GetStatusAsync()`). Authenticated endpoints throw `AuthenticationException` on first use.
 

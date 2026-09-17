@@ -95,7 +95,7 @@ await csv.SaveToFileAsync("prices.csv");        // write it to disk
 `CsvResponse` carries the same metadata as every other response (`StatusCode`, `RequestId`, `RateLimit`, `IsNoData`, ...), with `IsCsv == true`.
 
 > [!NOTE]
-> **`MARKETDATA_OUTPUT_FORMAT`**
+> **[`MARKETDATA_OUTPUT_FORMAT`]**
 >
 > This key exists for parity with the other Market Data SDKs and is **advisory only** in C#: it stores a hint on `OutputFormat` but never reroutes a typed method to CSV or vice versa. Call the `*CsvAsync` method when you want CSV.
 
