@@ -3,10 +3,12 @@ namespace MarketDataApp;
 /// <summary>Date serialization format applied to all date/timestamp fields in a response.</summary>
 public enum DateFormat
 {
-    /// <summary>Unix epoch seconds (default).</summary>
+    /// <summary>Unix epoch seconds. The API also uses it for most fields when no format is
+    /// requested; option expirations then come as dates.</summary>
     Unix,
 
-    /// <summary>ISO-8601 timestamp string.</summary>
+    /// <summary>US/Eastern text: a datetime with its offset (<c>2026-09-21 14:46:05 -04:00</c>)
+    /// or a date alone (<c>2026-09-21</c>), which typed responses read as midnight US/Eastern.</summary>
     Timestamp,
 
     /// <summary>Excel/spreadsheet serial date number. Supported by the <c>*CsvAsync</c> methods

@@ -4,6 +4,7 @@ namespace MarketDataApp.IntegrationTests;
 
 public sealed class OptionsIntegrationTests : IntegrationTestBase
 {
+    /// <summary>Verifies that live expirations are returned and that each one is midnight US/Eastern of its day.</summary>
     [IntegrationFact]
     public async Task Expirations_ReturnExpectedShape()
     {
@@ -12,6 +13,7 @@ public sealed class OptionsIntegrationTests : IntegrationTestBase
 
         AssertSuccess(response.StatusCode);
         Assert.NotEmpty(response.Values);
+        Assert.All(response.Values, expiration => Assert.Equal(TimeSpan.Zero, expiration.TimeOfDay));
     }
 
     [IntegrationFact]
