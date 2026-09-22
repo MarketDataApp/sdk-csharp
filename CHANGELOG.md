@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dependency and keeps unrelated environment values out of the in-memory configuration.
   Contributed by [@omidkrad](https://github.com/omidkrad).
 
+### Fixed
+
+- Under `DateFormat.Timestamp`, a value the API sends as a date alone (`2026-09-21`) is
+  now midnight America/New_York of that day. It was read as UTC midnight, so it came back
+  as 20:00 or 19:00 of the day before: the `Time` of a daily stock or fund candle, the
+  `Date`, `ReportDate` and `Updated` of an earning, the `PublicationDate` and `Updated`
+  of the news, the options expirations and the market status `Date`. Datetimes with an
+  offset (`2026-09-21 14:46:05 -04:00`) and `DateFormat.Unix` read as before. (#111)
+
 ## [1.0.0] - 2026-08-21
 
 First stable release of the C#/.NET SDK. The public API is covered by semantic

@@ -7,6 +7,8 @@ namespace MarketDataApp;
 
 internal static class JsonResponseParser
 {
+    private const string DateOnlyFormat = "yyyy-MM-dd";
+
     private static readonly Lazy<TimeZoneInfo> EasternTimeZone = new(ResolveEasternTimeZone);
 
     // Excluded: the "Eastern Standard Time" fallback is only reached on platforms that lack the
@@ -115,6 +117,14 @@ internal static class JsonResponseParser
         }
     }
 
+    /// <summary>
+    /// Decodes a response timestamp into a US/Eastern <see cref="DateTimeOffset"/>. A date
+    /// alone (<c>yyyy-MM-dd</c>) is midnight US/Eastern of that day; any other string is read
+    /// with its UTC offset, or as UTC when it has none.
+    /// </summary>
+    /// <param name="value">A JSON number of Unix seconds or a JSON string; <see langword="null"/> when the field is absent.</param>
+    /// <returns>The timestamp in US/Eastern, or <see langword="null"/> when the value is absent, of another JSON kind, or unreadable.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The number of Unix seconds is outside the range of <see cref="DateTimeOffset"/>.</exception>
     public static DateTimeOffset? ToDateTime(JsonElement? value)
     {
         if (value is null)
@@ -128,12 +138,20 @@ internal static class JsonResponseParser
             return ToEastern(DateTimeOffset.UnixEpoch.AddSeconds(number));
         }
 
-        if (value.Value.ValueKind == JsonValueKind.String
-            && DateTimeOffset.TryParse(
-                value.Value.GetString(),
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal,
-                out var timestamp))
+        if (value.Value.ValueKind != JsonValueKind.String)
+        {
+            return null;
+        }
+
+        var text = value.Value.GetString()!;
+        // Without the length test, every datetime value would pay for a failed date parse.
+        if (text.Length == DateOnlyFormat.Length
+            && DateOnly.TryParseExact(text, DateOnlyFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+        {
+            return AtEasternMidnight(date);
+        }
+
+        if (DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var timestamp))
         {
             return ToEastern(timestamp);
         }
@@ -143,6 +161,15 @@ internal static class JsonResponseParser
 
     private static DateTimeOffset ToEastern(DateTimeOffset timestamp) =>
         TimeZoneInfo.ConvertTime(timestamp, EasternTimeZone.Value);
+
+    /// <summary>Returns the first instant of a calendar day in US/Eastern.</summary>
+    /// <param name="date">The US/Eastern calendar day.</param>
+    /// <returns>Midnight of <paramref name="date"/>, carrying the EST or EDT offset in force at that moment.</returns>
+    private static DateTimeOffset AtEasternMidnight(DateOnly date)
+    {
+        var midnight = date.ToDateTime(TimeOnly.MinValue);
+        return new DateTimeOffset(midnight, EasternTimeZone.Value.GetUtcOffset(midnight));
+    }
 
     public static DateTimeOffset? Timestamp(JsonElement root, string name) =>
         root.TryGetProperty(name, out var value) ? ToDateTime(value) : null;

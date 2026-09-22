@@ -338,7 +338,8 @@ structured SDK diagnostics. Tokens are always redacted in log output.
 ## Request and response model
 
 API Unix timestamps and timestamp strings are returned as `DateTimeOffset` values
-normalized to the `America/New_York`/US Eastern time zone.
+normalized to the `America/New_York`/US Eastern time zone. A date the API sends without
+a time (`2026-09-21` under `DateFormat.Timestamp`) is midnight US/Eastern of that day.
 
 ### Simple endpoint calls
 
