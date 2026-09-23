@@ -4,14 +4,24 @@ namespace MarketDataApp.IntegrationTests;
 
 public sealed class OptionsIntegrationTests : IntegrationTestBase
 {
+    /// <summary>
+    /// Verifies that live expirations are returned and that each one is midnight US/Eastern of
+    /// its day, carrying the EST or EDT offset in force on that date.
+    /// </summary>
     [IntegrationFact]
     public async Task Expirations_ReturnExpectedShape()
     {
         var response = await Client.Options.GetExpirationsAsync(
             new OptionsExpirationsRequest("AAPL"));
+        var eastern = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
 
         AssertSuccess(response.StatusCode);
         Assert.NotEmpty(response.Values);
+        Assert.All(response.Values, expiration =>
+        {
+            Assert.Equal(TimeSpan.Zero, expiration.TimeOfDay);
+            Assert.Equal(eastern.GetUtcOffset(expiration.DateTime), expiration.Offset);
+        });
     }
 
     [IntegrationFact]

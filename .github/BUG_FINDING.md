@@ -311,22 +311,21 @@ await Task.WhenAll(tasks);
 #### 4.1 Date format round-trip
 
 ```csharp
-foreach (var df in new[] { DateFormat.Timestamp, DateFormat.Unix, DateFormat.Spreadsheet })
+// null sends no dateformat, so the API picks the format: the SDK's default.
+foreach (var df in new DateFormat?[] { null, DateFormat.Unix, DateFormat.Timestamp })
 {
+    var options = new MarketDataRequestOptions { DateFormat = df };
     var candles = await client.Stocks.GetCandlesAsync(
-        new StockCandlesRequest
-        {
-            Resolution = StockResolution.Daily,
-            Symbol = "AAPL",
-            Countback = 5,
-        },
-        new MarketDataRequestOptions { DateFormat = df });
+        StockResolution.Daily, "AAPL", countback: 5, options: options);
+    var expirations = await client.Options.GetExpirationsAsync("AAPL", options: options);
 
-    Console.WriteLine($"{df}: {candles.Values.Count} rows");
+    Console.WriteLine($"{df?.ToString() ?? "default"}: {candles.Values[0].Time:O} {expirations.Values[0]:O}");
 }
 
-// Verify: every encoding decodes to the SAME instants.
-// Bug indicator: a format that throws, or rows that shift by hours between formats.
+// Verify: every encoding decodes to the SAME instants and offsets, and a date the API
+// sends without a time (a daily candle, an expiration) is midnight US/Eastern.
+// Bug indicator: rows that shift by hours between formats, or a date at 20:00 or 19:00
+// of the day before. DateFormat.Spreadsheet is CSV-only; typed methods reject it.
 ```
 
 #### 4.2 Year boundary

@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dependency and keeps unrelated environment values out of the in-memory configuration.
   Contributed by [@omidkrad](https://github.com/omidkrad).
 
+
 ## [1.0.0] - 2026-08-21
 
 First stable release of the C#/.NET SDK. The public API is covered by semantic
