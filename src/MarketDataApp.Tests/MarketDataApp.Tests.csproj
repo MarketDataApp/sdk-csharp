@@ -14,13 +14,13 @@
   <ItemGroup>
     <!-- coverlet.collector: used with the "XPlat Code Coverage" data collector to
          emit the coverage report artifact. -->
-    <PackageReference Include="coverlet.collector" Version="10.0.1">
+    <PackageReference Include="coverlet.collector" Version="10.1.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <!-- coverlet.msbuild: enforces the 100% line+branch coverage gate via
          `-p:Threshold` (the collector silently ignores runsettings <Threshold>). -->
-    <PackageReference Include="coverlet.msbuild" Version="10.0.1">
+    <PackageReference Include="coverlet.msbuild" Version="10.1.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
