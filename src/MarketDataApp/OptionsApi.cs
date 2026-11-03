@@ -266,7 +266,7 @@ public sealed class OptionsApi
 
     /// <summary>Gets the options chain for an underlying symbol. Each returned contract bills roughly one credit, so filter aggressively.</summary>
     /// <param name="symbol">The underlying ticker symbol.</param>
-    /// <param name="expiration">Expiration filter: a date, days-to-expiry, a range, a month/year, or all expirations.</param>
+    /// <param name="expiration">Expiration filter: a date, days-to-expiry (a single value, a comma-separated list, a closed range, or a comparison), a date range, a month/year, or all expirations.</param>
     /// <param name="weekly">Include or exclude weekly expirations.</param>
     /// <param name="monthly">Include or exclude monthly expirations.</param>
     /// <param name="quarterly">Include or exclude quarterly expirations.</param>
@@ -567,7 +567,7 @@ public sealed class OptionsApi
 
     /// <summary>Gets the options chain for an underlying symbol as CSV. Each returned contract bills roughly one credit, so filter aggressively.</summary>
     /// <param name="symbol">The underlying ticker symbol.</param>
-    /// <param name="expiration">Expiration filter: a date, days-to-expiry, a range, a month/year, or all expirations.</param>
+    /// <param name="expiration">Expiration filter: a date, days-to-expiry (a single value, a comma-separated list, a closed range, or a comparison), a date range, a month/year, or all expirations.</param>
     /// <param name="weekly">Include or exclude weekly expirations.</param>
     /// <param name="monthly">Include or exclude monthly expirations.</param>
     /// <param name="quarterly">Include or exclude quarterly expirations.</param>
@@ -733,6 +733,15 @@ public sealed class OptionsApi
                 break;
             case ExpirationFilter.Dte dte:
                 Add(query, "dte", dte.Days);
+                break;
+            case ExpirationFilter.DteList dteList:
+                RequestQuery.Add(query, "dte", string.Join(",", dteList.Days));
+                break;
+            case ExpirationFilter.DteRange dteRange:
+                RequestQuery.Add(query, "dte", $"{dteRange.Min}-{dteRange.Max}");
+                break;
+            case ExpirationFilter.DteComparison dteComparison:
+                RequestQuery.Add(query, "dte", $"{dteComparison.Op.OperatorWireValue()}{dteComparison.Days}");
                 break;
             case ExpirationFilter.Between between:
                 AddDate(query, "from", between.From);

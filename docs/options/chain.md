@@ -61,9 +61,14 @@ A typed value for the `expiration` parameter:
 ```csharp
 ExpirationFilter.ForDate(DateOnly date)                // one exact expiration
 ExpirationFilter.ForDte(int days)                      // the expiration closest to N days out
+ExpirationFilter.ForDteList(IEnumerable<int> days)      // the closest expiration per value, deduplicated
+ExpirationFilter.ForDteRange(int min, int max)          // every expiration within an inclusive DTE band
+ExpirationFilter.ForDteComparison(StrikeFilter.ComparisonOperator.Gte, int days)   // Gt / Gte / Lt / Lte against DTE
 ExpirationFilter.ForRange(DateOnly from, DateOnly to)  // every expiration in a window
 ExpirationFilter.ForMonthYear(int year, int month)     // all expirations in a month
 ```
+
+Each days-to-expiry value (single, list, range, or comparison) must be between 0 and 36500. When combined with `date`, the days-to-expiry values are relative to `date` instead of today.
 
 ### StrikeFilter
 
@@ -122,6 +127,24 @@ var puts = await client.Options.GetChainAsync(new OptionsChainRequest("SPY")
     MaxBidAskSpreadPct = 0.05,
     MinOpenInterest = 100
 });
+
+// Three expirations at once: the closest listed expiration to each of 7, 30 and 60 days out.
+var weeklyMonthlyQuarterly = await client.Options.GetChainAsync(
+    "AAPL",
+    expiration: ExpirationFilter.ForDteList([7, 30, 60]),
+    side: OptionSide.Call);
+
+// Every expiration within 0-45 days out, inclusive.
+var nearTerm = await client.Options.GetChainAsync(
+    "AAPL",
+    expiration: ExpirationFilter.ForDteRange(0, 45),
+    side: OptionSide.Call);
+
+// Every expiration at least 30 days out.
+var fromThirtyDays = await client.Options.GetChainAsync(
+    "AAPL",
+    expiration: ExpirationFilter.ForDteComparison(StrikeFilter.ComparisonOperator.Gte, 30),
+    side: OptionSide.Call);
 ```
 
 For CSV output, call `client.Options.GetChainCsvAsync(...)` and read `.Csv`. See [Settings](../settings.md#csv-output).
