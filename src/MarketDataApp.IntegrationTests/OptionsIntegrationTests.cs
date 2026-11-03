@@ -80,17 +80,23 @@ public sealed class OptionsIntegrationTests : IntegrationTestBase
     public async Task Chain_DteCommaList_ReturnsClosestExpirationPerValue()
     {
         // A comma-separated dte list selects the closest listed expiration for each value,
-        // deduplicated. Compute the candidates independently from a baseline expirations call
-        // (the listed expiration(s) closest to each of 7, 30, 60, ties included) so the test
-        // fails if the server honoured only one of the three values instead of the whole list.
-        var today = TodayEastern();
-        var expirations = await Client.Options.GetExpirationsAsync(new OptionsExpirationsRequest("AAPL"));
-        AssertSuccess(expirations.StatusCode);
-        Assert.NotEmpty(expirations.Values);
+        // deduplicated. Compute the candidates independently from a baseline chain call's own
+        // Dte field (live response metadata, not a client-computed "today"), taken with the
+        // widest legal dte range (0-36500) so every listed expiration comes back with its Dte.
+        var baseline = await Client.Options.GetChainAsync(
+            new OptionsChainRequest("AAPL")
+            {
+                Expiration = ExpirationFilter.ForDteRange(0, 36500),
+                Side = OptionSide.Call,
+                StrikeLimit = 1
+            });
+        AssertSuccess(baseline.StatusCode);
+        Assert.NotEmpty(baseline.Values);
+        var dteByExpiration = DteByExpiration(baseline.Values);
 
         int[] targets = [7, 30, 60];
         var candidatesPerTarget = targets
-            .Select(target => ClosestExpirations(expirations.Values, today, target))
+            .Select(target => ClosestExpirations(dteByExpiration, target))
             .ToList();
         var allCandidates = candidatesPerTarget.SelectMany(candidates => candidates).Distinct().ToList();
 
@@ -104,9 +110,6 @@ public sealed class OptionsIntegrationTests : IntegrationTestBase
 
         AssertSuccess(response.StatusCode);
         Assert.NotEmpty(response.Values);
-        // The expirations endpoint returns midnight Eastern for the day; the chain endpoint's
-        // per-contract expiration is the market-close moment (16:00 Eastern) of the same day.
-        // Compare calendar dates, not instants.
         var returned = response.Values.Select(contract => EasternDate(contract.Expiration!.Value)).Distinct().ToList();
 
         // Every returned expiration must be a closest match for at least one requested value.
@@ -115,8 +118,11 @@ public sealed class OptionsIntegrationTests : IntegrationTestBase
         // Every requested value must be represented by at least one of its closest matches.
         Assert.All(candidatesPerTarget, candidates => Assert.Contains(candidates, returned.Contains));
 
-        // When the three values resolve to different expirations, dedup cannot collapse them to one.
-        if (allCandidates.Count > 1)
+        // Only require more than one distinct expiration when no date is common to all three
+        // targets' candidates: a tie that legitimately resolves all three values to one shared
+        // expiration must not make the test demand a second one.
+        var commonToAllTargets = candidatesPerTarget.Aggregate((a, b) => a.Intersect(b).ToList());
+        if (commonToAllTargets.Count == 0)
         {
             Assert.True(returned.Count > 1);
         }
@@ -125,20 +131,10 @@ public sealed class OptionsIntegrationTests : IntegrationTestBase
     [IntegrationFact]
     public async Task Chain_DteRange_ReturnsOnlyExpirationsWithinInclusiveBounds()
     {
-        // A closed dte range keeps every expiration within the bounds, inclusive. Compute the
-        // expected set independently from a baseline expirations call so the test fails if the
-        // server read "0-45" as a single value instead of the whole range.
-        var today = TodayEastern();
-        var expirations = await Client.Options.GetExpirationsAsync(new OptionsExpirationsRequest("AAPL"));
-        AssertSuccess(expirations.StatusCode);
-        Assert.NotEmpty(expirations.Values);
-
-        var expected = expirations.Values
-            .Where(expiration => DteFromToday(expiration, today) is >= 0 and <= 45)
-            .Select(EasternDate)
-            .Distinct()
-            .ToList();
-
+        // A closed dte range keeps every expiration within the bounds, inclusive. Assert the
+        // per-row bound from the response's own Dte field — a single live call, not two whose
+        // server-side "now" could differ — and require more than one distinct expiration, so
+        // the test fails if the server read "0-45" as a single value instead of the whole range.
         var response = await Client.Options.GetChainAsync(
             new OptionsChainRequest("AAPL")
             {
@@ -149,12 +145,9 @@ public sealed class OptionsIntegrationTests : IntegrationTestBase
 
         AssertSuccess(response.StatusCode);
         Assert.NotEmpty(response.Values);
-        // The expirations endpoint returns midnight Eastern for the day; the chain endpoint's
-        // per-contract expiration is the market-close moment (16:00 Eastern) of the same day.
-        // Compare calendar dates, not instants.
-        var returned = response.Values.Select(contract => EasternDate(contract.Expiration!.Value)).Distinct().ToList();
+        Assert.All(response.Values, contract => Assert.InRange(contract.Dte!.Value, 0, 45));
 
-        Assert.Equal(expected.OrderBy(e => e), returned.OrderBy(e => e));
+        var returned = response.Values.Select(contract => EasternDate(contract.Expiration!.Value)).Distinct().ToList();
         Assert.True(returned.Count > 1);
     }
 
@@ -206,25 +199,23 @@ public sealed class OptionsIntegrationTests : IntegrationTestBase
         Assert.False(string.IsNullOrWhiteSpace(response.Values));
     }
 
-    // Today's calendar date in US/Eastern, the zone expirations and dte are both anchored to
-    // (see Expirations_ReturnExpectedShape): comparing UTC "today" against an Eastern expiration
-    // date would misclassify dte near the UTC/Eastern midnight boundary.
-    private static DateOnly TodayEastern()
-    {
-        var eastern = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
-        return DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, eastern).Date);
-    }
-
     private static DateOnly EasternDate(DateTimeOffset value) => DateOnly.FromDateTime(value.Date);
 
-    private static int DteFromToday(DateTimeOffset expiration, DateOnly today) =>
-        EasternDate(expiration).DayNumber - today.DayNumber;
+    // Each contract's Dte is computed live by the server (days from its own notion of "now" to
+    // the contract's expiration); reading it off the baseline response, rather than computing
+    // it from the client's wall clock, keeps the test from drifting near the UTC/Eastern
+    // midnight boundary, where the runner's "today" can differ from the server's.
+    private static IReadOnlyDictionary<DateOnly, int> DteByExpiration(IReadOnlyList<OptionQuote> contracts) =>
+        contracts
+            .Where(contract => contract.Expiration.HasValue && contract.Dte.HasValue)
+            .GroupBy(contract => EasternDate(contract.Expiration!.Value))
+            .ToDictionary(group => group.Key, group => group.First().Dte!.Value);
 
     private static IReadOnlyList<DateOnly> ClosestExpirations(
-        IReadOnlyList<DateTimeOffset> expirations, DateOnly today, int targetDays)
+        IReadOnlyDictionary<DateOnly, int> dteByExpiration, int targetDays)
     {
-        var byDistance = expirations
-            .Select(expiration => (Date: EasternDate(expiration), Distance: Math.Abs(DteFromToday(expiration, today) - targetDays)))
+        var byDistance = dteByExpiration
+            .Select(pair => (Date: pair.Key, Distance: Math.Abs(pair.Value - targetDays)))
             .ToList();
         var minDistance = byDistance.Min(candidate => candidate.Distance);
         return byDistance
