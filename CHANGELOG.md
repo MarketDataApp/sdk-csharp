@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `ExpirationFilter.DteList` and `ExpirationFilter.ForDteList(IEnumerable<int>)`, for
+  filtering the options chain to the closest expirations to a comma-separated list of
+  days-to-expiry values (API release 2.0.0). `ExpirationFilter.ForDte(int)` works as
+  before.
+- `ExpirationFilter.DteRange` and `ExpirationFilter.ForDteRange(int, int)`, for
+  filtering the options chain to expirations within a closed, inclusive days-to-expiry
+  range (API release 2.0.0). `ExpirationFilter.ForDte(int)` works as before.
+- `ExpirationFilter.DteComparison` and `ExpirationFilter.ForDteComparison(StrikeFilter.ComparisonOperator, int)`, for
+  filtering the options chain by days-to-expiry using a comparison operator
+  (`<`, `<=`, `>`, `>=`), reusing the same operator enum as strike filters (API release 2.0.0). `ExpirationFilter.ForDte(int)` works as before.
+
 ### Changed
 
 - Only `MARKETDATA_`-prefixed process environment variables are read into

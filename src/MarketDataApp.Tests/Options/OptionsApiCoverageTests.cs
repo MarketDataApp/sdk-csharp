@@ -342,4 +342,108 @@ public sealed class OptionsApiCoverageTests
         Assert.Throws<ArgumentException>(() => new OptionsQuotesRequest(" "));
         Assert.Throws<ArgumentNullException>(() => new OptionsQuotesRequest((IEnumerable<string>)null!));
     }
+
+    // dte now also accepts a comma-separated list, a closed range, and a comparison operator
+    // (the same operator syntax as strike), in addition to the single-value form it already had.
+    [Fact]
+    public async Task GetChainAsync_MapsDteListRangeAndComparisonFilters()
+    {
+        var handler = Json(FullChainRow);
+        var client = MarketDataTestClient.Create(handler);
+
+        // Comma-separated list: the closest expiration for each value, deduplicated.
+        await client.Options.GetChainAsync(new OptionsChainRequest("AAPL")
+        {
+            Expiration = ExpirationFilter.ForDteList([15, 30, 45])
+        });
+        Assert.Contains("dte=15%2C30%2C45", handler.LastRequest!.RequestUri!.Query);
+
+        // Closed, inclusive range of DTE values.
+        await client.Options.GetChainAsync(new OptionsChainRequest("AAPL")
+        {
+            Expiration = ExpirationFilter.ForDteRange(0, 45)
+        });
+        Assert.Contains("dte=0-45", handler.LastRequest.RequestUri.Query);
+
+        // Comparison operators (all four) against a DTE threshold.
+        await client.Options.GetChainAsync(new OptionsChainRequest("AAPL")
+        {
+            Expiration = ExpirationFilter.ForDteComparison(StrikeFilter.ComparisonOperator.Gt, 30)
+        });
+        Assert.Contains("dte=%3e30", handler.LastRequest.RequestUri.Query, StringComparison.OrdinalIgnoreCase);
+
+        await client.Options.GetChainAsync(new OptionsChainRequest("AAPL")
+        {
+            Expiration = ExpirationFilter.ForDteComparison(StrikeFilter.ComparisonOperator.Gte, 30)
+        });
+        Assert.Contains("dte=%3e%3d30", handler.LastRequest.RequestUri.Query, StringComparison.OrdinalIgnoreCase);
+
+        await client.Options.GetChainAsync(new OptionsChainRequest("AAPL")
+        {
+            Expiration = ExpirationFilter.ForDteComparison(StrikeFilter.ComparisonOperator.Lt, 45)
+        });
+        Assert.Contains("dte=%3c45", handler.LastRequest.RequestUri.Query, StringComparison.OrdinalIgnoreCase);
+
+        await client.Options.GetChainAsync(new OptionsChainRequest("AAPL")
+        {
+            Expiration = ExpirationFilter.ForDteComparison(StrikeFilter.ComparisonOperator.Lte, 45)
+        });
+        Assert.Contains("dte=%3c%3d45", handler.LastRequest.RequestUri.Query, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GetChainCsvAsync_MapsDteRangeFilter()
+    {
+        var handler = Csv("optionSymbol\r\nAAPL250117C00150000\r\n");
+        var client = MarketDataTestClient.Create(handler);
+
+        await client.Options.GetChainCsvAsync(new OptionsChainRequest("AAPL")
+        {
+            Expiration = ExpirationFilter.ForDteRange(0, 45)
+        });
+
+        Assert.Contains("dte=0-45", handler.LastRequest!.RequestUri!.Query);
+    }
+
+    [Fact]
+    public async Task GetChainAsync_InvalidDteComparisonOperator_ThrowsArgumentOutOfRange()
+    {
+        var client = MarketDataTestClient.Create(Json(FullChainRow));
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            client.Options.GetChainAsync(new OptionsChainRequest("AAPL")
+            {
+                Expiration = ExpirationFilter.ForDteComparison((StrikeFilter.ComparisonOperator)999, 30)
+            }));
+    }
+
+    [Fact]
+    public void ExpirationDteFactories_ValidateArguments()
+    {
+        Assert.Throws<ArgumentNullException>(() => ExpirationFilter.ForDteList(null!));
+        Assert.Throws<ArgumentException>(() => ExpirationFilter.ForDteList(Array.Empty<int>()));
+        Assert.Throws<ArgumentOutOfRangeException>(() => ExpirationFilter.ForDteList([-1, 30]));
+        Assert.Throws<ArgumentOutOfRangeException>(() => ExpirationFilter.ForDteList([30, 36501]));
+
+        Assert.Throws<ArgumentException>(() => ExpirationFilter.ForDteRange(45, 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => ExpirationFilter.ForDteRange(-1, 45));
+        Assert.Throws<ArgumentOutOfRangeException>(() => ExpirationFilter.ForDteRange(0, 36501));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            ExpirationFilter.ForDteComparison(StrikeFilter.ComparisonOperator.Gte, -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            ExpirationFilter.ForDteComparison(StrikeFilter.ComparisonOperator.Lt, 36501));
+
+        // Valid factories expose their data.
+        Assert.Equal(
+            new[] { 15, 30, 45 },
+            ((ExpirationFilter.DteList)ExpirationFilter.ForDteList([15, 30, 45])).Days);
+        var range = (ExpirationFilter.DteRange)ExpirationFilter.ForDteRange(0, 45);
+        Assert.Equal(0, range.Min);
+        Assert.Equal(45, range.Max);
+        var comparison = (ExpirationFilter.DteComparison)ExpirationFilter.ForDteComparison(
+            StrikeFilter.ComparisonOperator.Gte, 30);
+        Assert.Equal(StrikeFilter.ComparisonOperator.Gte, comparison.Op);
+        Assert.Equal(30, comparison.Days);
+    }
 }
