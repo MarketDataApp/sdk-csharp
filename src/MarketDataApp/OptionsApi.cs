@@ -266,7 +266,7 @@ public sealed class OptionsApi
 
     /// <summary>Gets the options chain for an underlying symbol. Each returned contract bills roughly one credit, so filter aggressively.</summary>
     /// <param name="symbol">The underlying ticker symbol.</param>
-    /// <param name="expiration">Expiration filter: a date, days-to-expiry, a range, a month/year, or all expirations.</param>
+    /// <param name="expiration">Expiration filter: a date, days-to-expiry (an integer, a comma-separated list, a range, or a comparison), a date range, a month/year, or all expirations.</param>
     /// <param name="weekly">Include or exclude weekly expirations.</param>
     /// <param name="monthly">Include or exclude monthly expirations.</param>
     /// <param name="quarterly">Include or exclude quarterly expirations.</param>
@@ -567,7 +567,7 @@ public sealed class OptionsApi
 
     /// <summary>Gets the options chain for an underlying symbol as CSV. Each returned contract bills roughly one credit, so filter aggressively.</summary>
     /// <param name="symbol">The underlying ticker symbol.</param>
-    /// <param name="expiration">Expiration filter: a date, days-to-expiry, a range, a month/year, or all expirations.</param>
+    /// <param name="expiration">Expiration filter: a date, days-to-expiry (an integer, a comma-separated list, a range, or a comparison), a date range, a month/year, or all expirations.</param>
     /// <param name="weekly">Include or exclude weekly expirations.</param>
     /// <param name="monthly">Include or exclude monthly expirations.</param>
     /// <param name="quarterly">Include or exclude quarterly expirations.</param>
@@ -733,6 +733,9 @@ public sealed class OptionsApi
                 break;
             case ExpirationFilter.Dte dte:
                 Add(query, "dte", dte.Days);
+                break;
+            case ExpirationFilter.DteExpression dteExpression:
+                RequestQuery.Add(query, "dte", dteExpression.Expression);
                 break;
             case ExpirationFilter.Between between:
                 AddDate(query, "from", between.From);

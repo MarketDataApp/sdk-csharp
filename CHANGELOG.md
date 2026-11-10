@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `ExpirationFilter.DteExpression` and `ExpirationFilter.ForDteExpression(string)`, for the string forms the API now accepts for `dte` on `GET /v1/options/chain/{underlying}/` (API release 2.0.0): comma-separated lists, closed ranges, and comparisons. `ExpirationFilter.ForDte(int)` works as before.
+
 ### Changed
 
 - Only `MARKETDATA_`-prefixed process environment variables are read into
