@@ -85,27 +85,37 @@ public sealed class OptionsIntegrationTests : IntegrationTestBase
     /// carries the contract's settlement time of day (e.g. 16:00 Eastern for a standard
     /// contract), so the two would never be equal as full timestamps for the same date.
     /// </remarks>
+    /// <remarks>
+    /// Anchored to a fixed historical date rather than the runner's wall clock: the API
+    /// rejects today's date on <see cref="OptionsExpirationsRequest.Date"/> and
+    /// <see cref="OptionsChainRequest.Date"/> ("the date parameter is used for historical
+    /// queries only"), and computing "today" locally would still race the server's own clock
+    /// across the Eastern midnight boundary. A fixed past date passed to both requests below
+    /// pins the API's "as of" date for each one to the same day, so the two can never disagree
+    /// about what "today" is.
+    /// </remarks>
     [IntegrationFact]
     public async Task Chain_DteCommaSeparatedList_SelectsClosestExpirationPerValue()
     {
-        var eastern = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
-        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, eastern).DateTime);
+        var asOf = new DateOnly(2025, 6, 2);
 
-        var expirations = await Client.Options.GetExpirationsAsync(new OptionsExpirationsRequest("AAPL"));
+        var expirations = await Client.Options.GetExpirationsAsync(
+            new OptionsExpirationsRequest("AAPL") { Date = asOf });
         AssertSuccess(expirations.StatusCode);
         Assert.NotEmpty(expirations.Values);
         var expirationDates = expirations.Values.Select(expiration => DateOnly.FromDateTime(expiration.DateTime)).ToList();
 
         int[] targets = [15, 30, 45];
         var candidatesByTarget = targets
-            .Select(target => ClosestExpirations(expirationDates, today, target))
+            .Select(target => ClosestExpirations(expirationDates, asOf, target))
             .ToList();
         var allCandidates = candidatesByTarget.SelectMany(candidates => candidates).ToHashSet();
 
         var response = await Client.Options.GetChainAsync(
             new OptionsChainRequest("AAPL")
             {
-                Expiration = ExpirationFilter.ForDteExpression("15,30,45")
+                Expiration = ExpirationFilter.ForDteExpression("15,30,45"),
+                Date = asOf
             });
 
         AssertSuccess(response.StatusCode);
@@ -190,16 +200,16 @@ public sealed class OptionsIntegrationTests : IntegrationTestBase
 
     /// <summary>
     /// Among the given <paramref name="expirationDates"/>, the one(s) whose days-to-expiry
-    /// (from <paramref name="today"/>) are closest to <paramref name="targetDte"/>, ties
+    /// (from <paramref name="asOf"/>) are closest to <paramref name="targetDte"/>, ties
     /// included.
     /// </summary>
     private static List<DateOnly> ClosestExpirations(
-        IReadOnlyList<DateOnly> expirationDates, DateOnly today, int targetDte)
+        IReadOnlyList<DateOnly> expirationDates, DateOnly asOf, int targetDte)
     {
         var withDistance = expirationDates
             .Select(expiration => (
                 expiration,
-                distance: Math.Abs(expiration.DayNumber - today.DayNumber - targetDte)))
+                distance: Math.Abs(expiration.DayNumber - asOf.DayNumber - targetDte)))
             .ToList();
         var minDistance = withDistance.Min(item => item.distance);
         return withDistance.Where(item => item.distance == minDistance).Select(item => item.expiration).ToList();
