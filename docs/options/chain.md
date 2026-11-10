@@ -70,7 +70,7 @@ ExpirationFilter.ForMonthYear(int year, int month)     // all expirations in a m
 
 - a comma-separated list of day counts (`"15,30,45"`) — the closest expiration for each value, deduplicated
 - a closed range (`"0-45"`) — every expiration whose dte falls within the bounds, inclusive
-- a comparison against a threshold, using the same operators as `StrikeFilter.ForComparison` (`">=30"`, `"<45"`)
+- a comparison against a threshold, using the same operators as `StrikeFilter.ForComparison` (`">=30"`, `"<45"`) — `<` and `>` exclude the boundary value, `<=` and `>=` include it, same as `StrikeFilter.ComparisonOperator.Lt`/`Gt` versus `Lte`/`Gte`
 
 ### StrikeFilter
 

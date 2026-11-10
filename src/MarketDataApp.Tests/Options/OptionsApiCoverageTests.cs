@@ -368,6 +368,13 @@ public sealed class OptionsApiCoverageTests
             Expiration = ExpirationFilter.ForDteExpression("<45")
         });
         Assert.Contains("dte=%3c45", handler.LastRequest.RequestUri.Query, StringComparison.OrdinalIgnoreCase);
+
+        // Comparison operator: <=.
+        await client.Options.GetChainAsync(new OptionsChainRequest("AAPL")
+        {
+            Expiration = ExpirationFilter.ForDteExpression("<=45")
+        });
+        Assert.Contains("dte=%3c%3d45", handler.LastRequest.RequestUri.Query, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

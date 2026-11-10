@@ -31,8 +31,10 @@ public abstract record ExpirationFilter
 
     /// <summary>
     /// Expirations matching a raw days-to-expiry expression: a single value, a comma-separated
-    /// list (closest expiration per value, deduplicated), a closed range (<c>0-45</c>), or a
-    /// comparison against a threshold (<c>&gt;=30</c>, <c>&lt;45</c>).
+    /// list (closest expiration per value, deduplicated), a closed range (<c>0-45</c>, inclusive
+    /// on both ends), or a comparison against a threshold (<c>&gt;=30</c>, <c>&lt;45</c>) using
+    /// the same <see cref="StrikeFilter.ComparisonOperator"/> operators <c>StrikeFilter</c> uses:
+    /// <c>&lt;</c>/<c>&gt;</c> exclude the threshold, <c>&lt;=</c>/<c>&gt;=</c> include it.
     /// </summary>
     public sealed record DteExpression : ExpirationFilter
     {

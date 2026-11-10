@@ -176,23 +176,59 @@ public sealed class OptionsIntegrationTests : IntegrationTestBase
     }
 
     /// <summary>
-    /// A <c>dte</c> comparison of <c>&lt;</c> excludes the boundary value and keeps only
-    /// what falls strictly below it — more than the one expiration a single-value dte
-    /// would select.
+    /// A <c>dte</c> comparison of <c>&lt;</c> excludes the boundary value while <c>&lt;=</c>
+    /// keeps it, matching the distinct <c>Lt</c>/<c>Lte</c> operators of
+    /// <see cref="StrikeFilter.ComparisonOperator"/> that <c>dte</c> comparisons reuse.
     /// </summary>
+    /// <remarks>
+    /// Anchored to a fixed historical date (not the wall clock, for the same reason as
+    /// <see cref="Chain_DteCommaSeparatedList_SelectsClosestExpirationPerValue"/>) so that the
+    /// boundary value used below is one <see cref="GetExpirationsAsync"/> actually reports for
+    /// that date, rather than a value a run might happen not to have an expiration at.
+    /// </remarks>
     [IntegrationFact]
-    public async Task Chain_DteLessThan_ExcludesBoundaryAndAbove()
+    public async Task Chain_DteLessThan_ExcludesBoundaryWhileLessThanOrEqualKeepsIt()
     {
-        var response = await Client.Options.GetChainAsync(
+        var asOf = new DateOnly(2025, 6, 2);
+
+        var expirations = await Client.Options.GetExpirationsAsync(
+            new OptionsExpirationsRequest("AAPL") { Date = asOf });
+        AssertSuccess(expirations.StatusCode);
+        var dteValues = expirations.Values
+            .Select(expiration => DateOnly.FromDateTime(expiration.DateTime).DayNumber - asOf.DayNumber)
+            .Distinct()
+            .OrderBy(dte => dte)
+            .ToList();
+        // At least two expirations below the boundary keeps the "<" result from looking like a
+        // single collapsed value even though this test's point is the boundary, not multiplicity.
+        Assert.True(dteValues.Count >= 3);
+        var boundaryDte = dteValues[2];
+
+        var lessThan = await Client.Options.GetChainAsync(
             new OptionsChainRequest("AAPL")
             {
-                Expiration = ExpirationFilter.ForDteExpression("<45")
+                Expiration = ExpirationFilter.ForDteExpression($"<{boundaryDte}"),
+                Date = asOf
+            });
+        var lessThanOrEqual = await Client.Options.GetChainAsync(
+            new OptionsChainRequest("AAPL")
+            {
+                Expiration = ExpirationFilter.ForDteExpression($"<={boundaryDte}"),
+                Date = asOf
             });
 
-        AssertSuccess(response.StatusCode);
-        Assert.NotEmpty(response.Values);
-        Assert.All(response.Values, contract => Assert.True(contract.Dte < 45));
-        Assert.True(DistinctExpirations(response.Values).Count > 1);
+        AssertSuccess(lessThan.StatusCode);
+        AssertSuccess(lessThanOrEqual.StatusCode);
+        Assert.NotEmpty(lessThan.Values);
+        Assert.NotEmpty(lessThanOrEqual.Values);
+
+        var lessThanDte = lessThan.Values.Select(contract => contract.Dte).ToHashSet();
+        var lessThanOrEqualDte = lessThanOrEqual.Values.Select(contract => contract.Dte).ToHashSet();
+
+        Assert.All(lessThan.Values, contract => Assert.True(contract.Dte < boundaryDte));
+        Assert.DoesNotContain(boundaryDte, lessThanDte);
+        Assert.Contains(boundaryDte, lessThanOrEqualDte);
+        Assert.True(lessThanOrEqualDte.SetEquals(new HashSet<int?>(lessThanDte) { boundaryDte }));
     }
 
     private static List<DateTimeOffset?> DistinctExpirations(IReadOnlyList<OptionQuote> contracts) =>
