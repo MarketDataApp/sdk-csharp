@@ -61,9 +61,16 @@ A typed value for the `expiration` parameter:
 ```csharp
 ExpirationFilter.ForDate(DateOnly date)                // one exact expiration
 ExpirationFilter.ForDte(int days)                      // the expiration closest to N days out
+ExpirationFilter.ForDteExpression(string expression)   // dte as a raw expression: see below
 ExpirationFilter.ForRange(DateOnly from, DateOnly to)  // every expiration in a window
 ExpirationFilter.ForMonthYear(int year, int month)     // all expirations in a month
 ```
+
+`ForDteExpression` sends the string as-is for the `dte` query parameter. It accepts:
+
+- a comma-separated list of day counts (`"15,30,45"`) — the closest expiration for each value, deduplicated
+- a closed range (`"0-45"`) — every expiration whose dte falls within the bounds, inclusive
+- a comparison against a threshold, using the same operators as `StrikeFilter.ForComparison` (`">=30"`, `"<45"`) — `<` and `>` exclude the boundary value, `<=` and `>=` include it, same as `StrikeFilter.ComparisonOperator.Lt`/`Gt` versus `Lte`/`Gte`
 
 ### StrikeFilter
 

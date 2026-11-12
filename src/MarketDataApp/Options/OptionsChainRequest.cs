@@ -10,7 +10,10 @@ public record OptionsChainRequest
     /// <summary>Underlying ticker symbol.</summary>
     public string Symbol { get; init; }
 
-    /// <summary>Filter expirations by date, DTE, range, or month/year.</summary>
+    /// <summary>
+    /// Filter expirations by date, DTE (an integer, a comma-separated list, a range, or a
+    /// comparison), a date range, or month/year.
+    /// </summary>
     public ExpirationFilter? Expiration { get; init; }
 
     /// <summary>Include weekly expirations.</summary>
