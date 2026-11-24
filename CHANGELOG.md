@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.1.0] - 2026-10-29
+## [1.1.0] - 2026-11-24
 
 ### Changed
 
@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `MARKETDATA_*` keys. This drops the `Microsoft.Extensions.Configuration.EnvironmentVariables`
   dependency and keeps unrelated environment values out of the in-memory configuration.
   Contributed by [@omidkrad](https://github.com/omidkrad).
-- The `Microsoft.Extensions.*` package dependencies move from 10.0.11 to 10.0.14. A
+- The `Microsoft.Extensions.*` package dependencies move from 10.0.11 to 10.0.15. A
   project that references one of them directly at a lower version gets NuGet's
   package-downgrade error (NU1605) and needs to raise that reference.
 
