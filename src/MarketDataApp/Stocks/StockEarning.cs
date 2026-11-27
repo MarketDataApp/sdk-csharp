@@ -9,7 +9,7 @@ namespace MarketDataApp.Stocks;
 /// <param name="FiscalQuarter">Fiscal quarter (1–4).</param>
 /// <param name="Date">End date of the fiscal period.</param>
 /// <param name="ReportDate">Date the earnings were reported (or expected).</param>
-/// <param name="ReportTime">Time of the earnings call: <c>"bmo"</c>, <c>"amc"</c>, or <c>"dmh"</c>.</param>
+/// <param name="ReportTime">When the report comes out relative to the trading session: <c>"before open"</c>, <c>"after close"</c>, or <c>"during market hours"</c>; <c>null</c> when unknown.</param>
 /// <param name="Currency">Reporting currency (e.g. <c>"USD"</c>).</param>
 /// <param name="ReportedEps">Actual reported EPS (wire field: <c>reportedEPS</c>).</param>
 /// <param name="EstimatedEps">Analyst consensus estimate for EPS (wire field: <c>estimatedEPS</c>).</param>

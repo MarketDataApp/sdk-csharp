@@ -443,7 +443,7 @@ public sealed class StocksApi
     /// <param name="date">Single day to fetch; mutually exclusive with the other window fields.</param>
     /// <param name="from">Start of the date window (inclusive).</param>
     /// <param name="to">End of the date window (inclusive).</param>
-    /// <param name="countback">Number of reports counting back from <paramref name="to"/> (or today); cannot be combined with <paramref name="from"/>.</param>
+    /// <param name="countback">Number of reports counting back from <paramref name="to"/>, which defaults to today's US/Eastern date when only <paramref name="countback"/> is set; API v1 looks back at most three years from it. Cannot be combined with <paramref name="from"/>.</param>
     /// <param name="report">Fetch one specific report period (e.g. <c>2023-Q4</c>); cannot be combined with any date-window field.</param>
     /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
     /// <param name="cancellationToken">Cancels the in-flight request.</param>
@@ -488,7 +488,7 @@ public sealed class StocksApi
         ValidateEarningsRequest(request);
         var effective = _apiClient.ApplyDefaults(options);
         var query = RequestQuery.From(effective);
-        RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, request.Countback);
+        RequestQuery.AddDateWindow(query, request.Date, request.From, EarningsTo(request), request.Countback);
         RequestQuery.Add(query, "report", request.Report);
         var response = await _apiClient.GetAsync(
             $"stocks/earnings/{Uri.EscapeDataString(request.Symbol)}",
@@ -840,7 +840,7 @@ public sealed class StocksApi
     /// <param name="date">Single day to fetch; mutually exclusive with the other window fields.</param>
     /// <param name="from">Start of the date window (inclusive).</param>
     /// <param name="to">End of the date window (inclusive).</param>
-    /// <param name="countback">Number of reports counting back from <paramref name="to"/> (or today); cannot be combined with <paramref name="from"/>.</param>
+    /// <param name="countback">Number of reports counting back from <paramref name="to"/>, which defaults to today's US/Eastern date when only <paramref name="countback"/> is set; API v1 looks back at most three years from it. Cannot be combined with <paramref name="from"/>.</param>
     /// <param name="report">Fetch one specific report period (e.g. <c>2023-Q4</c>); cannot be combined with any date-window field.</param>
     /// <param name="options">Optional per-request overrides merged over the client defaults.</param>
     /// <param name="cancellationToken">Cancels the in-flight request.</param>
@@ -882,7 +882,7 @@ public sealed class StocksApi
         ArgumentNullException.ThrowIfNull(request);
         ValidateEarningsRequest(request);
         var query = RequestQuery.Csv(_apiClient.ApplyDefaults(options));
-        RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, request.Countback);
+        RequestQuery.AddDateWindow(query, request.Date, request.From, EarningsTo(request), request.Countback);
         RequestQuery.Add(query, "report", request.Report);
         return await GetCsvAsync(
             $"stocks/earnings/{Uri.EscapeDataString(request.Symbol)}", query, cancellationToken)
@@ -1024,6 +1024,12 @@ public sealed class StocksApi
 
         return ranges;
     }
+
+    /// <summary>Returns the <c>to</c> date to send for an earnings request.</summary>
+    /// <param name="request">An earnings request that passed <see cref="ValidateEarningsRequest"/>, so a set <c>Countback</c> comes without <c>Date</c>, <c>From</c> or <c>Report</c>.</param>
+    /// <returns>The request's <c>To</c>; today's US/Eastern date when only <c>Countback</c> is set; otherwise <c>null</c>.</returns>
+    private DateOnly? EarningsTo(StockEarningsRequest request) =>
+        request.To ?? (request.Countback.HasValue ? EasternTime.Today(_apiClient.TimeProvider) : null);
 
     private static void ValidateEarningsRequest(StockEarningsRequest request)
     {

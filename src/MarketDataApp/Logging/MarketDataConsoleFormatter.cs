@@ -29,8 +29,6 @@ public sealed class MarketDataConsoleFormatter : ConsoleFormatter
     /// <summary>The name under which this formatter is registered with the console logger.</summary>
     public const string FormatterName = "marketdata";
 
-    private static readonly Lazy<TimeZoneInfo> EasternTimeZone = new(ResolveEasternTimeZone);
-
     private readonly TimeProvider _timeProvider;
 
     /// <summary>
@@ -52,23 +50,6 @@ public sealed class MarketDataConsoleFormatter : ConsoleFormatter
         _timeProvider = timeProvider;
     }
 
-    // Excluded: the "Eastern Standard Time" fallback is only reached on platforms that lack the
-    // IANA "America/New_York" id (Windows). On Linux/macOS/CI — where the tests run — the primary
-    // lookup always succeeds, so the catch/fallback branch is unreachable there. This mirrors the
-    // identical resolver in ErrorContext and JsonResponseParser.
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
-    private static TimeZoneInfo ResolveEasternTimeZone()
-    {
-        try
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
-        }
-        catch (TimeZoneNotFoundException)
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
-        }
-    }
-
     /// <inheritdoc />
     public override void Write<TState>(
         in LogEntry<TState> logEntry,
@@ -88,7 +69,7 @@ public sealed class MarketDataConsoleFormatter : ConsoleFormatter
         }
 
         var timestamp = TimeZoneInfo
-            .ConvertTime(_timeProvider.GetUtcNow(), EasternTimeZone.Value)
+            .ConvertTime(_timeProvider.GetUtcNow(), EasternTime.Zone)
             .ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
 
         textWriter.Write(timestamp);

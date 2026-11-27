@@ -18,7 +18,11 @@ public record StockEarningsRequest
     /// <summary>End date (inclusive) of the earnings history window.</summary>
     public DateOnly? To { get; init; }
 
-    /// <summary>Number of earnings periods to return, counting back from <see cref="To"/> (or today).</summary>
+    /// <summary>
+    /// Number of earnings reports to return, counting back from <see cref="To"/>. When
+    /// <see cref="To"/> is unset, the SDK sends today's US/Eastern date as <c>to</c>. API v1 looks
+    /// back at most three years from <c>to</c>.
+    /// </summary>
     public int? Countback { get; init; }
 
     /// <summary>
