@@ -32,6 +32,17 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    # The package targets net8.0. Microsoft.Extensions.* 11.x ships no net8.0
+    # build, and Source Link 11.x pulls System.IO.Hashing 11.x into the net8.0
+    # build, so their majors wait until net8.0 is dropped. Patches of the
+    # current major still arrive through the nuget-minor-patch group.
+    ignore:
+      - dependency-name: "Microsoft.Extensions.*"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "Microsoft.SourceLink.GitHub"
+        update-types:
+          - "version-update:semver-major"
     labels:
       - "dependencies"
     open-pull-requests-limit: 10
