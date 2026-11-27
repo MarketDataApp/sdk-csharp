@@ -73,15 +73,19 @@ public sealed class StocksIntegrationTests : IntegrationTestBase
         Assert.Contains(response.Values, value => value.Symbol == "AAPL");
     }
 
+    /// <summary>
+    /// Verifies that a bare countback returns the latest reports up to today in US/Eastern:
+    /// four rows, none dated after today. Without data entitlement, the documented no-data
+    /// answer (HTTP 404, <c>IsNoData</c>) is accepted instead.
+    /// </summary>
     [IntegrationFact]
     public async Task Earnings_ReturnExpectedShape()
     {
         var response = await Client.Stocks.GetEarningsAsync(
             new StockEarningsRequest("AAPL") { Countback = 4 });
+        var eastern = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, eastern).DateTime);
 
-        // Earnings availability depends on the account's data entitlement; the SDK must
-        // round-trip correctly either way: data on success, or the documented no-data
-        // response (HTTP 404 -> IsNoData) rather than throwing.
         if (response.IsNoData)
         {
             Assert.Equal(404, response.StatusCode);
@@ -89,7 +93,14 @@ public sealed class StocksIntegrationTests : IntegrationTestBase
         else
         {
             AssertSuccess(response.StatusCode);
-            Assert.NotEmpty(response.Values);
+            Assert.Equal(4, response.Values.Count);
+            Assert.All(response.Values, earning =>
+            {
+                Assert.NotNull(earning.ReportDate);
+                Assert.True(
+                    DateOnly.FromDateTime(earning.ReportDate.Value.DateTime) <= today,
+                    $"ReportDate {earning.ReportDate:yyyy-MM-dd} is after today ({today:yyyy-MM-dd}) in US/Eastern.");
+            });
         }
     }
 
