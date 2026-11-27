@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Text;
 using MarketDataApp;
@@ -402,5 +403,77 @@ public sealed class OptionsApiCoverageTests
         Assert.Throws<ArgumentException>(() => new OptionsQuotesRequest(Array.Empty<string>()));
         Assert.Throws<ArgumentException>(() => new OptionsQuotesRequest(" "));
         Assert.Throws<ArgumentNullException>(() => new OptionsQuotesRequest((IEnumerable<string>)null!));
+    }
+
+    [Fact]
+    public async Task GetChainCsvAsync_MapsPricingModelValues()
+    {
+        var handler = Csv("optionSymbol\r\nAAPL250117C00150000\r\n");
+        var client = MarketDataTestClient.Create(handler);
+
+        await client.Options.GetChainCsvAsync(new OptionsChainRequest("AAPL") { Model = PricingModel.Bsm });
+        Assert.Contains("model=bsm", handler.LastRequest!.RequestUri!.Query);
+
+        await client.Options.GetChainCsvAsync(new OptionsChainRequest("AAPL") { Model = PricingModel.Bjs });
+        Assert.Contains("model=bjs", handler.LastRequest.RequestUri.Query);
+
+        await client.Options.GetChainCsvAsync(new OptionsChainRequest("AAPL") { Model = PricingModel.Crr });
+        Assert.Contains("model=crr", handler.LastRequest.RequestUri.Query);
+
+        await client.Options.GetChainCsvAsync(new OptionsChainRequest("AAPL") { Model = PricingModel.Baw });
+        Assert.Contains("model=baw", handler.LastRequest.RequestUri.Query);
+    }
+
+    [Fact]
+    public async Task GetQuoteCsvAsync_MapsPricingModelValues()
+    {
+        var handler = Csv("optionSymbol\r\nAAPL250117C00150000\r\n");
+        var client = MarketDataTestClient.Create(handler);
+
+        await client.Options.GetQuoteCsvAsync(new OptionsQuoteRequest("AAPL250117C00150000") { Model = PricingModel.Bsm });
+        Assert.Contains("model=bsm", handler.LastRequest!.RequestUri!.Query);
+
+        await client.Options.GetQuoteCsvAsync(new OptionsQuoteRequest("AAPL250117C00150000") { Model = PricingModel.Bjs });
+        Assert.Contains("model=bjs", handler.LastRequest.RequestUri.Query);
+
+        await client.Options.GetQuoteCsvAsync(new OptionsQuoteRequest("AAPL250117C00150000") { Model = PricingModel.Crr });
+        Assert.Contains("model=crr", handler.LastRequest.RequestUri.Query);
+
+        await client.Options.GetQuoteCsvAsync(new OptionsQuoteRequest("AAPL250117C00150000") { Model = PricingModel.Baw });
+        Assert.Contains("model=baw", handler.LastRequest.RequestUri.Query);
+    }
+
+    [Fact]
+    public async Task GetQuotesCsvAsync_AppliesPricingModelToEachSymbol()
+    {
+        var queries = new ConcurrentBag<string>();
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            queries.Add(request.RequestUri!.Query);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("optionSymbol\r\nAAPL250117C00150000\r\n", Encoding.UTF8, "text/csv")
+            };
+        });
+        var client = MarketDataTestClient.Create(handler);
+
+        await client.Options.GetQuotesCsvAsync(
+            new OptionsQuotesRequest("AAPL250117C00150000", "MSFT250117C00400000") { Model = PricingModel.Baw });
+
+        Assert.Equal(2, queries.Count);
+        Assert.All(queries, query => Assert.Contains("model=baw", query));
+    }
+
+    [Fact]
+    public async Task OptionsEndpoints_InvalidPricingModel_ThrowArgumentOutOfRange()
+    {
+        var client = MarketDataTestClient.Create(Json(FullChainRow));
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            client.Options.GetChainAsync(new OptionsChainRequest("AAPL") { Model = (PricingModel)999 }));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            client.Options.GetQuoteAsync(new OptionsQuoteRequest("AAPL250117C00150000") { Model = (PricingModel)999 }));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            client.Options.GetQuotesAsync(new OptionsQuotesRequest("AAPL250117C00150000") { Model = (PricingModel)999 }));
     }
 }

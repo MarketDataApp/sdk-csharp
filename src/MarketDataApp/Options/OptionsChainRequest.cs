@@ -79,6 +79,12 @@ public record OptionsChainRequest
     /// <summary>Return the chain as-of this historical date rather than live.</summary>
     public DateOnly? Date { get; init; }
 
+    /// <summary>
+    /// Pricing model for <c>iv</c> and the greeks on a historical request (<see cref="Date"/>).
+    /// Omitting it applies the API's broker-convention default; a paid plan is required to set it.
+    /// </summary>
+    public PricingModel? Model { get; init; }
+
     /// <summary>Initializes the request with the required underlying <paramref name="symbol"/>.</summary>
     public OptionsChainRequest(string symbol)
     {

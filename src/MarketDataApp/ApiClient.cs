@@ -146,7 +146,23 @@ internal sealed class ApiClient : IDisposable
         IEnumerable<KeyValuePair<string, string?>> query) =>
         BuildUri(path, versioned, query);
 
-    public async Task<InternalApiResponse> GetAsync(
+    public Task<InternalApiResponse> GetAsync(
+        string path,
+        bool versioned,
+        IEnumerable<KeyValuePair<string, string?>> query,
+        CancellationToken cancellationToken) =>
+        SendAsync(HttpMethod.Get, path, versioned, query, cancellationToken);
+
+    /// <summary>Sends a DELETE request through the same retry, rate-limit, and error-mapping pipeline as <see cref="GetAsync"/>.</summary>
+    public Task<InternalApiResponse> DeleteAsync(
+        string path,
+        bool versioned,
+        IEnumerable<KeyValuePair<string, string?>> query,
+        CancellationToken cancellationToken) =>
+        SendAsync(HttpMethod.Delete, path, versioned, query, cancellationToken);
+
+    private async Task<InternalApiResponse> SendAsync(
+        HttpMethod method,
         string path,
         bool versioned,
         IEnumerable<KeyValuePair<string, string?>> query,
@@ -159,8 +175,8 @@ internal sealed class ApiClient : IDisposable
         {
             try
             {
-                LogAt(LogLevel.Debug)?.LogDebug("Sending GET request to {RequestUrl}.", requestUri);
-                return await SendOnceAsync(requestUri, cancellationToken).ConfigureAwait(false);
+                LogAt(LogLevel.Debug)?.LogDebug("Sending {Method} request to {RequestUrl}.", method.Method, requestUri);
+                return await SendOnceAsync(method, requestUri, cancellationToken).ConfigureAwait(false);
             }
             catch (MarketDataException exception) when (
                 retryCount < _options.MaxRetries && IsRetryable(exception))
@@ -200,12 +216,15 @@ internal sealed class ApiClient : IDisposable
         }
     }
 
-    private async Task<InternalApiResponse> SendOnceAsync(Uri requestUri, CancellationToken cancellationToken)
+    private async Task<InternalApiResponse> SendOnceAsync(
+        HttpMethod method,
+        Uri requestUri,
+        CancellationToken cancellationToken)
     {
         await _concurrencyGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return await SendOnceWithinGateAsync(requestUri, cancellationToken).ConfigureAwait(false);
+            return await SendOnceWithinGateAsync(method, requestUri, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -214,10 +233,11 @@ internal sealed class ApiClient : IDisposable
     }
 
     private async Task<InternalApiResponse> SendOnceWithinGateAsync(
+        HttpMethod method,
         Uri requestUri,
         CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        using var request = new HttpRequestMessage(method, requestUri);
         // Fixed 99s per-request timeout satisfies §10 (not configurable); the injected
         // TimeProvider drives the CTS so tests can control time. A separate 2s connection
         // timeout is the caller-owned HttpClient handler's concern.
@@ -234,9 +254,9 @@ internal sealed class ApiClient : IDisposable
         request.Headers.UserAgent.ParseAdd(_options.UserAgent);
 
         using var activity = MarketDataDiagnostics.ActivitySource.StartActivity(
-            "marketdata.http.get",
+            $"marketdata.http.{method.Method.ToLowerInvariant()}",
             ActivityKind.Client);
-        activity?.SetTag("http.request.method", "GET");
+        activity?.SetTag("http.request.method", method.Method);
         activity?.SetTag("url.full", requestUri.AbsoluteUri);
 
         InternalApiResponse result;
@@ -326,7 +346,7 @@ internal sealed class ApiClient : IDisposable
         CancellationToken cancellationToken)
     {
         var requestUri = BuildUri("status", versioned: false, Array.Empty<KeyValuePair<string, string?>>());
-        var response = await SendOnceAsync(requestUri, cancellationToken).ConfigureAwait(false);
+        var response = await SendOnceAsync(HttpMethod.Get, requestUri, cancellationToken).ConfigureAwait(false);
         return UtilitiesApi.ParseServiceStatuses(response);
     }
 

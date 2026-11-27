@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using MarketDataApp;
 using MarketDataApp.Options;
 using MarketDataApp.Tests.TestSupport;
@@ -184,6 +185,62 @@ public sealed class OptionsApiTests
         await client.Options.GetQuoteAsync("AAPL250117C00150000", date: new DateOnly(2025, 1, 10));
 
         Assert.Contains("date=2025-01-10", handler.LastRequest!.RequestUri!.Query);
+    }
+
+    [Fact]
+    public async Task GetChainAsync_MapsPricingModelValues()
+    {
+        var handler = new StubHttpMessageHandler(_ => MarketDataTestClient.JsonResponse("""{"s":"ok","optionSymbol":["AAPL250117C00150000"]}"""));
+        var client = MarketDataTestClient.Create(handler);
+
+        await client.Options.GetChainAsync(new OptionsChainRequest("AAPL") { Model = PricingModel.Bsm });
+        Assert.Contains("model=bsm", handler.LastRequest!.RequestUri!.Query);
+
+        await client.Options.GetChainAsync(new OptionsChainRequest("AAPL") { Model = PricingModel.Bjs });
+        Assert.Contains("model=bjs", handler.LastRequest.RequestUri.Query);
+
+        await client.Options.GetChainAsync(new OptionsChainRequest("AAPL") { Model = PricingModel.Crr });
+        Assert.Contains("model=crr", handler.LastRequest.RequestUri.Query);
+
+        await client.Options.GetChainAsync(new OptionsChainRequest("AAPL") { Model = PricingModel.Baw });
+        Assert.Contains("model=baw", handler.LastRequest.RequestUri.Query);
+    }
+
+    [Fact]
+    public async Task GetQuoteAsync_MapsPricingModelValues()
+    {
+        var handler = new StubHttpMessageHandler(_ => MarketDataTestClient.JsonResponse("""{"s":"ok","optionSymbol":["AAPL250117C00150000"]}"""));
+        var client = MarketDataTestClient.Create(handler);
+
+        await client.Options.GetQuoteAsync(new OptionsQuoteRequest("AAPL250117C00150000") { Model = PricingModel.Bsm });
+        Assert.Contains("model=bsm", handler.LastRequest!.RequestUri!.Query);
+
+        await client.Options.GetQuoteAsync(new OptionsQuoteRequest("AAPL250117C00150000") { Model = PricingModel.Bjs });
+        Assert.Contains("model=bjs", handler.LastRequest.RequestUri.Query);
+
+        await client.Options.GetQuoteAsync(new OptionsQuoteRequest("AAPL250117C00150000") { Model = PricingModel.Crr });
+        Assert.Contains("model=crr", handler.LastRequest.RequestUri.Query);
+
+        await client.Options.GetQuoteAsync(new OptionsQuoteRequest("AAPL250117C00150000") { Model = PricingModel.Baw });
+        Assert.Contains("model=baw", handler.LastRequest.RequestUri.Query);
+    }
+
+    [Fact]
+    public async Task GetQuotesAsync_AppliesPricingModelToEachSymbol()
+    {
+        var queries = new ConcurrentBag<string>();
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            queries.Add(request.RequestUri!.Query);
+            return MarketDataTestClient.JsonResponse("""{"s":"ok","optionSymbol":["AAPL250117C00150000"]}""");
+        });
+        var client = MarketDataTestClient.Create(handler);
+
+        await client.Options.GetQuotesAsync(
+            new OptionsQuotesRequest("AAPL250117C00150000", "MSFT250117C00400000") { Model = PricingModel.Crr });
+
+        Assert.Equal(2, queries.Count);
+        Assert.All(queries, query => Assert.Contains("model=crr", query));
     }
 
 }

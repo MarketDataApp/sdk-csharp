@@ -24,7 +24,7 @@
 - **Options Trading Data**: Options chains, expirations, quotes, and lookup
 - **Mutual Funds**: Historical candles and pricing data
 - **Market Status**: Real-time market open/closed status for multiple countries
-- **Utilities**: Service status, request-header inspection, and authenticated-user information
+- **Utilities**: Service status, request-header inspection, authenticated-user information, and token deletion
 - **Multiple Output Formats**: Typed objects, JSON, or CSV
 - **Typed Request Models**: Immutable endpoint-specific request objects validate required values and keep endpoint parameters explicit
 - **Global Request Options**: `MarketDataRequestOptions` provides shared date-format, mode, limit, offset, column, and CSV formatting controls
@@ -581,7 +581,8 @@ var resp = await client.Options.GetQuoteAsync(
     });
 ```
 
-Optional date-window fields: `Date`, `From`/`To`.
+Optional date-window fields: `Date`, `From`/`To`. `Model` overrides the pricing model for
+`iv`/the greeks on a historical (`Date`/`From`/`To`) request — requires a paid plan.
 `OptionsQuotesResponse.Values` — `IReadOnlyList<OptionQuote>`.
 CSV variant: `GetQuoteCsvAsync`.
 
@@ -611,7 +612,8 @@ var resp = await client.Options.GetChainAsync(
 `OptionsChainRequest` filters: `Expiration`, `Weekly`, `Monthly`, `Quarterly`, `Am`, `Pm`,
 `NonStandard`, `Strike`, `Delta`, `StrikeLimit`, `StrikeRangeFilter`, `MinBid`, `MaxBid`,
 `MinAsk`, `MaxAsk`, `MaxBidAskSpread`, `MaxBidAskSpreadPct`, `MinOpenInterest`, `MinVolume`,
-`Side`, `Date`.
+`Side`, `Date`, `Model` (pricing model for `iv`/the greeks on a historical `Date` request —
+requires a paid plan).
 
 CSV variant: `GetChainCsvAsync`.
 
@@ -673,6 +675,10 @@ var headers = await client.Utilities.GetHeadersAsync();
 // Authenticated user quota and entitlements
 var user = await client.Utilities.GetUserAsync();
 // user.Values — User (RequestsRemaining, RequestsLimit, OptionsDataPermissions)
+
+// Delete the current API token — irreversible; it can no longer authenticate any request
+var deleted = await client.Utilities.DeleteTokenAsync();
+// deleted.Values — bool
 ```
 
 ---
@@ -958,6 +964,7 @@ The SDK emits `System.Diagnostics.Activity` spans via `MarketDataDiagnostics.Act
 | Activity name | Kind | Tags |
 |---------------|------|------|
 | `marketdata.http.get` | Client | `http.request.method`, `url.full` (query stripped), `http.response.status_code`, `marketdata.request_id` |
+| `marketdata.http.delete` | Client | `http.request.method`, `url.full` (query stripped), `http.response.status_code`, `marketdata.request_id` |
 | `marketdata.retry` | Internal | `marketdata.retry.count`, `marketdata.retry.delay_ms`, `error.type` |
 
 ### OpenTelemetry integration
