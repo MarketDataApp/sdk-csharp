@@ -1,3 +1,8 @@
+using System.Collections.Specialized;
+using System.Globalization;
+using System.Net;
+using System.Text;
+using System.Web;
 using MarketDataApp;
 using MarketDataApp.Stocks;
 using MarketDataApp.Tests.TestSupport;
@@ -341,7 +346,7 @@ public sealed class StocksApiTests
           "fiscalQuarter": [4],
           "date": [1727654400],
           "reportDate": [1730332800],
-          "reportTime": ["amc"],
+          "reportTime": ["after close"],
           "currency": ["USD"],
           "reportedEPS": [1.64],
           "estimatedEPS": [1.6],
@@ -359,6 +364,91 @@ public sealed class StocksApiTests
         Assert.Equal(1.64m, response.Values[0].ReportedEps);
         Assert.Contains("report=2024-Q4", handler.LastRequest!.RequestUri!.Query);
     }
+
+    /// <summary>A bare countback sends today's US/Eastern date as <c>to</c>, across EST, EDT and the UTC date line.</summary>
+    /// <param name="utcNow">The clock's current instant, in UTC.</param>
+    /// <param name="expectedTo">The US/Eastern date expected in <c>to</c>.</param>
+    [Theory]
+    [InlineData("2026-11-28T03:00:00Z", "2026-11-27")]
+    [InlineData("2026-07-01T03:30:00Z", "2026-06-30")]
+    [InlineData("2026-07-01T04:30:00Z", "2026-07-01")]
+    public async Task GetEarningsAsync_BareCountback_SendsTodayInEasternAsTo(string utcNow, string expectedTo)
+    {
+        var handler = EarningsJsonHandler();
+        var client = ClientAt(handler, utcNow);
+
+        await client.Stocks.GetEarningsAsync("AAPL", countback: 4);
+
+        var query = QueryOf(handler);
+        Assert.Equal(expectedTo, query["to"]);
+        Assert.Equal("4", query["countback"]);
+        Assert.Null(query["from"]);
+    }
+
+    /// <summary>The CSV earnings path anchors a bare countback the same way as the JSON path.</summary>
+    [Fact]
+    public async Task GetEarningsCsvAsync_BareCountback_SendsTodayInEasternAsTo()
+    {
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("symbol\r\nAAPL\r\n", Encoding.UTF8, "text/csv")
+        });
+        var client = ClientAt(handler, "2026-11-28T03:00:00Z");
+
+        await client.Stocks.GetEarningsCsvAsync(new StockEarningsRequest("AAPL") { Countback = 4 });
+
+        var query = QueryOf(handler);
+        Assert.Equal("2026-11-27", query["to"]);
+        Assert.Equal("4", query["countback"]);
+        Assert.Equal("csv", query["format"]);
+    }
+
+    /// <summary>The caller's <c>To</c> is sent as given, and no <c>to</c> is added without a countback.</summary>
+    [Fact]
+    public async Task GetEarningsAsync_SendsToOnlyForCallerToOrBareCountback()
+    {
+        var handler = EarningsJsonHandler();
+        var client = ClientAt(handler, "2026-11-28T03:00:00Z");
+
+        await client.Stocks.GetEarningsAsync("AAPL", to: new DateOnly(2025, 1, 31), countback: 4);
+        Assert.Equal("2025-01-31", QueryOf(handler)["to"]);
+
+        await client.Stocks.GetEarningsAsync("AAPL", to: new DateOnly(2025, 1, 31));
+        Assert.Equal("2025-01-31", QueryOf(handler)["to"]);
+
+        await client.Stocks.GetEarningsAsync("AAPL");
+        Assert.Null(QueryOf(handler)["to"]);
+
+        await client.Stocks.GetEarningsAsync("AAPL", from: new DateOnly(2025, 1, 1));
+        Assert.Null(QueryOf(handler)["to"]);
+
+        await client.Stocks.GetEarningsAsync("AAPL", date: new DateOnly(2025, 1, 30));
+        Assert.Null(QueryOf(handler)["to"]);
+
+        await client.Stocks.GetEarningsAsync("AAPL", report: "2024-Q4");
+        Assert.Null(QueryOf(handler)["to"]);
+    }
+
+    /// <summary>Creates a handler that answers every request with a one-row earnings payload.</summary>
+    /// <returns>The stub handler.</returns>
+    private static StubHttpMessageHandler EarningsJsonHandler() =>
+        new(_ => MarketDataTestClient.JsonResponse("""{"s":"ok","symbol":["AAPL"]}"""));
+
+    /// <summary>Creates a client whose clock stands still at <paramref name="utcNow"/>.</summary>
+    /// <param name="handler">The stub handler that receives the requests.</param>
+    /// <param name="utcNow">The clock's instant, in a form <see cref="DateTimeOffset.Parse(string, IFormatProvider)"/> reads.</param>
+    /// <returns>The client.</returns>
+    private static MarketDataClient ClientAt(StubHttpMessageHandler handler, string utcNow) =>
+        MarketDataTestClient.Create(handler, new MarketDataClientOptions
+        {
+            TimeProvider = new ManualTimeProvider(DateTimeOffset.Parse(utcNow, CultureInfo.InvariantCulture))
+        });
+
+    /// <summary>Parses the query string of the handler's last request.</summary>
+    /// <param name="handler">The stub handler that received the request.</param>
+    /// <returns>The query parameters by name.</returns>
+    private static NameValueCollection QueryOf(StubHttpMessageHandler handler) =>
+        HttpUtility.ParseQueryString(handler.LastRequest!.RequestUri!.Query);
 
     [Fact]
     public async Task GetPriceAsync_UsesSingleSymbolPath()

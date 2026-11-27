@@ -137,7 +137,7 @@ public sealed class StocksApiCoverageTests
           "fiscalQuarter": [4],
           "date": [1727654400],
           "reportDate": [1730332800],
-          "reportTime": ["amc"],
+          "reportTime": ["after close"],
           "currency": ["USD"],
           "reportedEPS": [1.64],
           "estimatedEPS": [1.60],
@@ -155,7 +155,7 @@ public sealed class StocksApiCoverageTests
         Assert.Equal(4, earning.FiscalQuarter);
         Assert.NotNull(earning.Date);
         Assert.NotNull(earning.ReportDate);
-        Assert.Equal("amc", earning.ReportTime);
+        Assert.Equal("after close", earning.ReportTime);
         Assert.Equal("USD", earning.Currency);
         Assert.Equal(1.64m, earning.ReportedEps);
         Assert.Equal(1.60m, earning.EstimatedEps);

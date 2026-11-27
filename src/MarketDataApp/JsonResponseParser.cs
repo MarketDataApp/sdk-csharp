@@ -9,24 +9,6 @@ internal static class JsonResponseParser
 {
     private const string DateOnlyFormat = "yyyy-MM-dd";
 
-    private static readonly Lazy<TimeZoneInfo> EasternTimeZone = new(ResolveEasternTimeZone);
-
-    // Excluded: the "Eastern Standard Time" fallback is only reached on platforms that lack the
-    // IANA "America/New_York" id (Windows). On Linux/macOS/CI — where the tests run — the primary
-    // lookup always succeeds, so the catch/fallback branch is unreachable there.
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
-    private static TimeZoneInfo ResolveEasternTimeZone()
-    {
-        try
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
-        }
-        catch (TimeZoneNotFoundException)
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
-        }
-    }
-
     public static JsonElement Parse(InternalApiResponse response)
     {
         try
@@ -159,8 +141,11 @@ internal static class JsonResponseParser
         return null;
     }
 
+    /// <summary>Expresses an instant in US/Eastern.</summary>
+    /// <param name="timestamp">The instant to convert.</param>
+    /// <returns>The same instant, carrying the EST or EDT offset in force at that moment.</returns>
     private static DateTimeOffset ToEastern(DateTimeOffset timestamp) =>
-        TimeZoneInfo.ConvertTime(timestamp, EasternTimeZone.Value);
+        TimeZoneInfo.ConvertTime(timestamp, EasternTime.Zone);
 
     /// <summary>Returns the first instant of a calendar day in US/Eastern.</summary>
     /// <param name="date">The US/Eastern calendar day.</param>
@@ -168,7 +153,7 @@ internal static class JsonResponseParser
     private static DateTimeOffset AtEasternMidnight(DateOnly date)
     {
         var midnight = date.ToDateTime(TimeOnly.MinValue);
-        return new DateTimeOffset(midnight, EasternTimeZone.Value.GetUtcOffset(midnight));
+        return new DateTimeOffset(midnight, EasternTime.Zone.GetUtcOffset(midnight));
     }
 
     public static DateTimeOffset? Timestamp(JsonElement root, string name) =>

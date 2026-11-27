@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `GetEarningsAsync` and `GetEarningsCsvAsync` with `Countback` and no `To` now send
+  today's US/Eastern date as `to`, so they return the latest reports up to today. Before,
+  the API applied the countback to its default window, which starts today, and returned
+  only upcoming reports. A request without `Countback` is unchanged; to list upcoming
+  reports, leave `Countback` unset.
+- The XML docs of `StockEarning.ReportTime` list the values the API sends: `"before open"`,
+  `"after close"`, `"during market hours"`, or `null`.
+
 ## [1.1.0] - 2026-11-27
 
 ### Added
