@@ -27,14 +27,17 @@ new OptionsQuoteRequest(string optionSymbol)
 {
     Date = DateOnly,     // a single historical date
     From = DateOnly,     // historical window start
-    To = DateOnly        // historical window end
+    To = DateOnly,       // historical window end
+    Model = PricingModel // pricing model for a historical (Date/From/To) request — see chain.md#pricingmodel
 }
 
 new OptionsQuotesRequest(params string[] optionSymbols)   // or any IEnumerable<string>
 {
-    Date = DateOnly, From = DateOnly, To = DateOnly
+    Date = DateOnly, From = DateOnly, To = DateOnly, Model = PricingModel  // Model applies to every symbol
 }
 ```
+
+`Model` requires a historical `Date`, `From`, or `To` and a paid plan: see [`PricingModel`](./chain.md#pricingmodel).
 
 #### Returns
 

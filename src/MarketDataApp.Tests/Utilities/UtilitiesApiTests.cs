@@ -33,4 +33,17 @@ public sealed class UtilitiesApiTests
         Assert.Equal(99, response.RateLimit!.Remaining);
         Assert.Equal("/status/", handler.LastRequest!.RequestUri!.AbsolutePath);
     }
+
+    [Fact]
+    public async Task DeleteTokenAsync_SendsDeleteRequestAndParsesSuccess()
+    {
+        var handler = new StubHttpMessageHandler(_ => MarketDataTestClient.JsonResponse("""{"s":"ok"}"""));
+        var client = MarketDataTestClient.Create(handler);
+
+        var response = await client.Utilities.DeleteTokenAsync();
+
+        Assert.True(response.Values);
+        Assert.Equal(HttpMethod.Delete, handler.LastRequest!.Method);
+        Assert.Equal("/v1/user/token/", handler.LastRequest.RequestUri!.AbsolutePath);
+    }
 }

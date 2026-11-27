@@ -125,6 +125,31 @@ public sealed class UtilitiesApi
         return JsonResponseParser.CreateResponse<UtilitiesUserResponse, User>(response, user);
     }
 
+    /// <summary>Deletes the authenticated account's current API token so it can no longer authenticate requests.</summary>
+    /// <param name="cancellationToken">Cancels the in-flight request.</param>
+    /// <returns><c>true</c> once the token is deleted.</returns>
+    /// <exception cref="BadRequestException">The API rejected the request as malformed (HTTP 400).</exception>
+    /// <exception cref="AuthenticationException">The token is missing, invalid, or not entitled to the requested data (HTTP 401 or 403).</exception>
+    /// <exception cref="RateLimitException">The plan's request quota is exhausted (HTTP 429, or preemptively from the tracked snapshot); <see cref="RateLimitException.RetryAfter"/> indicates how long to wait.</exception>
+    /// <exception cref="ServerException">The API kept returning a 5xx error after the automatic retries.</exception>
+    /// <exception cref="NetworkException">The request could not be sent, timed out, or was canceled by the HttpClient's configured timeout.</exception>
+    /// <exception cref="ParseException">The success response did not match the documented shape.</exception>
+    /// <example><code>
+    /// var response = await client.Utilities.DeleteTokenAsync();
+    /// Console.WriteLine(response.Values); // true
+    /// </code></example>
+    /// <seealso href="https://www.marketdata.app/docs/sdk/csharp/utilities/delete-token/"/>
+    public async Task<UtilitiesDeleteTokenResponse> DeleteTokenAsync(CancellationToken cancellationToken = default)
+    {
+        var response = await _apiClient.DeleteAsync(
+            "user/token",
+            versioned: true,
+            Array.Empty<KeyValuePair<string, string?>>(),
+            cancellationToken).ConfigureAwait(false);
+        var deleted = JsonResponseParser.Decode(response, _ => true);
+        return JsonResponseParser.CreateResponse<UtilitiesDeleteTokenResponse, bool>(response, deleted);
+    }
+
     private static int RequiredInt(JsonElement root, string name) =>
         root.TryGetProperty(name, out var value) && value.TryGetInt32(out var result)
             ? result

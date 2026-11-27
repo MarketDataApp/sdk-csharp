@@ -50,9 +50,23 @@ new OptionsChainRequest(string symbol)
     MinOpenInterest = long, MinVolume = long,
 
     Side = OptionSide.Call | OptionSide.Put,
-    Date = DateOnly                      // historical chain as of this date
+    Date = DateOnly,                     // historical chain as of this date
+    Model = PricingModel                 // pricing model for a historical (Date) request — see below
 }
 ```
+
+### PricingModel
+
+Overrides the pricing model used for `iv` and the greeks on a historical (`Date`) request:
+
+```csharp
+PricingModel.Bsm   // Black-Scholes-Merton — prices every contract, American or European
+PricingModel.Bjs   // Bjerksund-Stensland 2002 — American contracts; European contracts keep Bsm
+PricingModel.Crr   // Cox-Ross-Rubinstein binomial tree — American contracts; European contracts keep Bsm
+PricingModel.Baw   // Barone-Adesi-Whaley — American contracts; European contracts keep Bsm
+```
+
+Omitting `Model` applies the API's own broker-convention default per contract (American contracts use `Bjs`, European contracts use `Bsm`). Setting it requires `Date` and a paid plan: the API returns a 400 without a historical date, and a 402 on a plan that does not include it.
 
 ### ExpirationFilter
 

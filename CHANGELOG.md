@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `PricingModel` enum (Bsm, Bjs, Crr, Baw) selecting the pricing model for iv and greeks on a historical options request (API release 3.0.0).
+- `OptionsChainRequest.Model`, `OptionsQuoteRequest.Model`, and `OptionsQuotesRequest.Model`: the API's new `model` parameter. Omitting it applies the broker-convention default (API release 3.0.0).
+- `UtilitiesApi.DeleteTokenAsync(CancellationToken)` to revoke an API token; `UtilitiesDeleteTokenResponse` wraps the success response from `DELETE /v1/user/token/` (API release 3.0.0).
+
 ## [1.1.0] - 2026-11-27
 
 ### Added

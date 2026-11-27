@@ -128,6 +128,10 @@ var options = new MarketDataClientOptions { ValidateTokenOnStartup = false };
 >
 > If no token is found anywhere in the cascade, the SDK runs in **demo mode** — startup validation is skipped and you can call the free, public endpoints (such as `AAPL` quotes and `client.Utilities.GetStatusAsync()`). Authenticated endpoints throw `AuthenticationException` on first use.
 
+## Revoking a Token
+
+To delete the token your client is currently authenticating with — for example, after rotating to a new one — call [`client.Utilities.DeleteTokenAsync()`](./utilities/delete-token.md). This is irreversible: once it succeeds, that token can no longer authenticate any request.
+
 ## Next Steps
 
 After successful authentication, read the overview of how the [client](./client.md) works, then configure [Settings](./settings.md) to customize output format, date format, and other universal parameters.

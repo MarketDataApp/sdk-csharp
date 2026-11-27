@@ -182,4 +182,16 @@ public sealed class UtilitiesApiCoverageTests
         var exception = await Assert.ThrowsAsync<ParseException>(() => client.Utilities.GetUserAsync());
         Assert.Contains("x-options-data-permissions", exception.InnerException!.Message);
     }
+
+    [Fact]
+    public async Task DeleteTokenAsync_MapsUnauthorizedStatusToAuthenticationException()
+    {
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized)
+        {
+            Content = new StringContent("invalid token")
+        });
+        var client = MarketDataTestClient.Create(handler);
+
+        await Assert.ThrowsAsync<AuthenticationException>(() => client.Utilities.DeleteTokenAsync());
+    }
 }

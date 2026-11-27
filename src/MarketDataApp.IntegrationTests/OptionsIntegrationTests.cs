@@ -1,3 +1,4 @@
+using MarketDataApp.Exceptions;
 using MarketDataApp.Options;
 
 namespace MarketDataApp.IntegrationTests;
@@ -270,4 +271,166 @@ public sealed class OptionsIntegrationTests : IntegrationTestBase
         AssertSuccess(response.StatusCode);
         Assert.False(string.IsNullOrWhiteSpace(response.Values));
     }
+
+    /// <summary>
+    /// <c>model</c> is documented as requiring a historical request ("Without the date parameter,
+    /// the request is rejected with a 400"). A request that sets <c>Model</c> but no <c>Date</c>
+    /// must be refused, unlike the same call without <c>Model</c>, which succeeds against live
+    /// data (see <see cref="Chain_ReturnsExpectedShape"/>).
+    /// </summary>
+    [IntegrationFact]
+    public async Task Chain_WithPricingModelAndNoDate_RejectedAsBadRequest()
+    {
+        var exception = await Assert.ThrowsAsync<BadRequestException>(() => Client.Options.GetChainAsync(
+            new OptionsChainRequest("AAPL") { Model = PricingModel.Bsm }));
+
+        Assert.Equal(400, exception.StatusCode);
+    }
+
+    /// <summary>
+    /// Same date requirement as <see cref="Chain_WithPricingModelAndNoDate_RejectedAsBadRequest"/>,
+    /// for the single-contract quotes endpoint ("Without date, from or to, the request is
+    /// rejected with a 400").
+    /// </summary>
+    [IntegrationFact]
+    public async Task Quote_WithPricingModelAndNoDate_RejectedAsBadRequest()
+    {
+        var chain = await Client.Options.GetChainAsync(
+            new OptionsChainRequest("AAPL") { Side = OptionSide.Call, StrikeLimit = 1 });
+        AssertSuccess(chain.StatusCode);
+        var optionSymbol = chain.Values[0].OptionSymbol;
+        Assert.False(string.IsNullOrWhiteSpace(optionSymbol));
+
+        var exception = await Assert.ThrowsAsync<BadRequestException>(() => Client.Options.GetQuoteAsync(
+            new OptionsQuoteRequest(optionSymbol!) { Model = PricingModel.Bjs }));
+
+        Assert.Equal(400, exception.StatusCode);
+    }
+
+    /// <summary>
+    /// A fixed historical anchor (not the wall clock, for the same reason as
+    /// <see cref="Chain_DteCommaSeparatedList_SelectsClosestExpirationPerValue"/>) used to resolve
+    /// a real, already-past expiration date for the <c>model</c> tests below: one where
+    /// <c>Date</c> and <c>Expiration</c> can be pinned to the exact same day.
+    /// </summary>
+    private static readonly DateOnly PricingModelAnchor = new(2025, 6, 2);
+
+    /// <summary>
+    /// Resolves the nearest AAPL expiration on or after <see cref="PricingModelAnchor"/>, so the
+    /// <c>model</c> tests below can query a contract "on its expiration day" — where the
+    /// documented broker-convention patch (and its named-model override) unconditionally applies —
+    /// without hard-coding a date <see cref="GetExpirationsAsync"/> might not actually report.
+    /// </summary>
+    private async Task<DateOnly> ResolveExpirationOnOrAfterAnchorAsync()
+    {
+        var expirations = await Client.Options.GetExpirationsAsync(
+            new OptionsExpirationsRequest("AAPL") { Date = PricingModelAnchor });
+        AssertSuccess(expirations.StatusCode);
+        Assert.NotEmpty(expirations.Values);
+        return expirations.Values.Select(expiration => DateOnly.FromDateTime(expiration.DateTime)).Min();
+    }
+
+    /// <summary>
+    /// <c>model</c> is documented so that naming one bypasses the broker conventions a historical
+    /// request otherwise gets ("A named model returns its own output instead") — in particular for
+    /// a contract queried on its own expiration day, which otherwise unconditionally gets "its
+    /// greeks at expiration" rather than the named model's raw (possibly null) output. Querying the
+    /// at-the-money contract for the nearest expiration as of itself, with and without
+    /// <paramref name="model"/>, must therefore disagree on <c>Iv</c> or <c>Delta</c> for that
+    /// contract — something the unfiltered (no <c>Model</c>) chain call cannot satisfy against
+    /// itself.
+    /// </summary>
+    private async Task AssertChainPricingModelChangesIvOrDeltaAsync(PricingModel model)
+    {
+        var expiration = await ResolveExpirationOnOrAfterAnchorAsync();
+
+        var byDefault = await Client.Options.GetChainAsync(new OptionsChainRequest("AAPL")
+        {
+            Date = expiration,
+            Expiration = ExpirationFilter.ForDate(expiration),
+            StrikeLimit = 1
+        });
+        AssertSuccess(byDefault.StatusCode);
+        Assert.NotEmpty(byDefault.Values);
+
+        var withModel = await Client.Options.GetChainAsync(new OptionsChainRequest("AAPL")
+        {
+            Date = expiration,
+            Expiration = ExpirationFilter.ForDate(expiration),
+            StrikeLimit = 1,
+            Model = model
+        });
+        AssertSuccess(withModel.StatusCode);
+        Assert.NotEmpty(withModel.Values);
+
+        Assert.True(
+            withModel.Values[0].Iv != byDefault.Values[0].Iv || withModel.Values[0].Delta != byDefault.Values[0].Delta,
+            $"Model={model} produced the same iv/delta as the default pricing for {withModel.Values[0].OptionSymbol} on its own expiration day ({expiration:yyyy-MM-dd}).");
+    }
+
+    [IntegrationFact]
+    public Task Chain_WithPricingModelBsm_ChangesIvOrDeltaOnExpirationDay() =>
+        AssertChainPricingModelChangesIvOrDeltaAsync(PricingModel.Bsm);
+
+    [IntegrationFact]
+    public Task Chain_WithPricingModelBjs_ChangesIvOrDeltaOnExpirationDay() =>
+        AssertChainPricingModelChangesIvOrDeltaAsync(PricingModel.Bjs);
+
+    [IntegrationFact]
+    public Task Chain_WithPricingModelCrr_ChangesIvOrDeltaOnExpirationDay() =>
+        AssertChainPricingModelChangesIvOrDeltaAsync(PricingModel.Crr);
+
+    [IntegrationFact]
+    public Task Chain_WithPricingModelBaw_ChangesIvOrDeltaOnExpirationDay() =>
+        AssertChainPricingModelChangesIvOrDeltaAsync(PricingModel.Baw);
+
+    /// <summary>
+    /// Same expiration-day override as <see cref="AssertChainPricingModelChangesIvOrDeltaAsync"/>,
+    /// for the single-contract quotes endpoint.
+    /// </summary>
+    private async Task AssertQuotePricingModelChangesIvOrDeltaAsync(PricingModel model)
+    {
+        var expiration = await ResolveExpirationOnOrAfterAnchorAsync();
+
+        var chain = await Client.Options.GetChainAsync(new OptionsChainRequest("AAPL")
+        {
+            Date = expiration,
+            Expiration = ExpirationFilter.ForDate(expiration),
+            StrikeLimit = 1
+        });
+        AssertSuccess(chain.StatusCode);
+        Assert.NotEmpty(chain.Values);
+        var optionSymbol = chain.Values[0].OptionSymbol;
+        Assert.False(string.IsNullOrWhiteSpace(optionSymbol));
+
+        var byDefault = await Client.Options.GetQuoteAsync(
+            new OptionsQuoteRequest(optionSymbol!) { Date = expiration });
+        AssertSuccess(byDefault.StatusCode);
+        Assert.NotEmpty(byDefault.Values);
+
+        var withModel = await Client.Options.GetQuoteAsync(
+            new OptionsQuoteRequest(optionSymbol!) { Date = expiration, Model = model });
+        AssertSuccess(withModel.StatusCode);
+        Assert.NotEmpty(withModel.Values);
+
+        Assert.True(
+            withModel.Values[0].Iv != byDefault.Values[0].Iv || withModel.Values[0].Delta != byDefault.Values[0].Delta,
+            $"Model={model} produced the same iv/delta as the default pricing for {optionSymbol} on its own expiration day ({expiration:yyyy-MM-dd}).");
+    }
+
+    [IntegrationFact]
+    public Task Quote_WithPricingModelBsm_ChangesIvOrDeltaOnExpirationDay() =>
+        AssertQuotePricingModelChangesIvOrDeltaAsync(PricingModel.Bsm);
+
+    [IntegrationFact]
+    public Task Quote_WithPricingModelBjs_ChangesIvOrDeltaOnExpirationDay() =>
+        AssertQuotePricingModelChangesIvOrDeltaAsync(PricingModel.Bjs);
+
+    [IntegrationFact]
+    public Task Quote_WithPricingModelCrr_ChangesIvOrDeltaOnExpirationDay() =>
+        AssertQuotePricingModelChangesIvOrDeltaAsync(PricingModel.Crr);
+
+    [IntegrationFact]
+    public Task Quote_WithPricingModelBaw_ChangesIvOrDeltaOnExpirationDay() =>
+        AssertQuotePricingModelChangesIvOrDeltaAsync(PricingModel.Baw);
 }

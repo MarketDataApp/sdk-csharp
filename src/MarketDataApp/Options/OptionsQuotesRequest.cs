@@ -19,6 +19,13 @@ public record OptionsQuotesRequest
     /// <summary>End date (inclusive) of the historical quote series (applied to every symbol).</summary>
     public DateOnly? To { get; init; }
 
+    /// <summary>
+    /// Pricing model for <c>iv</c> and the greeks on a historical request (<see cref="Date"/>,
+    /// <see cref="From"/>, or <see cref="To"/>), applied to every symbol. Omitting it applies the
+    /// API's broker-convention default; a paid plan is required to set it.
+    /// </summary>
+    public PricingModel? Model { get; init; }
+
     /// <summary>Initializes the request with one or more OCC option symbols.</summary>
     public OptionsQuotesRequest(params string[] optionSymbols) : this((IEnumerable<string>)optionSymbols) { }
 

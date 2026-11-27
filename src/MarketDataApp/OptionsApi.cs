@@ -192,6 +192,7 @@ public sealed class OptionsApi
             request.Date,
             request.From,
             request.To,
+            request.Model,
             _apiClient.ApplyDefaults(options),
             cancellationToken).ConfigureAwait(false);
         return response;
@@ -256,6 +257,7 @@ public sealed class OptionsApi
                 request.Date,
                 request.From,
                 request.To,
+                request.Model,
                 effective,
                 cancellationToken).ConfigureAwait(false);
             return (symbol, response);
@@ -352,6 +354,7 @@ public sealed class OptionsApi
         Add(query, "minVolume", request.MinVolume);
         RequestQuery.Add(query, "side", request.Side?.ToWireValue());
         AddDate(query, "date", request.Date);
+        RequestQuery.Add(query, "model", request.Model?.ToWireValue());
 
         var response = await _apiClient.GetAsync(
             $"options/chain/{Uri.EscapeDataString(request.Symbol)}",
@@ -501,6 +504,7 @@ public sealed class OptionsApi
             request.Date, request.From, request.To, countback: null, nameof(request));
         var query = RequestQuery.Csv(_apiClient.ApplyDefaults(options));
         RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, countback: null);
+        RequestQuery.Add(query, "model", request.Model?.ToWireValue());
         return await GetCsvAsync(
             $"options/quotes/{Uri.EscapeDataString(request.OptionSymbol)}", query, cancellationToken)
             .ConfigureAwait(false);
@@ -556,6 +560,7 @@ public sealed class OptionsApi
         {
             var query = RequestQuery.Csv(effective);
             RequestQuery.AddDateWindow(query, request.Date, request.From, request.To, countback: null);
+            RequestQuery.Add(query, "model", request.Model?.ToWireValue());
             var response = await GetCsvAsync(
                 $"options/quotes/{Uri.EscapeDataString(symbol)}", query, cancellationToken)
                 .ConfigureAwait(false);
@@ -649,6 +654,7 @@ public sealed class OptionsApi
         Add(query, "minVolume", request.MinVolume);
         RequestQuery.Add(query, "side", request.Side?.ToWireValue());
         AddDate(query, "date", request.Date);
+        RequestQuery.Add(query, "model", request.Model?.ToWireValue());
         return await GetCsvAsync(
             $"options/chain/{Uri.EscapeDataString(request.Symbol)}", query, cancellationToken)
             .ConfigureAwait(false);
@@ -669,11 +675,13 @@ public sealed class OptionsApi
         DateOnly? date,
         DateOnly? from,
         DateOnly? to,
+        PricingModel? model,
         MarketDataRequestOptions effective,
         CancellationToken cancellationToken)
     {
         var query = RequestQuery.From(effective);
         RequestQuery.AddDateWindow(query, date, from, to, countback: null);
+        RequestQuery.Add(query, "model", model?.ToWireValue());
         var response = await _apiClient.GetAsync(
             $"options/quotes/{Uri.EscapeDataString(optionSymbol)}",
             true,
