@@ -336,6 +336,67 @@ public sealed class OptionsApiCoverageTests
     }
 
     [Fact]
+    public async Task GetChainAsync_MapsDteExpressionForms()
+    {
+        var handler = Json(FullChainRow);
+        var client = MarketDataTestClient.Create(handler);
+
+        // Comma-separated list: closest expiration for each value, deduplicated.
+        await client.Options.GetChainAsync(new OptionsChainRequest("AAPL")
+        {
+            Expiration = ExpirationFilter.ForDteExpression("15,30,45")
+        });
+        Assert.Contains("dte=15%2c30%2c45", handler.LastRequest!.RequestUri!.Query, StringComparison.OrdinalIgnoreCase);
+
+        // Closed range: every expiration whose dte falls within the bounds, inclusive.
+        await client.Options.GetChainAsync(new OptionsChainRequest("AAPL")
+        {
+            Expiration = ExpirationFilter.ForDteExpression("0-45")
+        });
+        Assert.Contains("dte=0-45", handler.LastRequest.RequestUri.Query);
+
+        // Comparison operator: >=.
+        await client.Options.GetChainAsync(new OptionsChainRequest("AAPL")
+        {
+            Expiration = ExpirationFilter.ForDteExpression(">=30")
+        });
+        Assert.Contains("dte=%3e%3d30", handler.LastRequest.RequestUri.Query, StringComparison.OrdinalIgnoreCase);
+
+        // Comparison operator: <.
+        await client.Options.GetChainAsync(new OptionsChainRequest("AAPL")
+        {
+            Expiration = ExpirationFilter.ForDteExpression("<45")
+        });
+        Assert.Contains("dte=%3c45", handler.LastRequest.RequestUri.Query, StringComparison.OrdinalIgnoreCase);
+
+        // Comparison operator: <=.
+        await client.Options.GetChainAsync(new OptionsChainRequest("AAPL")
+        {
+            Expiration = ExpirationFilter.ForDteExpression("<=45")
+        });
+        Assert.Contains("dte=%3c%3d45", handler.LastRequest.RequestUri.Query, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ExpirationFilter_ForDteExpression_ValidatesArgumentsAndExposesData()
+    {
+        Assert.Throws<ArgumentNullException>(() => ExpirationFilter.ForDteExpression(null!));
+        Assert.Throws<ArgumentException>(() => ExpirationFilter.ForDteExpression(" "));
+
+        Assert.Equal(
+            "15,30,45",
+            ((ExpirationFilter.DteExpression)ExpirationFilter.ForDteExpression("15,30,45")).Expression);
+    }
+
+    [Fact]
+    public void ExpirationFilterDteExpression_DirectConstructor_ValidatesArguments()
+    {
+        Assert.Throws<ArgumentNullException>(() => new ExpirationFilter.DteExpression(null!));
+        Assert.Throws<ArgumentException>(() => new ExpirationFilter.DteExpression(" "));
+        Assert.Equal("0-45", new ExpirationFilter.DteExpression("0-45").Expression);
+    }
+
+    [Fact]
     public void OptionsQuotesRequest_RejectsEmptyAndBlankAndNullSymbols()
     {
         Assert.Throws<ArgumentException>(() => new OptionsQuotesRequest(Array.Empty<string>()));
